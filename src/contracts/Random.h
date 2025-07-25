@@ -7,34 +7,34 @@ struct RANDOM2
 struct RANDOM : public ContractBase
 {
 public:
-	struct RevealAndCommit_input
-	{
-		bit_4096 revealedBits;
-		id committedDigest;
-	};
-	struct RevealAndCommit_output
-	{
-	};
+    struct GetRandom_input
+    {
+    };
+    struct GetRandom_output
+    {
+        sint64 millisecond;
+        sint64 second;
+        sint64 minute;
+    };
 
 private:
-	uint64 _earnedAmount;
-	uint64 _distributedAmount;
-	uint64 _burnedAmount;
+    sint64 millisecond;
+    sint64 second;
+    sint64 minute;
 
-	uint32 _bitFee; // Amount of qus
+    PUBLIC_PROCEDURE(GetRandom)
+    {
+        output.millisecond = qpi.now().millisecond;
+        output.second = qpi.now().second;
+        output.minute = qpi.now().minute;
+    }
 
-	PUBLIC_PROCEDURE(RevealAndCommit)
-	{
-		qpi.transfer(qpi.invocator(), qpi.invocationReward());
-	}
+    REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
+    {
+        REGISTER_USER_PROCEDURE(GetRandom, 1);
+    }
 
-	REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
-	{
-		REGISTER_USER_PROCEDURE(RevealAndCommit, 1);
-	}
-
-	INITIALIZE()
-	{
-		state._bitFee = 1000;
-	}
+    INITIALIZE()
+    {
+    }
 };
