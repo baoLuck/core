@@ -7,34 +7,56 @@ struct RANDOM2
 struct RANDOM : public ContractBase
 {
 public:
-	struct RevealAndCommit_input
-	{
-		bit_4096 revealedBits;
-		id committedDigest;
-	};
-	struct RevealAndCommit_output
-	{
-	};
+    struct CreateDeal_input
+    {
+    };
+
+    struct CreateDeal_output
+    {
+    };
+
+    struct CreateDeal_locals
+    {
+    };
+
+
+    struct GetDeals_input
+    {
+    };
+
+    struct GetDeals_output
+    {
+        uint64 dealsAmount;
+    };
+
+    struct GetDeals_locals
+    {
+    };
 
 private:
-	uint64 _earnedAmount;
-	uint64 _distributedAmount;
-	uint64 _burnedAmount;
+    Collection<uint8, 16> _deals;
+    uint64 _numberOfDeals;
 
-	uint32 _bitFee; // Amount of qus
+    PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
+    {
+        state._numberOfDeals++;
+        state._deals.add(qpi.invocator(), 5, 0);
+        state._numberOfDeals = state._deals.population(qpi.invocator());
+        state._numberOfDeals++;
+    }
 
-	PUBLIC_PROCEDURE(RevealAndCommit)
-	{
-		qpi.transfer(qpi.invocator(), qpi.invocationReward());
-	}
+    PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
+    {
+        output.dealsAmount = state._numberOfDeals;
+    }
 
-	REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
-	{
-		REGISTER_USER_PROCEDURE(RevealAndCommit, 1);
-	}
+    REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
+    {
+        REGISTER_USER_PROCEDURE(CreateDeal, 3);
+        REGISTER_USER_FUNCTION(GetDeals, 4);
+    }
 
-	INITIALIZE()
-	{
-		state._bitFee = 1000;
-	}
+    INITIALIZE()
+    {
+    }
 };
