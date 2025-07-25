@@ -22,7 +22,7 @@ private:
     sint64 second;
     sint64 minute;
 
-    PUBLIC_PROCEDURE(GetRandom)
+    PUBLIC_FUNCTION(GetRandom)
     {
         output.millisecond = qpi.now().millisecond;
         output.second = qpi.now().second;
@@ -31,7 +31,7 @@ private:
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
     {
-        REGISTER_USER_PROCEDURE(GetRandom, 1);
+        REGISTER_USER_FUNCTION(GetRandom, 1);
     }
 
     INITIALIZE()
