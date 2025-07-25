@@ -605,30 +605,46 @@ sint64 QPI::QpiContextProcedureCall::releaseShares(
     // prevent nested calling of management rights transfer from callbacks
     if (contractCallbacksRunning & ContractCallbackManagementRightsTransfer)
     {
-        return INVALID_AMOUNT;
+        return -1;
     }
 
     // check for unsupported cases
     if (destinationOwnershipManagingContractIndex != destinationPossessionManagingContractIndex
         || owner != possessor)
     {
-        return INVALID_AMOUNT;
+        return -2;
     }
 
     // check for invalid inputs
-    if (destinationOwnershipManagingContractIndex == _currentContractIndex
-        || destinationOwnershipManagingContractIndex == 0
-        || destinationOwnershipManagingContractIndex >= contractCount
-        || numberOfShares <= 0
-        || offeredTransferFee < 0)
+    if (destinationOwnershipManagingContractIndex == _currentContractIndex)
     {
-        return INVALID_AMOUNT;
+        return -3;
+    }
+
+    if (destinationOwnershipManagingContractIndex == 0)
+    {
+        return -4;
+    }
+
+    if (destinationOwnershipManagingContractIndex >= contractCount)
+    {
+        return -5;
+    }
+
+    if (numberOfShares <= 0)
+    {
+        return -6;
+    }
+
+    if (offeredTransferFee < 0)
+    {
+        return -7;
     }
 
     // currently, only contract with index that fits into 16 bits can be managing contract
     if (_currentContractIndex > 0xffffu || _currentContractIndex >= contractCount)
     {
-        return INVALID_AMOUNT;
+        return -8;
     }
     uint16 currentContractIndex = static_cast<uint16>(this->_currentContractIndex);
 
@@ -639,7 +655,7 @@ sint64 QPI::QpiContextProcedureCall::releaseShares(
     sint64 possessedSharesUnderManagement = it.numberOfPossessedShares();
     if (possessedSharesUnderManagement < numberOfShares)
     {
-        return INVALID_AMOUNT;
+        return -9;
     }
 
     // run PRE_ACQUIRE_SHARES callback in other contract (without invocation reward)
@@ -648,7 +664,7 @@ sint64 QPI::QpiContextProcedureCall::releaseShares(
     __qpiCallSystemProc<PRE_ACQUIRE_SHARES>(destinationOwnershipManagingContractIndex, pre_input, pre_output, 0);
     if (!pre_output.allowTransfer || pre_output.requestedFee < 0 || pre_output.requestedFee > MAX_AMOUNT)
     {
-        return INVALID_AMOUNT;
+        return -10;
     }
     if (pre_output.requestedFee > offeredTransferFee)
     {
@@ -658,7 +674,7 @@ sint64 QPI::QpiContextProcedureCall::releaseShares(
     // transfer requested fee
     if (transfer(id(destinationOwnershipManagingContractIndex, 0, 0, 0), pre_output.requestedFee) < 0)
     {
-        return (pre_output.requestedFee) ? -pre_output.requestedFee : INVALID_AMOUNT;
+        return (pre_output.requestedFee) ? -pre_output.requestedFee : -11;
     }
 
     // transfer management rights
@@ -666,7 +682,7 @@ sint64 QPI::QpiContextProcedureCall::releaseShares(
             destinationOwnershipManagingContractIndex, destinationPossessionManagingContractIndex,
             numberOfShares, nullptr, nullptr, true))
     {
-        return INVALID_AMOUNT;
+        return -12;
     }
 
     // run POST_ACQUIRE_SHARES in other contract (without invocation reward)

@@ -637,7 +637,7 @@ iteration:
     {
         RELEASE(universeLock);
 
-        return 0;
+        return -1;
     }
     else
     {
@@ -651,7 +651,7 @@ iteration:
             {
                 RELEASE(universeLock);
 
-                return 0;
+                return -2;
             }
             else
             {
@@ -666,7 +666,7 @@ iteration:
                     {
                         RELEASE(universeLock);
 
-                        return 0;
+                        return -3;
                     }
                     else
                     {

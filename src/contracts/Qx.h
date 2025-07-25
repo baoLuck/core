@@ -1052,21 +1052,23 @@ protected:
 		if (qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer,qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.numberOfShares < input.numberOfShares)
 		{
 			// not enough shares available
-			output.transferredNumberOfShares = 0;
+			output.transferredNumberOfShares = qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.numberOfShares;
 		}
 		else
 		{
-			if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.numberOfShares,
-				input.newManagingContractIndex, input.newManagingContractIndex, 0) < 0)
-			{
-				// error
-				output.transferredNumberOfShares = 0;
-			}
-			else
-			{
-				// success
-				output.transferredNumberOfShares = input.numberOfShares;
-			}
+			output.transferredNumberOfShares = qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.numberOfShares,
+				input.newManagingContractIndex, input.newManagingContractIndex, 0);
+			// if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.numberOfShares,
+			// 	input.newManagingContractIndex, input.newManagingContractIndex, 0) < 0)
+			// {
+			// 	// error
+			// 	output.transferredNumberOfShares = 555;
+			// }
+			// else
+			// {
+			// 	// success
+			// 	output.transferredNumberOfShares = input.numberOfShares;
+			// }
 		}
 	}
 
