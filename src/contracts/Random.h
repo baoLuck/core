@@ -157,6 +157,9 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
+        state._tradeMessage.marker = 9;
+        state._tradeMessage.numberOfShares = qpi.millisecond();
+        LOG_INFO(state._tradeMessage);
         state._counter += input.delta;
         if (state._deals.population() >= ESCROW_MAX_DEALS)
         {
