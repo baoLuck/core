@@ -98,6 +98,17 @@ public:
     {
     };
 
+    struct GetFreeAssetAmount_input
+    {
+        id owner;
+        Asset asset;
+    };
+
+    struct GetFreeAssetAmount_output
+    {
+        sint64 freeAmount;
+    };
+    
 private:
     sint64 _counter;
     sint64 _currentDealIndex;
@@ -448,6 +459,21 @@ private:
         state._deals.remove(locals.dealIndexInCollection);
     }
 
+    struct GetFreeAssetAmount_locals
+    {
+        _NumberOfReservedShares_input reservedInput;
+        _NumberOfReservedShares_output reservedOutput;
+    };
+
+    PUBLIC_FUNCTION_WITH_LOCALS(GetFreeAssetAmount)
+    {
+        locals.reservedInput.issuer = input.asset.issuer;
+        locals.reservedInput.assetName = input.asset.assetName;
+        locals.reservedInput.owner = input.owner;
+        CALL(_NumberOfReservedShares, locals.reservedInput, locals.reservedOutput);
+        output.freeAmount = qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer, input.owner, input.owner, SELF_INDEX, SELF_INDEX) - locals.reservedOutput.amount;
+    }
+
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
     {
         REGISTER_USER_PROCEDURE(CreateDeal, 1);
@@ -455,6 +481,7 @@ private:
         REGISTER_USER_PROCEDURE(AcceptDeal, 3);
         REGISTER_USER_PROCEDURE(MakeDealOpened, 4);
         REGISTER_USER_PROCEDURE(CancelDeal, 5);
+        REGISTER_USER_FUNCTION(GetFreeAssetAmount, 6);
     }
 
     INITIALIZE()
