@@ -193,7 +193,7 @@ private:
         locals.newDeal.requestedQU = input.requestedQU;
         locals.newDeal.requestedAssets = input.requestedAssets;
         locals.newDeal.requestedAssetsNumber = input.requestedAssetsNumber;
-        locals.newDeal.creationEpooch = qpi.epoch();
+        locals.newDeal.creationEpoch = qpi.epoch();
         state._deals.add(qpi.invocator(), locals.newDeal, 0);
 
         for (locals.counter = 0; locals.counter < input.offeredAssetsNumber; locals.counter++)
