@@ -5,6 +5,7 @@ constexpr uint64 ESCROW_MAX_DEALS = ESCROW_INITIAL_MAX_DEALS * X_MULTIPLIER;
 constexpr uint64 ESCROW_MAX_DEALS_PER_USER = 8;
 constexpr uint64 ESCROW_MAX_ASSETS_IN_DEAL = 4;
 constexpr uint64 ESCROW_MAX_RESERVED_ASSETS = 512;
+constexpr uint64 ESCROW_DEAL_EXISTENCE_EPOCH_COUNT = 2;
 
 struct RANDOM2
 {
@@ -30,6 +31,7 @@ public:
         sint64 requestedQU;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
         sint8 requestedAssetsNumber;
+        uint16 creationEpoch;
     };
 
     struct CreateDeal_input
@@ -191,6 +193,7 @@ private:
         locals.newDeal.requestedQU = input.requestedQU;
         locals.newDeal.requestedAssets = input.requestedAssets;
         locals.newDeal.requestedAssetsNumber = input.requestedAssetsNumber;
+        locals.newDeal.creationEpooch = qpi.epoch();
         state._deals.add(qpi.invocator(), locals.newDeal, 0);
 
         for (locals.counter = 0; locals.counter < input.offeredAssetsNumber; locals.counter++)
@@ -470,7 +473,52 @@ private:
         state._currentDealIndex = 1;
     }
 
-    END_EPOCH()
+    struct END_EPOCH_locals
     {
+        Deal tempDeal;
+        sint64 counter;
+        sint64 dealIndexInCollection;
+        sint64 elementIndex;
+        AssetWithAmount tempAssetWithAmount;
+    };
+    
+    END_EPOCH_WITH_LOCALS()
+    {
+        for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
+        {
+            if (state._deals.element(locals.dealIndexInCollection).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT - 1 == qpi.epoch())
+            {
+                locals.tempDeal = state._deals.element(locals.dealIndexInCollection);
+                for (locals.counter = 0; locals.counter < locals.tempDeal.offeredAssetsNumber; locals.counter++)
+                {
+                    state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
+                    state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
+                    state._numberOfReservedShares_input.owner = state._deals.pov(locals.dealIndexInCollection);
+                    CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
+                    locals.elementIndex = state._reservedAssets.headIndex(state._deals.pov(locals.dealIndexInCollection));
+                    while (locals.elementIndex != NULL_INDEX)
+                    {
+                        locals.tempAssetWithAmount = state._reservedAssets.element(locals.elementIndex);
+                        if (locals.tempAssetWithAmount.name == locals.tempDeal.offeredAssets.get(locals.counter).name
+                            && locals.tempAssetWithAmount.issuer == locals.tempDeal.offeredAssets.get(locals.counter).issuer)
+                        {
+                            if (state._numberOfReservedShares_output.amount - locals.tempDeal.offeredAssets.get(locals.counter).amount <= 0)
+                            {
+                                state._reservedAssets.remove(locals.elementIndex);
+                                break;
+                            }
+                            else
+                            {
+                                locals.tempAssetWithAmount.amount -= locals.tempDeal.offeredAssets.get(locals.counter).amount;
+                                state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
+                            }
+                        }
+                        locals.elementIndex = state._reservedAssets.nextElementIndex(locals.elementIndex);
+                    }
+                }
+
+                state._deals.remove(locals.dealIndexInCollection);
+            }
+        }
     }
 };
