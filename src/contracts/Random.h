@@ -22,6 +22,7 @@ public:
 
     struct Deal
     {
+        sint64 index;
         id acceptorId;
         sint64 offeredQU;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
@@ -97,6 +98,7 @@ public:
 
 private:
     sint64 _counter;
+    sint64 _currentDealIndex;
 
     Collection<Deal, ESCROW_MAX_DEALS> _deals;
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
@@ -157,9 +159,6 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
-        state._tradeMessage.marker = 9;
-        state._tradeMessage.numberOfShares = qpi.millisecond();
-        LOG_INFO(state._tradeMessage);
         state._counter += input.delta;
         if (state._deals.population() >= ESCROW_MAX_DEALS)
         {
@@ -183,6 +182,8 @@ private:
             }
         }
 
+        locals.newDeal.index = state._currentDealIndex;
+        state._currentDealIndex++;
         locals.newDeal.acceptorId = (input.acceptorId == NULL_ID || input.acceptorId == qpi.invocator()) ? SELF : input.acceptorId;
         locals.newDeal.offeredQU = input.offeredQU;
         locals.newDeal.offeredAssets = input.offeredAssets;
@@ -278,6 +279,7 @@ private:
     struct AcceptDeal_locals
     {
         Deal tempDeal;
+        sint64 dealIndexInCollection;
         sint64 counter;
         sint64 transferedShares;
         sint64 elementIndex;
@@ -286,8 +288,16 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(AcceptDeal)
     {
-        locals.tempDeal = state._deals.element(input.index);
-        if (locals.tempDeal.acceptorId != SELF && locals.tempDeal.acceptorId != qpi.invocator())
+        for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
+        {
+            if (state._deals.element(locals.dealIndexInCollection).index == input.index)
+            {
+                locals.tempDeal = state._deals.element(locals.dealIndexInCollection);
+                break;
+            }
+        }
+        
+        if (locals.dealIndexInCollection >= ESCROW_MAX_DEALS || (locals.tempDeal.acceptorId != SELF && locals.tempDeal.acceptorId != qpi.invocator()))
         {
             return;
         }
@@ -305,16 +315,16 @@ private:
             locals.transferedShares = qpi.transferShareOwnershipAndPossession(
                                                 locals.tempDeal.offeredAssets.get(locals.counter).name,
                                                 locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                                                state._deals.pov(input.index),
-                                                state._deals.pov(input.index),
+                                                state._deals.pov(locals.dealIndexInCollection),
+                                                state._deals.pov(locals.dealIndexInCollection),
                                                 locals.tempDeal.offeredAssets.get(locals.counter).amount,
                                                 qpi.invocator());
 
             state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
             state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
-            state._numberOfReservedShares_input.owner = state._deals.pov(input.index);
+            state._numberOfReservedShares_input.owner = state._deals.pov(locals.dealIndexInCollection);
             CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-            locals.elementIndex = state._reservedAssets.headIndex(state._deals.pov(input.index));
+            locals.elementIndex = state._reservedAssets.headIndex(state._deals.pov(locals.dealIndexInCollection));
             while (locals.elementIndex != NULL_INDEX)
             {
                 locals.tempAssetWithAmount = state._reservedAssets.element(locals.elementIndex);
@@ -344,44 +354,62 @@ private:
                 qpi.invocator(),
                 qpi.invocator(),
                 locals.tempDeal.requestedAssets.get(locals.counter).amount,
-                state._deals.pov(input.index));
+                state._deals.pov(locals.dealIndexInCollection));
         }
 
         qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU);
-        qpi.transfer(state._deals.pov(input.index), locals.tempDeal.requestedQU);
+        qpi.transfer(state._deals.pov(locals.dealIndexInCollection), locals.tempDeal.requestedQU);
 
-        state._deals.remove(input.index);
+        state._deals.remove(locals.dealIndexInCollection);
     }
 
     struct MakeDealOpened_locals
     {
         Deal tempDeal;
+        sint64 dealIndexInCollection;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(MakeDealOpened)
     {
-        locals.tempDeal = state._deals.element(input.index);
-        if (state._deals.pov(input.index) != qpi.invocator() || locals.tempDeal.acceptorId == SELF)
+        for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
+        {
+            if (state._deals.element(locals.dealIndexInCollection).index == input.index)
+            {
+                locals.tempDeal = state._deals.element(locals.dealIndexInCollection);
+                break;
+            }
+        }
+
+        if (locals.dealIndexInCollection >= ESCROW_MAX_DEALS || state._deals.pov(locals.dealIndexInCollection) != qpi.invocator() || locals.tempDeal.acceptorId == SELF)
         {
             return;
         }
 
         locals.tempDeal.acceptorId = SELF;
-        state._deals.replace(input.index, locals.tempDeal);
+        state._deals.replace(locals.dealIndexInCollection, locals.tempDeal);
     }
 
     struct CancelDeal_locals
     {
         Deal tempDeal;
         sint64 counter;
+        sint64 dealIndexInCollection;
         sint64 elementIndex;
         AssetWithAmount tempAssetWithAmount;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CancelDeal)
     {
-        locals.tempDeal = state._deals.element(input.index);
-        if (state._deals.pov(input.index) != qpi.invocator())
+        for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
+        {
+            if (state._deals.element(locals.dealIndexInCollection).index == input.index)
+            {
+                locals.tempDeal = state._deals.element(locals.dealIndexInCollection);
+                break;
+            }
+        }
+
+        if (locals.dealIndexInCollection >= ESCROW_MAX_DEALS || state._deals.pov(locals.dealIndexInCollection) != qpi.invocator())
         {
             return;
         }
@@ -414,7 +442,7 @@ private:
             }
         }
 
-        state._deals.remove(input.index);
+        state._deals.remove(locals.dealIndexInCollection);
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
@@ -429,11 +457,17 @@ private:
     INITIALIZE()
     {
         state._counter = 0ULL;
+        state._currentDealIndex = 1;
     }
 
     PRE_ACQUIRE_SHARES()
     {
         output.allowTransfer = true;
+    }
+
+    BEGIN_EPOCH()
+    {
+        state._currentDealIndex = 1;
     }
 
     END_EPOCH()
