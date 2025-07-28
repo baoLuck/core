@@ -101,7 +101,8 @@ public:
     struct GetFreeAssetAmount_input
     {
         id owner;
-        Asset asset;
+        id issuer;
+        uint64 assetName;
     };
 
     struct GetFreeAssetAmount_output
@@ -467,11 +468,11 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetFreeAssetAmount)
     {
-        locals.reservedInput.issuer = input.asset.issuer;
-        locals.reservedInput.assetName = input.asset.assetName;
-        locals.reservedInput.owner = input.owner;
-        CALL(_NumberOfReservedShares, locals.reservedInput, locals.reservedOutput);
-        output.freeAmount = qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer, input.owner, input.owner, SELF_INDEX, SELF_INDEX) - locals.reservedOutput.amount;
+        // locals.reservedInput.issuer = input.issuer;
+        // locals.reservedInput.assetName = input.assetName;
+        // locals.reservedInput.owner = input.owner;
+        // CALL(_NumberOfReservedShares, locals.reservedInput, locals.reservedOutput);
+        output.freeAmount = qpi.numberOfPossessedShares(input.assetName, input.issuer, input.owner, input.owner, SELF_INDEX, SELF_INDEX) + 5;
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
