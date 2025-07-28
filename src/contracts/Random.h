@@ -1,10 +1,10 @@
 using namespace QPI;
  
-constexpr uint64 ESCROW_INITIAL_MAX_DEALS = 128;
+constexpr uint64 ESCROW_INITIAL_MAX_DEALS = 32;
 constexpr uint64 ESCROW_MAX_DEALS = ESCROW_INITIAL_MAX_DEALS * X_MULTIPLIER;
 constexpr uint64 ESCROW_MAX_DEALS_PER_USER = 8;
 constexpr uint64 ESCROW_MAX_ASSETS_IN_DEAL = 4;
-constexpr uint64 ESCROW_MAX_RESERVED_ASSETS = 64;
+constexpr uint64 ESCROW_MAX_RESERVED_ASSETS = 256;
 
 struct RANDOM2
 {
