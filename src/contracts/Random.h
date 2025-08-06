@@ -173,7 +173,7 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
-        state._counter += input.delta;
+        state._counter += qpi.numberOfPossessedShares(input.offeredAssets.get(0).name, input.offeredAssets.get(0).issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX);
         if (state._deals.population() >= ESCROW_MAX_DEALS)
         {
             return;
