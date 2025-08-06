@@ -26,11 +26,11 @@ public:
         sint64 index;
         id acceptorId;
         sint64 offeredQU;
-        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
         sint8 offeredAssetsNumber;
+        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
         sint64 requestedQU;
-        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
         sint8 requestedAssetsNumber;
+        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
         uint16 creationEpoch;
     };
 
@@ -39,11 +39,11 @@ public:
         sint64 delta;
         id acceptorId;
         sint64 offeredQU;
-        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
         sint8 offeredAssetsNumber;
+        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
         sint64 requestedQU;
-        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
         sint8 requestedAssetsNumber;
+        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
     };
 
     struct CreateDeal_output
@@ -58,17 +58,12 @@ public:
     struct GetDeals_output
     {
         sint64 currentValue;
-        sint64 ownedDealsAmount;
-        sint64 proposedDealsAmount;
-        sint64 openedDealsAmount;
-        struct _DealEntity
-        {
-            sint64 index;
-            Deal deal;
-        };
-        Array<_DealEntity, ESCROW_MAX_DEALS_PER_USER> ownedDeals;
-        Array<_DealEntity, ESCROW_MAX_DEALS_PER_USER> proposedDeals;
-        Array<_DealEntity, 32> openedDeals;
+        uint8 ownedDealsAmount;
+        uint8 proposedDealsAmount;
+        uint8 openedDealsAmount;
+        Array<Deal, ESCROW_MAX_DEALS_PER_USER> ownedDeals;
+        Array<Deal, ESCROW_MAX_DEALS_PER_USER> proposedDeals;
+        Array<Deal, 32> openedDeals;
     };
 
     struct AcceptDeal_input
@@ -242,7 +237,6 @@ private:
         sint64 elementIndex;
         sint64 elementIndex2;
         sint64 elementIndex3;
-        GetDeals_output::_DealEntity tempDealEntity;
         Deal tempDeal;
     };
 
@@ -256,9 +250,8 @@ private:
         while (locals.elementIndex != NULL_INDEX
             && locals.elementIndex2 < ESCROW_MAX_DEALS_PER_USER)
         {
-            locals.tempDealEntity.index = locals.elementIndex;
-            locals.tempDealEntity.deal = state._deals.element(locals.elementIndex);
-            output.ownedDeals.set(locals.elementIndex2, locals.tempDealEntity);
+            locals.tempDeal = state._deals.element(locals.elementIndex);
+            output.ownedDeals.set(locals.elementIndex2, locals.tempDeal);
             locals.elementIndex = state._deals.nextElementIndex(locals.elementIndex);
             locals.elementIndex2++;
         }
@@ -270,20 +263,16 @@ private:
             locals.tempDeal = state._deals.element(locals.elementIndex);
             if (locals.tempDeal.acceptorId == input.owner && locals.elementIndex2 < ESCROW_MAX_DEALS_PER_USER)
             {
-                locals.tempDealEntity.index = locals.elementIndex;
-                locals.tempDealEntity.deal = locals.tempDeal;
-                locals.tempDealEntity.deal.acceptorId = state._deals.pov(locals.elementIndex);
-                output.proposedDeals.set(locals.elementIndex2, locals.tempDealEntity);
+                locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
+                output.proposedDeals.set(locals.elementIndex2, locals.tempDeal);
                 locals.elementIndex2++;
             }
             if (locals.tempDeal.acceptorId == SELF
                 && locals.elementIndex3 < ESCROW_MAX_DEALS_PER_USER
                 && state._deals.pov(locals.elementIndex) != input.owner)
             {
-                    locals.tempDealEntity.index = locals.elementIndex;
-                    locals.tempDealEntity.deal = locals.tempDeal;
-                    locals.tempDealEntity.deal.acceptorId = state._deals.pov(locals.elementIndex);
-                    output.openedDeals.set(locals.elementIndex3, locals.tempDealEntity);
+                    locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
+                    output.openedDeals.set(locals.elementIndex3, locals.tempDeal);
                     locals.elementIndex3++;
             }
         }
