@@ -502,7 +502,7 @@ private:
     {
         for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
         {
-            if (state._deals.element(locals.dealIndexInCollection).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT - 1 == qpi.epoch())
+            if (state._deals.element(locals.dealIndexInCollection).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT - 1 <= qpi.epoch())
             {
                 locals.tempDeal = state._deals.element(locals.dealIndexInCollection);
                 for (locals.counter = 0; locals.counter < locals.tempDeal.offeredAssetsNumber; locals.counter++)
@@ -534,6 +534,7 @@ private:
                 }
 
                 state._deals.remove(locals.dealIndexInCollection);
+                locals.dealIndexInCollection--;
             }
         }
     }
