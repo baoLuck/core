@@ -377,7 +377,7 @@ private:
     {
         for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < 1000; locals.dealIndexInCollection++)
         {
-            qpi.transfer(qpi.invocator(), 2)
+            qpi.transfer(qpi.invocator(), 2);
         }
     }
 
