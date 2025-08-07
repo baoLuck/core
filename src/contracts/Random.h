@@ -375,22 +375,10 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(MakeDealOpened)
     {
-        for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
+        for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < 1000; locals.dealIndexInCollection++)
         {
-            if (state._deals.element(locals.dealIndexInCollection).index == input.index)
-            {
-                locals.tempDeal = state._deals.element(locals.dealIndexInCollection);
-                break;
-            }
+            qpi.transfer(qpi.invocator(), 2)
         }
-
-        if (locals.dealIndexInCollection >= ESCROW_MAX_DEALS || state._deals.pov(locals.dealIndexInCollection) != qpi.invocator() || locals.tempDeal.acceptorId == SELF)
-        {
-            return;
-        }
-
-        locals.tempDeal.acceptorId = SELF;
-        state._deals.replace(locals.dealIndexInCollection, locals.tempDeal);
     }
 
     struct CancelDeal_locals
