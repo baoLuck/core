@@ -168,17 +168,17 @@ private:
         AssetWithAmount tempAssetWithAmount;
     };
 
-    struct CreateDeal_input
-    {
-        sint64 delta;
-        id acceptorId;
-        sint64 offeredQU;
-        sint8 offeredAssetsNumber;
-        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
-        sint64 requestedQU;
-        sint8 requestedAssetsNumber;
-        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
-    };
+    // struct CreateDeal_input
+    // {
+    //     sint64 delta;
+    //     id acceptorId;
+    //     sint64 offeredQU;
+    //     sint8 offeredAssetsNumber;
+    //     Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
+    //     sint64 requestedQU;
+    //     sint8 requestedAssetsNumber;
+    //     Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
+    // };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
@@ -193,10 +193,10 @@ private:
             return;
         }
 
-        if (input.offeredQU < 0 || input.requestedQU < 0)
-        {
-            return;
-        }
+        // if (input.offeredQU < 0 || input.requestedQU < 0)
+        // {
+        //     return;
+        // }
 
         if (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0)
         {
