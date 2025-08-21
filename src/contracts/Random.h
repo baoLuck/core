@@ -1,11 +1,13 @@
 using namespace QPI;
  
-constexpr uint64 ESCROW_INITIAL_MAX_DEALS = 1048576;
+constexpr uint64 ESCROW_INITIAL_MAX_DEALS = 1048576ULL;
 constexpr uint64 ESCROW_MAX_DEALS = ESCROW_INITIAL_MAX_DEALS * X_MULTIPLIER;
 constexpr uint64 ESCROW_MAX_DEALS_PER_USER = 8;
 constexpr uint64 ESCROW_MAX_ASSETS_IN_DEAL = 4;
-constexpr uint64 ESCROW_MAX_RESERVED_ASSETS = 4194304;
+constexpr uint64 ESCROW_MAX_RESERVED_ASSETS = 4194304ULL;
 constexpr uint64 ESCROW_DEAL_EXISTENCE_EPOCH_COUNT = 2;
+
+constexpr uint64 ESCROW_BASE_CREATION_FEE = 300000ULL;
 
 struct RANDOM2
 {
@@ -25,11 +27,11 @@ public:
     {
         sint64 index;
         id acceptorId;
-        sint64 offeredQU;
-        sint8 offeredAssetsNumber;
+        uint64 offeredQU;
+        uint8 offeredAssetsNumber;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
-        sint64 requestedQU;
-        sint8 requestedAssetsNumber;
+        uint64 requestedQU;
+        uint8 requestedAssetsNumber;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
         uint16 creationEpoch;
     };
@@ -38,11 +40,11 @@ public:
     {
         sint64 delta;
         id acceptorId;
-        sint64 offeredQU;
-        sint8 offeredAssetsNumber;
+        uint64 offeredQU;
+        uint8 offeredAssetsNumber;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
-        sint64 requestedQU;
-        sint8 requestedAssetsNumber;
+        uint64 requestedQU;
+        uint8 requestedAssetsNumber;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
     };
 
@@ -166,6 +168,18 @@ private:
         AssetWithAmount tempAssetWithAmount;
     };
 
+    struct CreateDeal_input
+    {
+        sint64 delta;
+        id acceptorId;
+        sint64 offeredQU;
+        sint8 offeredAssetsNumber;
+        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
+        sint64 requestedQU;
+        sint8 requestedAssetsNumber;
+        Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
+    };
+
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
         state._counter = 1;
@@ -175,6 +189,16 @@ private:
         }
 
         if (state._deals.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER)
+        {
+            return;
+        }
+
+        if (input.offeredQU < 0 || input.requestedQU < 0)
+        {
+            return;
+        }
+
+        if (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0)
         {
             return;
         }
