@@ -1,10 +1,10 @@
 using namespace QPI;
  
-constexpr uint64 ESCROW_INITIAL_MAX_DEALS = 1024;
+constexpr uint64 ESCROW_INITIAL_MAX_DEALS = 1048576;
 constexpr uint64 ESCROW_MAX_DEALS = ESCROW_INITIAL_MAX_DEALS * X_MULTIPLIER;
 constexpr uint64 ESCROW_MAX_DEALS_PER_USER = 8;
 constexpr uint64 ESCROW_MAX_ASSETS_IN_DEAL = 4;
-constexpr uint64 ESCROW_MAX_RESERVED_ASSETS = 4096;
+constexpr uint64 ESCROW_MAX_RESERVED_ASSETS = 4194304;
 constexpr uint64 ESCROW_DEAL_EXISTENCE_EPOCH_COUNT = 2;
 
 struct RANDOM2
@@ -168,7 +168,7 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
-        state._counter += qpi.numberOfPossessedShares(input.offeredAssets.get(0).name, input.offeredAssets.get(0).issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX);
+        state._counter = 1;
         if (state._deals.population() >= ESCROW_MAX_DEALS)
         {
             return;
