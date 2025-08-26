@@ -7,7 +7,8 @@ constexpr uint64 ESCROW_MAX_ASSETS_IN_DEAL = 4;
 constexpr uint64 ESCROW_MAX_RESERVED_ASSETS = 4194304ULL;
 constexpr uint64 ESCROW_DEAL_EXISTENCE_EPOCH_COUNT = 2;
 
-constexpr uint64 ESCROW_BASE_CREATION_FEE = 300000ULL;
+constexpr uint64 ESCROW_BASE_CREATION_FEE = 200000ULL;
+constexpr uint64 ESCROW_ADDITIONAL_CREATION_FEE = 200; // 2%
 
 struct RANDOM2
 {
@@ -34,6 +35,8 @@ public:
         uint8 requestedAssetsNumber;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
         uint16 creationEpoch;
+        uint64 ownerFee;
+        uint64 acceptorFee;
     };
 
     struct CreateDeal_input
@@ -178,29 +181,37 @@ private:
     //     sint64 requestedQU;
     //     sint8 requestedAssetsNumber;
     //     Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
+    // QPI::div(locals.feeChargedAmount * state.mBurnFee, 10000ULL);
     // };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
-        state._counter = 1;
-        if (state._deals.population() >= ESCROW_MAX_DEALS)
+        state._counter += 1;
+        if (state._deals.population() >= ESCROW_MAX_DEALS
+                || state._deals.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER
+                || (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0))
         {
+            if (qpi.invocationReward() > 0)
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            }
             return;
         }
 
-        if (state._deals.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER)
-        {
-            return;
-        }
+        locals.newDeal.ownerFee = ESCROW_BASE_CREATION_FEE + QPI::div(input.offeredQU * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL);
+        locals.newDeal.acceptorFee = ESCROW_BASE_CREATION_FEE + QPI::div(input.requestedQU * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL);
 
-        // if (input.offeredQU < 0 || input.requestedQU < 0)
-        // {
-        //     return;
-        // }
-
-        if (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0)
+        if (qpi.invocationReward() != locals.newDeal.ownerFee)
         {
-            return;
+            if (qpi.invocationReward() > locals.newDeal.ownerFee)
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.newDeal.ownerFee);
+            }
+            else
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward());
+                return;
+            }
         }
 
         for (locals.counter = 0; locals.counter < input.offeredAssetsNumber; locals.counter++)
@@ -211,6 +222,10 @@ private:
             CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
             if (qpi.numberOfPossessedShares(input.offeredAssets.get(locals.counter).name, input.offeredAssets.get(locals.counter).issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount < input.offeredAssets.get(locals.counter).amount)
             {
+                if (qpi.invocationReward() > 0)
+                {
+                    qpi.transfer(qpi.invocator(), locals.newDeal.ownerFee);
+                }
                 return;
             }
         }
@@ -225,6 +240,7 @@ private:
         locals.newDeal.requestedAssets = input.requestedAssets;
         locals.newDeal.requestedAssetsNumber = input.requestedAssetsNumber;
         locals.newDeal.creationEpoch = qpi.epoch();
+
         state._deals.add(qpi.invocator(), locals.newDeal, 0);
 
         for (locals.counter = 0; locals.counter < input.offeredAssetsNumber; locals.counter++)
@@ -327,13 +343,34 @@ private:
         
         if (locals.dealIndexInCollection >= ESCROW_MAX_DEALS || (locals.tempDeal.acceptorId != SELF && locals.tempDeal.acceptorId != qpi.invocator()))
         {
+            if (qpi.invocationReward() > 0)
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            }
             return;
+        }
+
+        if (qpi.invocationReward() != locals.tempDeal.acceptorFee)
+        {
+            if (qpi.invocationReward() > locals.tempDeal.acceptorFee)
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.tempDeal.acceptorFee);
+            }
+            else
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward());
+                return;
+            }
         }
 
         for (locals.counter = 0; locals.counter < locals.tempDeal.requestedAssetsNumber; locals.counter++)
         {
             if (qpi.numberOfPossessedShares(locals.tempDeal.requestedAssets.get(locals.counter).name, locals.tempDeal.requestedAssets.get(locals.counter).issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) < locals.tempDeal.requestedAssets.get(locals.counter).amount)
             {
+                if (qpi.invocationReward() > 0)
+                {
+                    qpi.transfer(qpi.invocator(), locals.tempDeal.acceptorFee);
+                }
                 return;
             }
         }
@@ -399,6 +436,11 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(MakeDealOpened)
     {
+        if (qpi.invocationReward() > 0)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+        }
+
         for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
         {
             if (state._deals.element(locals.dealIndexInCollection).index == input.index)
@@ -428,6 +470,11 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CancelDeal)
     {
+        if (qpi.invocationReward() > 0)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+        }
+
         for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
         {
             if (state._deals.element(locals.dealIndexInCollection).index == input.index)
