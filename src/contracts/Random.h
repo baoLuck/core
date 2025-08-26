@@ -168,6 +168,7 @@ private:
         Deal newDeal;
         sint64 counter;
         sint64 elementIndex;
+        uint64 offeredQuAndFee;
         AssetWithAmount tempAssetWithAmount;
     };
 
@@ -200,12 +201,13 @@ private:
 
         locals.newDeal.ownerFee = ESCROW_BASE_CREATION_FEE + QPI::div(input.offeredQU * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL);
         locals.newDeal.acceptorFee = ESCROW_BASE_CREATION_FEE + QPI::div(input.requestedQU * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL);
+        locals.offeredQuAndFee = locals.newDeal.ownerFee + input.offeredQU;
 
-        if (qpi.invocationReward() != locals.newDeal.ownerFee)
+        if (qpi.invocationReward() != locals.offeredQuAndFee)
         {
-            if (qpi.invocationReward() > locals.newDeal.ownerFee)
+            if (qpi.invocationReward() > locals.offeredQuAndFee)
             {
-                qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.newDeal.ownerFee);
+                qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.offeredQuAndFee);
             }
             else
             {
@@ -224,7 +226,7 @@ private:
             {
                 if (qpi.invocationReward() > 0)
                 {
-                    qpi.transfer(qpi.invocator(), locals.newDeal.ownerFee);
+                    qpi.transfer(qpi.invocator(), locals.offeredQuAndFee);
                 }
                 return;
             }
@@ -327,6 +329,7 @@ private:
         sint64 counter;
         sint64 transferedShares;
         sint64 elementIndex;
+        uint64 requestedQuAndFee;
         AssetWithAmount tempAssetWithAmount;
     };
 
@@ -350,11 +353,13 @@ private:
             return;
         }
 
-        if (qpi.invocationReward() != locals.tempDeal.acceptorFee)
+        locals.requestedQuAndFee = locals.tempDeal.acceptorFee + locals.tempDeal.requestedQU;
+
+        if (qpi.invocationReward() != locals.requestedQuAndFee)
         {
-            if (qpi.invocationReward() > locals.tempDeal.acceptorFee)
+            if (qpi.invocationReward() > locals.requestedQuAndFee)
             {
-                qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.tempDeal.acceptorFee);
+                qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.requestedQuAndFee);
             }
             else
             {
@@ -369,7 +374,7 @@ private:
             {
                 if (qpi.invocationReward() > 0)
                 {
-                    qpi.transfer(qpi.invocator(), locals.tempDeal.acceptorFee);
+                    qpi.transfer(qpi.invocator(), locals.requestedQuAndFee);
                 }
                 return;
             }
