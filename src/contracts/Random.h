@@ -172,19 +172,6 @@ private:
         AssetWithAmount tempAssetWithAmount;
     };
 
-    // struct CreateDeal_input
-    // {
-    //     sint64 delta;
-    //     id acceptorId;
-    //     sint64 offeredQU;
-    //     sint8 offeredAssetsNumber;
-    //     Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
-    //     sint64 requestedQU;
-    //     sint8 requestedAssetsNumber;
-    //     Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
-    // QPI::div(locals.feeChargedAmount * state.mBurnFee, 10000ULL);
-    // };
-
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
         state._counter += 1;
