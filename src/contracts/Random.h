@@ -222,7 +222,8 @@ private:
             state._numberOfReservedShares_input.assetName = input.offeredAssets.get(locals.counter).name;
             state._numberOfReservedShares_input.owner = qpi.invocator();
             CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-            if (qpi.numberOfPossessedShares(input.offeredAssets.get(locals.counter).name, input.offeredAssets.get(locals.counter).issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount < input.offeredAssets.get(locals.counter).amount)
+            if (qpi.numberOfPossessedShares(input.offeredAssets.get(locals.counter).name, input.offeredAssets.get(locals.counter).issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount 
+                    < input.offeredAssets.get(locals.counter).amount + QPI::div(input.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL))
             {
                 if (qpi.invocationReward() > 0)
                 {
@@ -254,6 +255,7 @@ private:
             if (state._numberOfReservedShares_output.amount == 0)
             {
                 locals.tempAssetWithAmount = input.offeredAssets.get(locals.counter);
+                locals.tempAssetWithAmount.amount += QPI::div(input.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL);
                 state._reservedAssets.add(qpi.invocator(), locals.tempAssetWithAmount, 0);
             }
             else
@@ -265,6 +267,7 @@ private:
                     if (locals.tempAssetWithAmount.name == input.offeredAssets.get(locals.counter).name && locals.tempAssetWithAmount.issuer == input.offeredAssets.get(locals.counter).issuer)
                     {
                         locals.tempAssetWithAmount.amount += input.offeredAssets.get(locals.counter).amount;
+                        locals.tempAssetWithAmount.amount += QPI::div(input.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL);
                         state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
                     }
 
@@ -328,6 +331,7 @@ private:
         sint64 dealIndexInCollection;
         sint64 counter;
         sint64 transferedShares;
+        sint64 transferedFeeShares;
         sint64 elementIndex;
         uint64 requestedQuAndFee;
         AssetWithAmount tempAssetWithAmount;
@@ -370,7 +374,12 @@ private:
 
         for (locals.counter = 0; locals.counter < locals.tempDeal.requestedAssetsNumber; locals.counter++)
         {
-            if (qpi.numberOfPossessedShares(locals.tempDeal.requestedAssets.get(locals.counter).name, locals.tempDeal.requestedAssets.get(locals.counter).issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) < locals.tempDeal.requestedAssets.get(locals.counter).amount)
+            state._numberOfReservedShares_input.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
+            state._numberOfReservedShares_input.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
+            state._numberOfReservedShares_input.owner = qpi.invocator();
+            CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
+            if (qpi.numberOfPossessedShares(locals.tempDeal.requestedAssets.get(locals.counter).name, locals.tempDeal.requestedAssets.get(locals.counter).issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount
+                    < locals.tempDeal.requestedAssets.get(locals.counter).amount + QPI::div(locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL))
             {
                 if (qpi.invocationReward() > 0)
                 {
@@ -389,6 +398,14 @@ private:
                                                 state._deals.pov(locals.dealIndexInCollection),
                                                 locals.tempDeal.offeredAssets.get(locals.counter).amount,
                                                 qpi.invocator());
+        
+            locals.transferedFeeShares = qpi.transferShareOwnershipAndPossession(
+                                                locals.tempDeal.offeredAssets.get(locals.counter).name,
+                                                locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                                                state._deals.pov(locals.dealIndexInCollection),
+                                                state._deals.pov(locals.dealIndexInCollection),
+                                                QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL),
+                                                SELF);
 
             state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
             state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
@@ -401,7 +418,7 @@ private:
                 if (locals.tempAssetWithAmount.name == locals.tempDeal.offeredAssets.get(locals.counter).name
                     && locals.tempAssetWithAmount.issuer == locals.tempDeal.offeredAssets.get(locals.counter).issuer)
                 {
-                    if (state._numberOfReservedShares_output.amount - locals.transferedShares <= 0)
+                    if (state._numberOfReservedShares_output.amount - locals.transferedShares - locals.transferedFeeShares <= 0)
                     {
                         state._reservedAssets.remove(locals.elementIndex);
                         break;
@@ -409,6 +426,7 @@ private:
                     else
                     {
                         locals.tempAssetWithAmount.amount -= locals.transferedShares;
+                        locals.tempAssetWithAmount.amount -= locals.transferedFeeShares;
                         state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
                     }
                 }
@@ -425,6 +443,14 @@ private:
                 qpi.invocator(),
                 locals.tempDeal.requestedAssets.get(locals.counter).amount,
                 state._deals.pov(locals.dealIndexInCollection));
+
+            qpi.transferShareOwnershipAndPossession(
+                locals.tempDeal.requestedAssets.get(locals.counter).name,
+                locals.tempDeal.requestedAssets.get(locals.counter).issuer,
+                qpi.invocator(),
+                qpi.invocator(),
+                QPI::div(locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL),
+                SELF);
         }
 
         qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU);
@@ -507,7 +533,7 @@ private:
                 if (locals.tempAssetWithAmount.name == locals.tempDeal.offeredAssets.get(locals.counter).name
                     && locals.tempAssetWithAmount.issuer == locals.tempDeal.offeredAssets.get(locals.counter).issuer)
                 {
-                    if (state._numberOfReservedShares_output.amount - locals.tempDeal.offeredAssets.get(locals.counter).amount <= 0)
+                    if (state._numberOfReservedShares_output.amount - locals.tempDeal.offeredAssets.get(locals.counter).amount - QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL) <= 0)
                     {
                         state._reservedAssets.remove(locals.elementIndex);
                         break;
@@ -515,6 +541,7 @@ private:
                     else
                     {
                         locals.tempAssetWithAmount.amount -= locals.tempDeal.offeredAssets.get(locals.counter).amount;
+                        locals.tempAssetWithAmount.amount -= QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_CREATION_FEE, 10000ULL);
                         state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
                     }
                 }
