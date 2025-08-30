@@ -434,8 +434,8 @@ private:
                 SELF);
         }
 
-        qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU);
-        qpi.transfer(state._deals.pov(locals.dealIndexInCollection), locals.tempDeal.requestedQU);
+        qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
+        qpi.transfer(state._deals.pov(locals.dealIndexInCollection), locals.tempDeal.requestedQU - QPI::div(locals.tempDeal.requestedQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
 
         state._deals.remove(locals.dealIndexInCollection);
     }
