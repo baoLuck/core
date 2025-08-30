@@ -1,5 +1,5 @@
 using namespace QPI;
- 
+
 constexpr uint64 ESCROW_INITIAL_MAX_DEALS = 1048576ULL;
 constexpr uint64 ESCROW_MAX_DEALS = ESCROW_INITIAL_MAX_DEALS * X_MULTIPLIER;
 constexpr uint64 ESCROW_MAX_DEALS_PER_USER = 8;
@@ -29,10 +29,10 @@ public:
         sint64 index;
         id acceptorId;
         uint64 offeredQU;
-        uint8 offeredAssetsNumber;
+        uint64 offeredAssetsNumber;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
         uint64 requestedQU;
-        uint8 requestedAssetsNumber;
+        uint64 requestedAssetsNumber;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
         uint16 creationEpoch;
         uint64 ownerFee;
@@ -44,10 +44,10 @@ public:
         sint64 delta;
         id acceptorId;
         uint64 offeredQU;
-        uint8 offeredAssetsNumber;
+        uint64 offeredAssetsNumber;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> offeredAssets;
         uint64 requestedQU;
-        uint8 requestedAssetsNumber;
+        uint64 requestedAssetsNumber;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
     };
 
@@ -63,9 +63,9 @@ public:
     struct GetDeals_output
     {
         sint64 currentValue;
-        uint8 ownedDealsAmount;
-        uint8 proposedDealsAmount;
-        uint8 openedDealsAmount;
+        uint64 ownedDealsAmount;
+        uint64 proposedDealsAmount;
+        uint64 openedDealsAmount;
         Array<Deal, ESCROW_MAX_DEALS_PER_USER> ownedDeals;
         Array<Deal, ESCROW_MAX_DEALS_PER_USER> proposedDeals;
         Array<Deal, 32> openedDeals;
@@ -300,7 +300,7 @@ private:
                 locals.elementIndex2++;
             }
             if (locals.tempDeal.acceptorId == SELF
-                && locals.elementIndex3 < ESCROW_MAX_DEALS_PER_USER
+                && locals.elementIndex3 < 32
                 && state._deals.pov(locals.elementIndex) != input.owner)
             {
                     locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
