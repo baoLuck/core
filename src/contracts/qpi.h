@@ -706,9 +706,9 @@ namespace QPI
 		id issuer;
 		uint64 assetName;
 
-		bool operator==(const Asset& a1, const Asset& a2)
+		bool operator==(const Asset& other)
 		{
-			return (a1.issuer == a2.issuer) && (a1.assetName == a2.assetName);
+			return (issuer == other.issuer) && (assetName == other.assetName);
 		}
 	};
 
