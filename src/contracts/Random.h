@@ -181,14 +181,15 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
-        locals.asset.issuer = ID(_A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _F, _X, _I, _B);
-        locals.asset.assetName = 85002843734354ULL;
-        locals.assetIt.begin(locals.asset);
-        while (!locals.assetIt.reachedEnd())
-        {
-            state._counter += locals.assetIt.numberOfOwnedShares();
-            locals.assetIt.next();
-        }   
+        state._counter = input.requestedAssets.get(0).name;
+        // locals.asset.issuer = ID(_A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _F, _X, _I, _B);
+        // locals.asset.assetName = 85002843734354ULL;
+        // locals.assetIt.begin(locals.asset);
+        // while (!locals.assetIt.reachedEnd())
+        // {
+        //     state._counter += locals.assetIt.numberOfOwnedShares();
+        //     locals.assetIt.next();
+        // }   
 
         if (state._deals.population() >= ESCROW_MAX_DEALS
                 || state._deals.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER
