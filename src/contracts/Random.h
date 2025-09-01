@@ -169,11 +169,16 @@ private:
         sint64 elementIndex;
         uint64 offeredQuAndFee;
         AssetWithAmount tempAssetWithAmount;
+        AssetOwnershipIterator assetIt;
+        Asset asset;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
-        state._counter += 1;
+        locals.asset.issuer = input.requestedAssets.get(0).issuer;
+        locals.asset.assetName = input.requestedAssets.get(0).name;
+        locals.assetIt.begin(locals.asset);
+        state._counter = locals.assetIt.numberOfOwnedShares();
         if (state._deals.population() >= ESCROW_MAX_DEALS
                 || state._deals.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER
                 || (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0))
@@ -530,7 +535,7 @@ private:
             }
         }
 
-        qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
+        qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU);
 
         state._deals.remove(locals.dealIndexInCollection);
     }
