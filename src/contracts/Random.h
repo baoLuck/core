@@ -23,7 +23,7 @@ public:
     {
         id issuer;
         uint64 name;
-        uint64 amount;
+        sint64 amount;
     };
 
     struct Deal
@@ -171,9 +171,9 @@ private:
     struct CreateDeal_locals
     {
         Deal newDeal;
-        sint64 counter;
+        uint64 counter;
         sint64 elementIndex;
-        uint64 offeredQuAndFee;
+        sint64 offeredQuAndFee;
         AssetWithAmount tempAssetWithAmount;
         AssetOwnershipIterator assetIt;
         Asset asset;
@@ -286,7 +286,7 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
-        output.currentValue = state._earnedAmount - state._distributed;
+        output.currentValue = state._counter;
         output.ownedDealsAmount = state._deals.population(input.owner);
 
         locals.elementIndex = state._deals.headIndex(input.owner);
@@ -328,12 +328,12 @@ private:
     {
         Deal tempDeal;
         sint64 dealIndexInCollection;
-        sint64 counter;
+        uint64 counter;
         sint64 transferedShares;
         sint64 transferedFeeShares;
         sint64 elementIndex;
         sint64 elementIndex2;
-        uint64 requestedQuAndFee;
+        sint64 requestedQuAndFee;
         AssetWithAmount tempAssetWithAmount;
         Asset tempAsset;
         uint64 tempAmount;
@@ -529,7 +529,7 @@ private:
     struct CancelDeal_locals
     {
         Deal tempDeal;
-        sint64 counter;
+        uint64 counter;
         sint64 dealIndexInCollection;
         sint64 elementIndex;
         AssetWithAmount tempAssetWithAmount;
@@ -629,7 +629,7 @@ private:
     {
         Deal tempDeal;
         Deal tempDeal2;
-        sint64 counter;
+        uint64 counter;
         sint64 dealIndexInCollection;
         sint64 elementIndex;
         AssetWithAmount tempAssetWithAmount;
