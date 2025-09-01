@@ -10,7 +10,7 @@ constexpr uint64 ESCROW_DEAL_EXISTENCE_EPOCH_COUNT = 2;
 constexpr uint64 ESCROW_BASE_FEE = 250000ULL;
 constexpr uint64 ESCROW_ADDITIONAL_FEE_PERCENT = 200; // 2%
 
-constexpr uint64 ESCROW_SHAREHOLDERS_DISTRIBUTION_PERCENT = 9000; // 90%
+constexpr uint64 ESCROW_SHAREHOLDERS_DISTRIBUTION_PERCENT = 9500; // 95%
 
 struct RANDOM2
 {
@@ -23,7 +23,7 @@ public:
     {
         id issuer;
         uint64 name;
-        sint64 amount;
+        uint64 amount;
     };
 
     struct Deal
@@ -66,7 +66,7 @@ public:
         uint64 proposedDealsAmount;
         uint64 openedDealsAmount;
         Array<Deal, ESCROW_MAX_DEALS_PER_USER> ownedDeals;
-        Array<Deal, ESCROW_MAX_DEALS_PER_USER> proposedDeals;
+        Array<Deal, 32> proposedDeals;
         Array<Deal, 32> openedDeals;
     };
 
@@ -106,12 +106,14 @@ public:
 
     struct GetFreeAssetAmount_output
     {
-        sint64 freeAmount;
+        uint64 freeAmount;
     };
     
 private:
     uint64 _earnedAmount;
     uint64 _distributedAmount;
+    HashMap<Asset, uint64, ESCROW_MAX_RESERVED_ASSETS> _earnedTokens;
+    HashMap<Asset, uint64, ESCROW_MAX_RESERVED_ASSETS> _distributedTokens;
 
     sint64 _counter;
     sint64 _currentDealIndex;
@@ -179,15 +181,15 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
     {
-        locals.asset.issuer = input.requestedAssets.get(0).issuer;
-        locals.asset.assetName = input.requestedAssets.get(0).name;
+        locals.asset.issuer = ID(_A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _F, _X, _I, _B);
+        locals.asset.assetName = 85002843734354ULL;
         locals.assetIt.begin(locals.asset);
         while (!locals.assetIt.reachedEnd())
         {
             state._counter += locals.assetIt.numberOfOwnedShares();
             locals.assetIt.next();
-        }
-        
+        }   
+
         if (state._deals.population() >= ESCROW_MAX_DEALS
                 || state._deals.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER
                 || (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0))
@@ -284,7 +286,7 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
-        output.currentValue = state._earnedAmount;
+        output.currentValue = state._earnedAmount - state._distributed;
         output.ownedDealsAmount = state._deals.population(input.owner);
 
         locals.elementIndex = state._deals.headIndex(input.owner);
@@ -330,8 +332,11 @@ private:
         sint64 transferedShares;
         sint64 transferedFeeShares;
         sint64 elementIndex;
+        sint64 elementIndex2;
         uint64 requestedQuAndFee;
         AssetWithAmount tempAssetWithAmount;
+        Asset tempAsset;
+        uint64 tempAmount;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(AcceptDeal)
@@ -404,6 +409,21 @@ private:
                                                 QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL),
                                                 SELF);
 
+            locals.tempAsset.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
+            locals.tempAsset.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
+            locals.elementIndex2 = state._earnedTokens.getElementIndex(locals.tempAsset);
+
+            if (locals.elementIndex2 == NULL_INDEX)
+            {
+                state._earnedTokens.set(locals.tempAsset, QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
+            }
+            else
+            {
+                locals.tempAmount = state._earnedTokens.value(locals.elementIndex2);
+                locals.tempAmount += QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
+                state._earnedTokens.replace(locals.tempAsset, locals.tempAmount);
+            }
+
             state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
             state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
             state._numberOfReservedShares_input.owner = state._deals.pov(locals.dealIndexInCollection);
@@ -448,6 +468,21 @@ private:
                 qpi.invocator(),
                 QPI::div(locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL),
                 SELF);
+
+            locals.tempAsset.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
+            locals.tempAsset.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
+            locals.elementIndex2 = state._earnedTokens.getElementIndex(locals.tempAsset);
+
+            if (locals.elementIndex2 == NULL_INDEX)
+            {
+                state._earnedTokens.set(locals.tempAsset, QPI::div(locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
+            }
+            else
+            {
+                locals.tempAmount = state._earnedTokens.value(locals.elementIndex2);
+                locals.tempAmount += QPI::div(locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
+                state._earnedTokens.replace(locals.tempAsset, locals.tempAmount);
+            }
         }
 
         qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
@@ -654,18 +689,33 @@ private:
     struct END_EPOCH_locals
     {
         uint64 amountToDistribute;
+        uint64 amountToBurn;
+        AssetOwnershipIterator assetIt;
+        Asset asset;
     };
     
     END_EPOCH_WITH_LOCALS()
     {
         locals.amountToDistribute = QPI::div((state._earnedAmount - state._distributedAmount) * ESCROW_SHAREHOLDERS_DISTRIBUTION_PERCENT, 10000ULL);
+        locals.amountToBurn = state._earnedAmount - state._distributedAmount - locals.amountToDistribute;
 
         if ((QPI::div(locals.amountToDistribute, 676ULL) > 0) && (state._earnedAmount > state._distributedAmount))
         {
             if (qpi.distributeDividends(QPI::div(locals.amountToDistribute, 676ULL)))
             {
                 state._distributedAmount += QPI::div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
+                qpi.burn(locals.amountToBurn);
+                state._distributedAmount += locals.amountToBurn;
             }
+        }
+
+        locals.asset.issuer = ID(_A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _A, _F, _X, _I, _B);
+        locals.asset.assetName = 85002843734354ULL;
+        locals.assetIt.begin(locals.asset);
+        while (!locals.assetIt.reachedEnd())
+        {
+            state._counter += locals.assetIt.numberOfOwnedShares();
+            locals.assetIt.next();
         }
     }
 };
