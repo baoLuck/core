@@ -10,6 +10,8 @@ constexpr uint64 ESCROW_DEAL_EXISTENCE_EPOCH_COUNT = 2;
 constexpr uint64 ESCROW_BASE_FEE = 250000ULL;
 constexpr uint64 ESCROW_ADDITIONAL_FEE_PERCENT = 200; // 2%
 
+constexpr uint64 ESCROW_SHAREHOLDERS_DISTRIBUTION_PERCENT = 9000; // 90%
+
 struct RANDOM2
 {
 };
@@ -39,7 +41,6 @@ public:
 
     struct CreateDeal_input
     {
-        sint64 delta;
         id acceptorId;
         uint64 offeredQU;
         uint64 offeredAssetsNumber;
@@ -109,6 +110,9 @@ public:
     };
     
 private:
+    uint64 _earnedAmount;
+    uint64 _distributedAmount;
+
     sint64 _counter;
     sint64 _currentDealIndex;
 
@@ -239,6 +243,7 @@ private:
         locals.newDeal.creationEpoch = qpi.epoch();
 
         state._deals.add(qpi.invocator(), locals.newDeal, 0);
+        state._earnedAmount += ESCROW_BASE_FEE;
 
         for (locals.counter = 0; locals.counter < input.offeredAssetsNumber; locals.counter++)
         {
@@ -279,7 +284,7 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
-        output.currentValue = state._counter;
+        output.currentValue = state._earnedAmount;
         output.ownedDealsAmount = state._deals.population(input.owner);
 
         locals.elementIndex = state._deals.headIndex(input.owner);
@@ -449,6 +454,10 @@ private:
         qpi.transfer(state._deals.pov(locals.dealIndexInCollection), locals.tempDeal.requestedQU - QPI::div(locals.tempDeal.requestedQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
 
         state._deals.remove(locals.dealIndexInCollection);
+
+        state._earnedAmount += ESCROW_BASE_FEE;
+        state._earnedAmount += QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
+        state._earnedAmount += QPI::div(locals.tempDeal.requestedQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
     }
 
     struct MakeDealOpened_locals
@@ -641,8 +650,22 @@ private:
             }
         }
     }
+
+    struct END_EPOCH_locals
+    {
+        uint64 amountToDistribute;
+    };
     
-    END_EPOCH()
-    {  
+    END_EPOCH_WITH_LOCALS()
+    {
+        locals.amountToDistribute = QPI::div((state._earnedAmount - state._distributedAmount) * ESCROW_SHAREHOLDERS_DISTRIBUTION_PERCENT, 10000ULL);
+
+        if ((QPI::div(locals.amountToDistribute, 676ULL) > 0) && (state._earnedAmount > state._distributedAmount))
+        {
+            if (qpi.distributeDividends(QPI::div(locals.amountToDistribute, 676ULL)))
+            {
+                state._distributedAmount += QPI::div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
+            }
+        }
     }
 };
