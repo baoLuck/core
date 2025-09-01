@@ -705,6 +705,11 @@ namespace QPI
 	{
 		id issuer;
 		uint64 assetName;
+
+		bool operator==(const Asset& a1, const Asset& a2)
+		{
+			return (a1.issuer == a2.issuer) && (a1.assetName == a2.assetName);
+		}
 	};
 
 	struct AssetIssuanceSelect : public Asset
