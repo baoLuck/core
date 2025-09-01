@@ -570,33 +570,32 @@ private:
         output.allowTransfer = true;
     }
 
-    BEGIN_EPOCH()
-    {
-    }
-
-    struct END_EPOCH_locals
+    struct BEGIN_EPOCH_locals
     {
         Deal tempDeal;
+        Deal tempDeal2;
         sint64 counter;
         sint64 dealIndexInCollection;
         sint64 elementIndex;
         AssetWithAmount tempAssetWithAmount;
-    };
-    
-    END_EPOCH_WITH_LOCALS()
+        Collection<Deal, ESCROW_MAX_DEALS> dealsCopy;
+    }
+
+    BEGIN_EPOCH_WITH_LOCALS()
     {
+        locals.dealsCopy = state._deals;
         for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
         {
-            if (state._deals.element(locals.dealIndexInCollection).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT - 1 <= qpi.epoch())
+            if (locals.dealsCopy.element(locals.dealIndexInCollection).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT <= qpi.epoch())
             {
-                locals.tempDeal = state._deals.element(locals.dealIndexInCollection);
+                locals.tempDeal = locals.dealsCopy.element(locals.dealIndexInCollection);
                 for (locals.counter = 0; locals.counter < locals.tempDeal.offeredAssetsNumber; locals.counter++)
                 {
                     state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
                     state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
-                    state._numberOfReservedShares_input.owner = state._deals.pov(locals.dealIndexInCollection);
+                    state._numberOfReservedShares_input.owner = locals.dealsCopy.pov(locals.dealIndexInCollection);
                     CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-                    locals.elementIndex = state._reservedAssets.headIndex(state._deals.pov(locals.dealIndexInCollection));
+                    locals.elementIndex = state._reservedAssets.headIndex(locals.dealsCopy.pov(locals.dealIndexInCollection));
                     while (locals.elementIndex != NULL_INDEX)
                     {
                         locals.tempAssetWithAmount = state._reservedAssets.element(locals.elementIndex);
@@ -618,9 +617,26 @@ private:
                     }
                 }
 
-                state._deals.remove(locals.dealIndexInCollection);
-                locals.dealIndexInCollection--;
+                locals.elementIndex = state._deals.headIndex(locals.dealsCopy.pov(locals.dealIndexInCollection));
+                while (locals.elementIndex != NULL_INDEX)
+                {
+                    locals.tempDeal2 = state._deals.element(locals.elementIndex);
+                    if (locals.tempDeal.index == locals.tempDeal2.index)
+                    {
+                        state._deals.remove(locals.elementIndex);
+                        break;
+                    }
+                    locals.elementIndex = state._deals.nextElementIndex(locals.elementIndex);
+                }
             }
         }
+    }
+
+    struct END_EPOCH_locals
+    {
+    };
+    
+    END_EPOCH_WITH_LOCALS()
+    {  
     }
 };
