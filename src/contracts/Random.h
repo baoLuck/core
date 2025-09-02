@@ -770,7 +770,7 @@ private:
         Asset tempAsset;
         uint64 tempEarnedAmount;
         uint64 tempDistributedAmount;
-        uint64 amountToDistribute;
+        uint64 tokenAmountToDistribute;
         uint64 transferedShares;
     };
     
@@ -801,14 +801,14 @@ private:
 
             locals.tempAsset = state._earnedTokens.key(locals.counter);
             locals.tempEarnedAmount = state._earnedTokens.value(locals.counter);
-            locals.amountToDistribute = locals.tempEarnedAmount;
+            locals.tokenAmountToDistribute = locals.tempEarnedAmount;
 
             if (state._distributedTokens.get(locals.tempAsset, locals.tempDistributedAmount))
             {
-                locals.amountToDistribute -= locals.tempDistributedAmount;
+                locals.tokenAmountToDistribute -= locals.tempDistributedAmount;
             }
 
-            if (locals.amountToDistribute < 676ULL)
+            if (locals.tokenAmountToDistribute < 676ULL)
             {
                 continue;
             }
@@ -822,7 +822,7 @@ private:
                                                 locals.tempAsset.issuer,
                                                 SELF,
                                                 SELF,
-                                                QPI::div(locals.amountToDistribute, 676ULL) * locals.assetIt.numberOfOwnedShares(),
+                                                QPI::div(locals.tokenAmountToDistribute, 676ULL) * locals.assetIt.numberOfOwnedShares(),
                                                 locals.assetIt.owner());
                 locals.assetIt.next();
             }
