@@ -262,7 +262,6 @@ private:
             {
                 locals.tempAssetWithAmount = input.offeredAssets.get(locals.counter);
                 state._reservedAssets.add(qpi.invocator(), locals.tempAssetWithAmount, 0);
-                state._counter = locals.tempAssetWithAmount.amount;
             }
             else
             {
@@ -274,7 +273,6 @@ private:
                     {
                         locals.tempAssetWithAmount.amount += input.offeredAssets.get(locals.counter).amount;
                         state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
-                        state._counter = locals.tempAssetWithAmount.amount;
                         break;
                     }
 
@@ -431,7 +429,6 @@ private:
                     if (state._numberOfReservedShares_output.amount - locals.transferredShares - locals.transferredFeeShares <= 0)
                     {
                         state._reservedAssets.remove(locals.elementIndex);
-                        state._counter = 333;
                         break;
                     }
                     else
@@ -439,7 +436,6 @@ private:
                         locals.tempAssetWithAmount.amount -= locals.transferredShares;
                         locals.tempAssetWithAmount.amount -= locals.transferredFeeShares;
                         state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
-                        state._counter = locals.tempAssetWithAmount.amount;
                     }
                 }
                 locals.elementIndex = state._reservedAssets.nextElementIndex(locals.elementIndex);
