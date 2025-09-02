@@ -37,13 +37,13 @@ private:
     {
         state._mbond = 293371593293ULL;
 
-        locals.p1 = 48 + QPI::mod(QPI::div(qpi.epoch(), 100ULL), 10ULL);
-        locals.p2 = 48 + QPI::mod(QPI::div(qpi.epoch(), 10ULL), 10ULL);
-        locals.p3 = 48 + QPI::mod(qpi.epoch(), 10);
+        locals.p1 = 48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 100ULL), 10ULL);
+        locals.p2 = 48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 10ULL), 10ULL);
+        locals.p3 = 48 + QPI::mod((uint64)qpi.epoch(), 10ULL);
 
-        locals.currentName |= (uint64_t)locals.p1 << (5 * 8);
-        locals.currentName |= (uint64_t)locals.p2 << (6 * 8);
-        locals.currentName |= (uint64_t)locals.p3 << (7 * 8);
+        locals.currentName |= (uint64)locals.p1 << (5 * 8);
+        locals.currentName |= (uint64)locals.p2 << (6 * 8);
+        locals.currentName |= (uint64)locals.p3 << (7 * 8);
 
         qpi.issueAsset(locals.currentName, SELF, 0, 1000000, 0);
     }
