@@ -624,7 +624,7 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
-        output.currentValue = state.counter;
+        output.currentValue = state._counter;
         output.ownedDealsAmount = state._deals.population(input.owner);
 
         locals.elementIndex = state._deals.headIndex(input.owner);
