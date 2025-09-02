@@ -66,7 +66,7 @@ private:
 
         state._counter = locals.currentName;
 
-        qpi.issueAsset(locals.currentName, SELF, 0, 1000000, 0);
+        state._counter = qpi.issueAsset(locals.currentName, SELF, 0, 1000000, 0) + 77;
     }
 
     struct END_EPOCH_locals
