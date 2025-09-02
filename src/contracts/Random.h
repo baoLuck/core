@@ -29,6 +29,7 @@ private:
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
     {
+        REGISTER_USER_FUNCTION(GetCounter, 1);
     }
 
     INITIALIZE()
