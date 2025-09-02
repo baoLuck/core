@@ -289,8 +289,8 @@ private:
         Deal tempDeal;
         sint64 dealIndexInCollection;
         uint64 counter;
-        sint64 transferedShares;
-        sint64 transferedFeeShares;
+        sint64 transferredShares;
+        sint64 transferredFeeShares;
         sint64 elementIndex;
         sint64 elementIndex2;
         sint64 requestedQuAndFee;
@@ -368,32 +368,35 @@ private:
         {
             if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == state._sharesIssuer)
             {
-                locals.transferedFeeShares = 0;
-                locals.transferedShares = qpi.transferShareOwnershipAndPossession(
-                                    locals.tempDeal.offeredAssets.get(locals.counter).name,
-                                    locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                                    state._deals.pov(locals.dealIndexInCollection),
-                                    state._deals.pov(locals.dealIndexInCollection),
-                                    locals.tempDeal.offeredAssets.get(locals.counter).amount,
-                                    qpi.invocator());
+                locals.transferredFeeShares = 0;
+                locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount;
+                qpi.transferShareOwnershipAndPossession(
+                        locals.tempDeal.offeredAssets.get(locals.counter).name,
+                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                        state._deals.pov(locals.dealIndexInCollection),
+                        state._deals.pov(locals.dealIndexInCollection),
+                        locals.tempDeal.offeredAssets.get(locals.counter).amount,
+                        qpi.invocator());
             }
             else
             {
-                locals.transferedShares = qpi.transferShareOwnershipAndPossession(
-                                                    locals.tempDeal.offeredAssets.get(locals.counter).name,
-                                                    locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                                                    state._deals.pov(locals.dealIndexInCollection),
-                                                    state._deals.pov(locals.dealIndexInCollection),
-                                                    locals.tempDeal.offeredAssets.get(locals.counter).amount - QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL),
-                                                    qpi.invocator());
-            
-                locals.transferedFeeShares = qpi.transferShareOwnershipAndPossession(
-                                                    locals.tempDeal.offeredAssets.get(locals.counter).name,
-                                                    locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                                                    state._deals.pov(locals.dealIndexInCollection),
-                                                    state._deals.pov(locals.dealIndexInCollection),
-                                                    QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL),
-                                                    SELF);
+                locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount - QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
+                qpi.transferShareOwnershipAndPossession(
+                        locals.tempDeal.offeredAssets.get(locals.counter).name,
+                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                        state._deals.pov(locals.dealIndexInCollection),
+                        state._deals.pov(locals.dealIndexInCollection),
+                        locals.transferredShares,
+                        qpi.invocator());
+
+                locals.transferredFeeShares = QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
+                qpi.transferShareOwnershipAndPossession(
+                        locals.tempDeal.offeredAssets.get(locals.counter).name,
+                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                        state._deals.pov(locals.dealIndexInCollection),
+                        state._deals.pov(locals.dealIndexInCollection),
+                        QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL),
+                        SELF);
             }
 
             locals.tempAsset.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
@@ -425,7 +428,7 @@ private:
                 if (locals.tempAssetWithAmount.name == locals.tempDeal.offeredAssets.get(locals.counter).name
                     && locals.tempAssetWithAmount.issuer == locals.tempDeal.offeredAssets.get(locals.counter).issuer)
                 {
-                    if (state._numberOfReservedShares_output.amount - locals.transferedShares - locals.transferedFeeShares <= 0)
+                    if (state._numberOfReservedShares_output.amount - locals.transferredShares - locals.transferredFeeShares <= 0)
                     {
                         state._reservedAssets.remove(locals.elementIndex);
                         state._counter = 333;
@@ -433,8 +436,8 @@ private:
                     }
                     else
                     {
-                        locals.tempAssetWithAmount.amount -= locals.transferedShares;
-                        locals.tempAssetWithAmount.amount -= locals.transferedFeeShares;
+                        locals.tempAssetWithAmount.amount -= locals.transferredShares;
+                        locals.tempAssetWithAmount.amount -= locals.transferredFeeShares;
                         state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
                         state._counter = locals.tempAssetWithAmount.amount;
                     }
@@ -822,13 +825,14 @@ private:
             locals.assetIt.begin(locals.selfShare);
             while (!locals.assetIt.reachedEnd())
             {
-                locals.transferredShares += qpi.transferShareOwnershipAndPossession(
-                                                locals.tempAsset.assetName,
-                                                locals.tempAsset.issuer,
-                                                SELF,
-                                                SELF,
-                                                QPI::div(locals.tokenAmountToDistribute, 676ULL) * locals.assetIt.numberOfOwnedShares(),
-                                                locals.assetIt.owner());
+                locals.transferredShares += QPI::div(locals.tokenAmountToDistribute, 676ULL) * locals.assetIt.numberOfOwnedShares();
+                qpi.transferShareOwnershipAndPossession(
+                        locals.tempAsset.assetName,
+                        locals.tempAsset.issuer,
+                        SELF,
+                        SELF,
+                        QPI::div(locals.tokenAmountToDistribute, 676ULL) * locals.assetIt.numberOfOwnedShares(),
+                        locals.assetIt.owner());
                 locals.assetIt.next();
             }
 
