@@ -56,7 +56,7 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(Stake)
     {
-        if (qpi.invocationReward() < input.quMillions * QBOND_MIN_STAKE_AMOUNT || !state._epochNameMap.get(qpi.epoch(), locals.mbondNameForEpoch))
+        if ((uint64) qpi.invocationReward() < input.quMillions * QBOND_MIN_STAKE_AMOUNT || !state._epochNameMap.get(qpi.epoch(), locals.mbondNameForEpoch))
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
@@ -94,6 +94,7 @@ private:
             }
             qpi.transferShareOwnershipAndPossession(locals.mbondNameForEpoch, SELF, SELF, SELF, state._stakeQueue.get(locals.counter).amount, state._stakeQueue.get(locals.counter).staker);
             locals.amountToStake += state._stakeQueue.get(locals.counter).amount;
+            state._stakeQueue.set(locals.counter, locals.tempStakeEntry);
         }
 
         INVOKE_OTHER_CONTRACT_PROCEDURE(QEARN, lock, locals.lock_input, locals.lock_output, locals.amountToStake * QBOND_MIN_STAKE_AMOUNT);
