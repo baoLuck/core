@@ -50,8 +50,8 @@ private:
         uint64 counter;
         sint64 amountToStake;
         StakeEntry tempStakeEntry;
-        QEARN::lock_input lockInput;
-        QEARN::lock_output lockOutput;
+        QEARN::lock_input lock_input;
+        QEARN::lock_output lock_output;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(Stake)
@@ -96,7 +96,7 @@ private:
             locals.amountToStake += state._stakeQueue.get(locals.counter).amount;
         }
 
-        INVOKE_OTHER_CONTRACT_PROCEDURE(QEARN, lock, locals.lockInput, locals.lockOutput, locals.amountToStake * QBOND_MIN_STAKE_AMOUNT);
+        INVOKE_OTHER_CONTRACT_PROCEDURE(QEARN, lock, locals.lock_input, locals.lock_output, locals.amountToStake * QBOND_MIN_STAKE_AMOUNT);
     }
 
     PUBLIC_FUNCTION(GetCounter)
@@ -149,7 +149,7 @@ private:
 
     struct END_EPOCH_locals
     {
-        uint64 mbondNameForEpoch;
+        sint64 mbondNameForEpoch;
         sint64 availableMbonds;
     };
     
