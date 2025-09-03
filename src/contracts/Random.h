@@ -54,7 +54,7 @@ private:
 
     INITIALIZE()
     {
-        state._mbond = 293371593293ULL;
+        state._mbond = 1145979469ULL;
     }
 
     PRE_ACQUIRE_SHARES()
@@ -72,7 +72,7 @@ private:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        state._mbond = 293371593293ULL;
+        state._mbond = 1145979469ULL;
 
         locals.currentName = state._mbond;
 
@@ -89,7 +89,7 @@ private:
         //state._counter = locals.currentName;
         state._self = SELF;
 
-        //state._counter = qpi.issueAsset(locals.currentName, SELF, 0, 1000000, 0) + 77;
+        state._counter = qpi.issueAsset(locals.currentName, SELF, 0, 1000000, 0) + 55;
     }
 
     struct END_EPOCH_locals
