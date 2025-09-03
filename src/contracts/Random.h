@@ -15,6 +15,7 @@ public:
     {
         uint64 counter;
         id self;
+        uint64 name;
     };
 
     struct IssueBond_input
@@ -37,6 +38,7 @@ private:
     {
         output.counter = state._counter;
         output.self = state._self;
+        output.name = state._currentName;
     }
 
     PUBLIC_PROCEDURE(IssueBond)
