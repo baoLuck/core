@@ -40,7 +40,7 @@ private:
     uint64 _counter;
     Array<StakeEntry, 16> _stakeQueue;
 
-    HashMap<uint16, sint64, QBOND_MAX_EPOCH_COUNT> _epochNameMap;
+    HashMap<uint16, uint64, QBOND_MAX_EPOCH_COUNT> _epochNameMap;
 
     struct Stake_locals
     {
@@ -149,7 +149,7 @@ private:
 
     struct END_EPOCH_locals
     {
-        sint64 mbondNameForEpoch;
+        uint64 mbondNameForEpoch;
         sint64 availableMbonds;
     };
     
