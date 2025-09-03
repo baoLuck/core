@@ -50,8 +50,8 @@ private:
         uint64 counter;
         sint64 amountToStake;
         StakeEntry tempStakeEntry;
-        QEARN::lock_input lock_input;
-        QEARN::lock_output lock_output;
+        //QEARN::lock_input lock_input;
+        //QEARN::lock_output lock_output;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(Stake)
@@ -96,7 +96,7 @@ private:
             locals.amountToStake += state._stakeQueue.get(locals.counter).amount;
         }
 
-        INVOKE_OTHER_CONTRACT_PROCEDURE(QEARN, lock, locals.lock_input, locals.lock_output, locals.amountToStake * QBOND_MIN_STAKE_AMOUNT);
+        //INVOKE_OTHER_CONTRACT_PROCEDURE(QEARN, lock, locals.lock_input, locals.lock_output, locals.amountToStake * QBOND_MIN_STAKE_AMOUNT);
     }
 
     PUBLIC_FUNCTION(GetCounter)
@@ -130,13 +130,13 @@ private:
     {
         locals.currentName = 1145979469ULL;   // MBND
 
-        locals.chunk = 48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 100ULL), 10ULL);
+        locals.chunk = (sint8) (48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 100ULL), 10ULL));
         locals.currentName |= (uint64)locals.chunk << (4 * 8);
 
-        locals.chunk = 48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 10ULL), 10ULL);
+        locals.chunk = (sint8) (48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 10ULL), 10ULL));
         locals.currentName |= (uint64)locals.chunk << (5 * 8);
 
-        locals.chunk = 48 + QPI::mod((uint64)qpi.epoch(), 10ULL);
+        locals.chunk = (sint8) (48 + QPI::mod((uint64)qpi.epoch(), 10ULL));
         locals.currentName |= (uint64)locals.chunk << (6 * 8);
 
         qpi.issueAsset(locals.currentName, SELF, 0, 1000000000LL, 0);
