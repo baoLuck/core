@@ -19,6 +19,7 @@ public:
 
     struct IssueBond_input
     {
+        uint64 t;
     };
 
     struct IssueBond_output
@@ -40,7 +41,8 @@ private:
 
     PUBLIC_PROCEDURE(IssueBond)
     {
-        state._counter = qpi.issueAsset(state._currentName, SELF, 0, 1000000, 0) + 33;
+        state._counter += 33;
+        state._counter += qpi.issueAsset(state._currentName, SELF, (signed char) 0, 1000000LL, 0ULL);
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
