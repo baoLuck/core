@@ -1,5 +1,8 @@
 using namespace QPI;
 
+constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
+constexpr uint64 QBOND_BASE_STAKE_AMOUNT = 1000000ULL;
+
 struct RANDOM2
 {
 };
@@ -7,6 +10,15 @@ struct RANDOM2
 struct RANDOM : public ContractBase
 {
 public:
+    struct Stake_input
+    {
+        uint64 millions;
+    };
+
+    struct Stake_output
+    {
+    };
+    
     struct GetCounter_input
     {
     };
@@ -14,47 +26,36 @@ public:
     struct GetCounter_output
     {
         uint64 counter;
-        id self;
-        uint64 name;
     };
-
-    struct IssueBond_input
-    {
-        uint64 t;
-    };
-
-    struct IssueBond_output
-    {
-    };
-    
     
 private:
-    uint64 _mbond;
     uint64 _counter;
-    id _self;
-    uint64 _currentName;
+
+    HashMap<uint16, uint64, QBOND_MAX_EPOCH_COUNT> _epochNameMap;
+
+    struct Stake_locals
+    {
+        uint64 mbondNameForEpoch;
+    };
+
+    PUBLIC_PROCEDURE_WITH_LOCALS(Stake)
+    {
+        qpi.numberOfPossessedShares(state._epochNameMap.);
+    }
 
     PUBLIC_FUNCTION(GetCounter)
     {
         output.counter = state._counter;
-        output.self = state._self;
-        output.name = state._currentName;
-    }
-
-    PUBLIC_PROCEDURE(IssueBond)
-    {
-        state._counter = qpi.issueAsset(state._currentName, SELF, (signed char) 0, 1000000LL, 0ULL);
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
     {
-        REGISTER_USER_PROCEDURE(IssueBond, 1);
+        REGISTER_USER_PROCEDURE(Stake, 1);
         REGISTER_USER_FUNCTION(GetCounter, 1);
     }
 
     INITIALIZE()
     {
-        state._mbond = 1145979469ULL;
     }
 
     PRE_ACQUIRE_SHARES()
@@ -64,39 +65,39 @@ private:
 
     struct BEGIN_EPOCH_locals
     {
-        sint8 p1;
-        sint8 p2;
-        sint8 p3;
+        sint8 chunk;
         uint64 currentName;
     };
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        state._mbond = 1145979469ULL;
+        locals.currentName = 1145979469ULL;   // MBND
 
-        locals.currentName = state._mbond;
+        locals.chunk = 48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 100ULL), 10ULL);
+        locals.currentName |= (uint64)locals.chunk << (4 * 8);
 
-        locals.p1 = 48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 100ULL), 10ULL);
-        locals.p2 = 48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 10ULL), 10ULL);
-        locals.p3 = 48 + QPI::mod((uint64)qpi.epoch(), 10ULL);
+        locals.chunk = 48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 10ULL), 10ULL);
+        locals.currentName |= (uint64)locals.chunk << (5 * 8);
 
-        locals.currentName |= (uint64)locals.p1 << (4 * 8);
-        locals.currentName |= (uint64)locals.p2 << (5 * 8);
-        locals.currentName |= (uint64)locals.p3 << (6 * 8);
+        locals.chunk = 48 + QPI::mod((uint64)qpi.epoch(), 10ULL);
+        locals.currentName |= (uint64)locals.chunk << (6 * 8);
 
-        state._currentName = locals.currentName;
-
-        //state._counter = locals.currentName;
-        state._self = SELF;
-
-        state._counter = qpi.issueAsset(locals.currentName, SELF, 0, 1000000, 0) + 55;
+        qpi.issueAsset(locals.currentName, SELF, 0, 1000000, 0);
+        state._epochNameMap.set(qpi.epoch(), locals.currentName);
     }
 
     struct END_EPOCH_locals
     {
+        uint64 mbondNameForEpoch;
+        sint64 possesedMbonds;
     };
     
     END_EPOCH_WITH_LOCALS()
     {
+        if (state._epochNameMap.get(qpi.epoch(), locals.mbondNameForEpoch))
+        {
+            locals.possesedMbonds = qpi.numberOfPossessedShares(locals.mbondNameForEpoch, SELF, SELF, SELF, SELF_INDEX, SELF_INDEX);
+		    qpi.transferShareOwnershipAndPossession(locals.mbondNameForEpoch, SELF, SELF, SELF, locals.possesedMbonds, NULL_ID);
+        }
     }
 };
