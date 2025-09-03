@@ -7,7 +7,6 @@ struct RANDOM2
 struct RANDOM : public ContractBase
 {
 public:
-
     struct GetCounter_input
     {
     };
@@ -17,12 +16,21 @@ public:
         uint64 counter;
         id self;
     };
+
+    struct IssueBond_input
+    {
+    };
+
+    struct IssueBond_output
+    {
+    };
     
     
 private:
     uint64 _mbond;
     uint64 _counter;
     id _self;
+    uint64 _currentName;
 
     PUBLIC_FUNCTION(GetCounter)
     {
@@ -30,8 +38,14 @@ private:
         output.self = state._self;
     }
 
+    PUBLIC_PROCEDURE(IssueBond)
+    {
+        state._counter = qpi.issueAsset(state._currentName, SELF, 0, 1000000, 0) + 33;
+    }
+
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
     {
+        REGISTER_USER_PROCEDURE(IssueBond, 1);
         REGISTER_USER_FUNCTION(GetCounter, 1);
     }
 
@@ -66,6 +80,8 @@ private:
         locals.currentName |= (uint64)locals.p1 << (5 * 8);
         locals.currentName |= (uint64)locals.p2 << (6 * 8);
         locals.currentName |= (uint64)locals.p3 << (7 * 8);
+
+        state._currentName = locals.currentName;
 
         state._counter = locals.currentName;
         state._self = SELF;
