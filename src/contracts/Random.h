@@ -15,16 +15,19 @@ public:
     struct GetCounter_output
     {
         uint64 counter;
+        id self;
     };
     
     
 private:
     uint64 _mbond;
     uint64 _counter;
+    id _self;
 
     PUBLIC_FUNCTION(GetCounter)
     {
         output.counter = state._counter;
+        output.self = state._self;
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
@@ -65,6 +68,7 @@ private:
         locals.currentName |= (uint64)locals.p3 << (7 * 8);
 
         state._counter = locals.currentName;
+        state._self = SELF;
 
         state._counter = qpi.issueAsset(locals.currentName, SELF, 0, 1000000, 0) + 77;
     }
