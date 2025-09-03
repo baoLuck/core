@@ -530,7 +530,7 @@ long long QPI::QpiContextProcedureCall::issueAsset(unsigned long long name, cons
     if (((unsigned char)name) < 'A' || ((unsigned char)name) > 'Z'
         || name > 0xFFFFFFFFFFFFFF)
     {
-        return 0;
+        return 1;
     }
     for (unsigned int i = 1; i < 7; i++)
     {
@@ -540,7 +540,7 @@ long long QPI::QpiContextProcedureCall::issueAsset(unsigned long long name, cons
             {
                 if ((unsigned char)(name >> (i * 8)))
                 {
-                    return 0;
+                    return 2;
                 }
             }
 
@@ -557,24 +557,24 @@ long long QPI::QpiContextProcedureCall::issueAsset(unsigned long long name, cons
         }
         else
         {
-            return 0;
+            return 3;
         }
     }
 
     // Any time an asset is issued via QPI either invocator or contract can be the issuer. Zero is prohibited in this case.
     if (isZero(issuer) || (issuer != _currentContractId && issuer != _invocator))
     {
-        return 0;
+        return 4;
     }
 
     if (numberOfShares <= 0 || numberOfShares > MAX_AMOUNT)
     {
-        return 0;
+        return 5;
     }
 
     if (unitOfMeasurement > 0xFFFFFFFFFFFFFF)
     {
-        return 0;
+        return 6;
     }
 
     char nameBuffer[7] = { char(name), char(name >> 8), char(name >> 16), char(name >> 24), char(name >> 32), char(name >> 40), char(name >> 48) };

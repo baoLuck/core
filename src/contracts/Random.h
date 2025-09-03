@@ -41,8 +41,7 @@ private:
 
     PUBLIC_PROCEDURE(IssueBond)
     {
-        state._counter += 33;
-        state._counter += qpi.issueAsset(state._currentName, SELF, (signed char) 0, 1000000LL, 0ULL);
+        state._counter = qpi.issueAsset(state._currentName, SELF, (signed char) 0, 1000000LL, 0ULL);
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
@@ -85,10 +84,10 @@ private:
 
         state._currentName = locals.currentName;
 
-        state._counter = locals.currentName;
+        //state._counter = locals.currentName;
         state._self = SELF;
 
-        state._counter = qpi.issueAsset(locals.currentName, SELF, 0, 1000000, 0) + 77;
+        //state._counter = qpi.issueAsset(locals.currentName, SELF, 0, 1000000, 0) + 77;
     }
 
     struct END_EPOCH_locals
