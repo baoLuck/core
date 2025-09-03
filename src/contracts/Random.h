@@ -80,9 +80,9 @@ private:
         locals.p2 = 48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 10ULL), 10ULL);
         locals.p3 = 48 + QPI::mod((uint64)qpi.epoch(), 10ULL);
 
-        locals.currentName |= (uint64)locals.p1 << (5 * 8);
-        locals.currentName |= (uint64)locals.p2 << (6 * 8);
-        locals.currentName |= (uint64)locals.p3 << (7 * 8);
+        locals.currentName |= (uint64)locals.p1 << (4 * 8);
+        locals.currentName |= (uint64)locals.p2 << (5 * 8);
+        locals.currentName |= (uint64)locals.p3 << (6 * 8);
 
         state._currentName = locals.currentName;
 
