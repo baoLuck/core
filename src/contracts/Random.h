@@ -40,7 +40,7 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(Stake)
     {
-        qpi.numberOfPossessedShares(state._epochNameMap.);
+        // qpi.numberOfPossessedShares(state._epochNameMap.);
     }
 
     PUBLIC_FUNCTION(GetCounter)
