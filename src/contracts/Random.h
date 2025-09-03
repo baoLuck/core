@@ -38,7 +38,7 @@ public:
     
 private:
     uint64 _counter;
-    Array<StakeEntry, QBOND_MAX_QUEUE_SIZE> _stakeQueue;
+    Array<StakeEntry, 16> _stakeQueue;
 
     HashMap<uint16, sint64, QBOND_MAX_EPOCH_COUNT> _epochNameMap;
 
@@ -50,8 +50,8 @@ private:
         uint64 counter;
         sint64 amountToStake;
         StakeEntry tempStakeEntry;
-        QEARN::lock_input input;
-        QEARN::lock_output output;
+        QEARN::lock_input lockInput;
+        QEARN::lock_output lockOutput;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(Stake)
@@ -96,7 +96,7 @@ private:
             locals.amountToStake += state._stakeQueue.get(locals.counter).amount;
         }
 
-        INVOKE_OTHER_CONTRACT_PROCEDURE(QEARN, lock, locals.input, locals.output, locals.amountToStake * QBOND_MIN_STAKE_AMOUNT);
+        INVOKE_OTHER_CONTRACT_PROCEDURE(QEARN, lock, locals.lockInput, locals.lockOutput, locals.amountToStake * QBOND_MIN_STAKE_AMOUNT);
     }
 
     PUBLIC_FUNCTION(GetCounter)
