@@ -39,7 +39,7 @@ public:
     struct TransferMBondOwnershipAndPossession_input
     {
         id newOwnerAndPossessor;
-        uint16 epoch;
+        sint64 epoch;
         sint64 numberOfMBonds;
     };
 
@@ -57,12 +57,14 @@ public:
     {
         uint64 stakersAmount;
         sint64 totalStaked;
+        uint64 counter;
     };
     
 private:
     Array<StakeEntry, 16> _stakeQueue;
     HashMap<uint16, MBondInfo, 1024> _epochMbondInfoMap;
     MBondInfo _tempMbondInfo;
+    uint64 _counter;
 
     struct Stake_locals
     {
@@ -137,14 +139,18 @@ private:
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
 
+        state._counter = 1;
+
         if (state._epochMbondInfoMap.get(input.epoch, state._tempMbondInfo)
                 && qpi.numberOfPossessedShares(state._tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) < input.numberOfMBonds)
         {
             output.transferredMBonds = 0;
+            state._counter = 2;
         }
         else
         {
             output.transferredMBonds = qpi.transferShareOwnershipAndPossession(state._tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), input.numberOfMBonds, input.newOwnerAndPossessor) < 0 ? 0 : input.numberOfMBonds;
+            state._counter = 3;
         }
     }
 
@@ -153,11 +159,11 @@ private:
         sint64 index;
     };
     
-
     PUBLIC_FUNCTION_WITH_LOCALS(GetInfoPerEpoch)
     {
         output.totalStaked = 0;
         output.stakersAmount = 0;
+        output.counter = state._counter;
 
         locals.index = state._epochMbondInfoMap.getElementIndex(input.epoch);
 
