@@ -57,7 +57,6 @@ public:
     {
         uint64 stakersAmount;
         sint64 totalStaked;
-        uint64 counter;
     };
     
 private:
@@ -134,25 +133,24 @@ private:
 
     PUBLIC_PROCEDURE(TransferMBondOwnershipAndPossession)
     {
-        state._counter = 1;
-
         if (qpi.invocationReward() > 0)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
 
-        state._counter = 2;
-
-        if (state._epochMbondInfoMap.get(input.epoch, state._tempMbondInfo)
+        if (state._epochMbondInfoMap.get((uint16)input.epoch, state._tempMbondInfo)
                 && qpi.numberOfPossessedShares(state._tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) < input.numberOfMBonds)
         {
             output.transferredMBonds = 0;
-            state._counter = 3;
         }
         else
         {
             output.transferredMBonds = qpi.transferShareOwnershipAndPossession(state._tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), input.numberOfMBonds, input.newOwnerAndPossessor) < 0 ? 0 : input.numberOfMBonds;
-            state._counter = 4;
+            if (qpi.numberOfPossessedShares(state._tempMbondInfo.name, SELF, input.newOwnerAndPossessor, input.newOwnerAndPossessor, SELF_INDEX, SELF_INDEX) <= 0)
+            {
+                state._tempMbondInfo.stakersAmount++;
+                state._epochMbondInfoMap.replace((uint16)input.epoch, state._tempMbondInfo);
+            }
         }
     }
 
