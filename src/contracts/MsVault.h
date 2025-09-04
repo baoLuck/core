@@ -23,7 +23,7 @@ public:
     struct MBondInfo
     {
         uint64 name;
-        Array<StakeEntry, 1048576> stakers;
+        Array<StakeEntry, 131072> stakers;
         sint64 stakersAmount;
         sint64 totalStaked;
     };
