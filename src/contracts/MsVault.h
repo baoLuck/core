@@ -103,7 +103,7 @@ private:
             {
                 break;
             }
-            if (qpi.numberOfPossessedShares(state._tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) <= 0)
+            if (qpi.numberOfPossessedShares(state._tempMbondInfo.name, SELF, state._stakeQueue.get(locals.counter).staker, state._stakeQueue.get(locals.counter).staker, SELF_INDEX, SELF_INDEX) <= 0)
             {
                 state._tempMbondInfo.stakersAmount++;
             }
