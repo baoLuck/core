@@ -23,7 +23,7 @@ public:
     struct MbondInfo
     {
         uint64 name;
-        Array<StakeEntry, 1048576> stakers;
+        Array<StakeEntry, 524288> stakers;
         sint64 stakersAmount;
         sint64 totalStaked;
     };
@@ -158,7 +158,7 @@ private:
         sint8 chunk;
         uint64 currentName;
         StakeEntry emptyEntry;
-        Array<StakeEntry, 1048576> epochStakers;
+        Array<StakeEntry, 524288> epochStakers;
         MbondInfo tempMbondInfo;
         QEARN::getEndedStatus_input getEndedStatus_input;
         QEARN::getEndedStatus_output getEndedStatus_output;
