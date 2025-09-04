@@ -145,12 +145,16 @@ private:
         }
         else
         {
-            output.transferredMBonds = qpi.transferShareOwnershipAndPossession(state._tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), input.numberOfMBonds, input.newOwnerAndPossessor) < 0 ? 0 : input.numberOfMBonds;
             if (qpi.numberOfPossessedShares(state._tempMbondInfo.name, SELF, input.newOwnerAndPossessor, input.newOwnerAndPossessor, SELF_INDEX, SELF_INDEX) <= 0)
             {
                 state._tempMbondInfo.stakersAmount++;
-                state._epochMbondInfoMap.replace((uint16)input.epoch, state._tempMbondInfo);
             }
+            output.transferredMBonds = qpi.transferShareOwnershipAndPossession(state._tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), input.numberOfMBonds, input.newOwnerAndPossessor) < 0 ? 0 : input.numberOfMBonds;
+            if (qpi.numberOfPossessedShares(state._tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) <= 0)
+            {
+                state._tempMbondInfo.stakersAmount--;
+            }
+            state._epochMbondInfoMap.replace((uint16)input.epoch, state._tempMbondInfo);
         }
     }
 
