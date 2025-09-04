@@ -4,6 +4,7 @@ constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
 constexpr uint64 QBOND_MIN_STAKE_AMOUNT = 1000000ULL;
 constexpr uint64 QBOND_MAX_QUEUE_SIZE = 10ULL;
 constexpr uint64 QBOND_MIN_MBONDS_TO_STAKE = 10ULL;
+constexpr uint64 QBOND_MAX_STAKERS_PER_EPOCH = 1048576ULL;
 constexpr sint64 QBOND_BONDS_EMISSION = 1000000000LL;
 constexpr uint16 QBOND_START_EPOCH = 170;
 
@@ -23,8 +24,7 @@ public:
     struct MBondInfo
     {
         uint64 name;
-        Array<StakeEntry, 131072> stakers;
-        sint64 stakersAmount;
+        Collection<sint64, QBOND_MAX_STAKERS_PER_EPOCH> stakeEntries;
         sint64 totalStaked;
     };
 
@@ -44,21 +44,20 @@ public:
 
     struct GetInfoPerEpoch_output
     {
-        sint64 stakersAmount;
+        uint64 stakersAmount;
         sint64 totalStaked;
     };
     
 private:
     Array<StakeEntry, 16> _stakeQueue;
-    uint64 _currentStakerIndex;
     HashMap<uint16, MBondInfo, QBOND_MAX_EPOCH_COUNT> _epochMbondInfoMap;
     MBondInfo _tempMbondInfo;
 
     struct Stake_locals
     {
-        uint64 mbondNameForEpoch;
-        sint64 availableMbonds;
         sint64 amountInQueue;
+        sint64 index;
+        sint64 tempAmount;
         uint64 counter;
         sint64 amountToStake;
         StakeEntry tempStakeEntry;
@@ -106,9 +105,18 @@ private:
             }
             qpi.transferShareOwnershipAndPossession(state._tempMbondInfo.name, SELF, SELF, SELF, state._stakeQueue.get(locals.counter).amount, state._stakeQueue.get(locals.counter).staker);
             locals.amountToStake += state._stakeQueue.get(locals.counter).amount;
-            state._tempMbondInfo.stakers.set(state._currentStakerIndex, state._stakeQueue.get(locals.counter));
-            state._tempMbondInfo.stakersAmount++;
-            state._currentStakerIndex++;
+            locals.index = state._tempMbondInfo.stakeEntries.headIndex(qpi.invocator);
+            if (locals.index == NULL_INDEX)
+            {
+                state._tempMbondInfo.stakeEntries.add(qpi.invocator(), state._stakeQueue.get(locals.counter).amount, 0);
+            }
+            else
+            {
+                locals.tempAmount = state._tempMbondInfo.stakeEntries.element(locals.index);
+                locals.tempAmount += state._stakeQueue.get(locals.counter).amount;
+                state._tempMbondInfo.stakeEntries.replace(locals.index, locals.tempAmount);
+            }
+
             state._stakeQueue.set(locals.counter, locals.tempStakeEntry);
         }
 
@@ -137,7 +145,7 @@ private:
         }
 
         output.totalStaked = state._epochMbondInfoMap.value(locals.index).totalStaked;
-        output.stakersAmount = state._epochMbondInfoMap.value(locals.index).stakersAmount;
+        output.stakersAmount = state._epochMbondInfoMap.value(locals.index).stakeEntries.population();
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
@@ -195,11 +203,9 @@ private:
         locals.emptyEntry.amount = 0;
         state._tempMbondInfo.name = locals.currentName;
         state._tempMbondInfo.totalStaked = 0;
-        state._tempMbondInfo.stakersAmount = 0;
-        state._tempMbondInfo.stakers.setAll(locals.emptyEntry);
+        state._tempMbondInfo.stakeEntries.reset();
         state._epochMbondInfoMap.set(qpi.epoch(), state._tempMbondInfo);
         state._stakeQueue.setAll(locals.emptyEntry);
-        state._currentStakerIndex = 0;
     }
 
     struct END_EPOCH_locals
