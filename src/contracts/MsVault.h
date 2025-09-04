@@ -118,18 +118,26 @@ private:
         INVOKE_OTHER_CONTRACT_PROCEDURE(QEARN, lock, locals.lock_input, locals.lock_output, locals.amountToStake * QBOND_MIN_STAKE_AMOUNT);
     }
 
-    PUBLIC_FUNCTION(GetInfoPerEpoch)
+    struct GetInfoPerEpoch_locals
+    {
+        sint64 index;
+    };
+    
+
+    PUBLIC_FUNCTION_WITH_LOCALS(GetInfoPerEpoch)
     {
         output.totalStaked = 0;
         output.stakersAmount = 0;
 
-        if (input.epoch < QBOND_START_EPOCH || !state._epochMbondInfoMap.get(input.epoch, state._tempMbondInfo))
+        locals.index = state._epochMbondInfoMap.getElementIndex(input.epoch);
+
+        if (input.epoch < QBOND_START_EPOCH || locals.index == NULL_INDEX)
         {
             return;
         }
 
-        output.totalStaked = state._tempMbondInfo.totalStaked;
-        output.stakersAmount = state._tempMbondInfo.stakersAmount;
+        output.totalStaked = state._epochMbondInfoMap.value(locals.index).totalStaked;
+        output.stakersAmount = state._epochMbondInfoMap.value(locals.index).stakersAmount;
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
