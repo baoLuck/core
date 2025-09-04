@@ -167,7 +167,6 @@ private:
     {
         output.totalStaked = 0;
         output.stakersAmount = 0;
-        output.counter = state._counter;
 
         locals.index = state._epochMbondInfoMap.getElementIndex(input.epoch);
 
