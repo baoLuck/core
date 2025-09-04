@@ -126,7 +126,7 @@ private:
     PUBLIC_FUNCTION_WITH_LOCALS(GetInfoPerEpoch)
     {
         output.totalStaked = 0;
-        output.totalStakers = 0;
+        output.stakersAmount = 0;
 
         if (input.epoch < QBOND_START_EPOCH || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
         {
@@ -134,7 +134,7 @@ private:
         }
 
         output.totalStaked = locals.tempMbondInfo.totalStaked;
-        output.totalStakers = locals.tempMbondInfo.totalStakers;
+        output.stakersAmount = locals.tempMbondInfo.stakersAmount;
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
@@ -194,7 +194,7 @@ private:
         locals.emptyEntry.amount = 0;
         locals.tempMbondInfo.name = locals.currentName;
         locals.tempMbondInfo.totalStaked = 0;
-        locals.tempMbondInfo.totalStakers = 0;
+        locals.tempMbondInfo.stakersAmount = 0;
         locals.tempMbondInfo.stakers.setAll(locals.emptyEntry);
         state._epochMbondInfoMap.set(qpi.epoch(), locals.tempMbondInfo);
         state._stakeQueue.setAll(locals.emptyEntry);
