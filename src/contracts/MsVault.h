@@ -50,7 +50,7 @@ public:
     
 private:
     Array<StakeEntry, 16> _stakeQueue;
-    HashMap<uint16, MBondInfo, QBOND_MAX_EPOCH_COUNT> _epochMbondInfoMap;
+    HashMap<uint16, MBondInfo, 1024> _epochMbondInfoMap;
     MBondInfo _tempMbondInfo;
 
     struct Stake_locals
@@ -105,7 +105,7 @@ private:
             }
             qpi.transferShareOwnershipAndPossession(state._tempMbondInfo.name, SELF, SELF, SELF, state._stakeQueue.get(locals.counter).amount, state._stakeQueue.get(locals.counter).staker);
             locals.amountToStake += state._stakeQueue.get(locals.counter).amount;
-            locals.index = state._tempMbondInfo.stakeEntries.headIndex(qpi.invocator);
+            locals.index = state._tempMbondInfo.stakeEntries.headIndex(qpi.invocator());
             if (locals.index == NULL_INDEX)
             {
                 state._tempMbondInfo.stakeEntries.add(qpi.invocator(), state._stakeQueue.get(locals.counter).amount, 0);
