@@ -134,23 +134,25 @@ private:
 
     PUBLIC_PROCEDURE(TransferMBondOwnershipAndPossession)
     {
+        state._counter = 1;
+
         if (qpi.invocationReward() > 0)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
 
-        state._counter = 1;
+        state._counter = 2;
 
         if (state._epochMbondInfoMap.get(input.epoch, state._tempMbondInfo)
                 && qpi.numberOfPossessedShares(state._tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) < input.numberOfMBonds)
         {
             output.transferredMBonds = 0;
-            state._counter = 2;
+            state._counter = 3;
         }
         else
         {
             output.transferredMBonds = qpi.transferShareOwnershipAndPossession(state._tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), input.numberOfMBonds, input.newOwnerAndPossessor) < 0 ? 0 : input.numberOfMBonds;
-            state._counter = 3;
+            state._counter = 4;
         }
     }
 
