@@ -102,17 +102,17 @@ private:
     {
         output.amount = 0;
 
-        locals.elementIndex = state._askOrders.headIndex(input.owner, 0);
-        while (locals.elementIndex != NULL_INDEX)
-        {
-            locals.order = state._askOrders.element(locals.elementIndex);
-            if (locals.order.epoch == input.epoch)
-            {
-                output.amount += locals.order.numberOfMBonds;
-            }
+        // locals.elementIndex = state._askOrders.headIndex(input.owner, 0);
+        // while (locals.elementIndex != NULL_INDEX)
+        // {
+        //     locals.order = state._askOrders.element(locals.elementIndex);
+        //     if (locals.order.epoch == input.epoch)
+        //     {
+        //         output.amount += locals.order.numberOfMBonds;
+        //     }
 
-            locals.elementIndex = state._askOrders.nextElementIndex(locals.elementIndex);
-        }
+        //     locals.elementIndex = state._askOrders.nextElementIndex(locals.elementIndex);
+        // }
     }
 
     struct Stake_locals
@@ -296,11 +296,11 @@ private:
         }
 
         CALL_OTHER_CONTRACT_FUNCTION(QEARN, getEndedStatus, locals.getEndedStatus_input, locals.getEndedStatus_output);
-        //if (locals.getEndedStatus_output.fullyUnlockedAmount > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 52, state._tempMbondInfo))
-        if (state._full > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 2, state._tempMbondInfo))
+        if (locals.getEndedStatus_output.fullyUnlockedAmount > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 52, state._tempMbondInfo))
+        //if (state._full > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 2, state._tempMbondInfo))
         {
-            //locals.rewardPerMBond = QPI::div(locals.getEndedStatus_output.fullyRewardedAmount, (uint64) state._tempMbondInfo.totalStaked);
-            locals.rewardPerMBond = QPI::div(state._counter, (uint64) state._tempMbondInfo.totalStaked);
+            locals.rewardPerMBond = QPI::div(locals.getEndedStatus_output.fullyRewardedAmount, (uint64) state._tempMbondInfo.totalStaked);
+            //locals.rewardPerMBond = QPI::div(state._counter, (uint64) state._tempMbondInfo.totalStaked);
 
             locals.tempAsset.assetName = state._tempMbondInfo.name;
             locals.tempAsset.issuer = SELF;
