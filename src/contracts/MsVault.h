@@ -64,6 +64,7 @@ private:
     HashMap<uint16, MBondInfo, 1024> _epochMbondInfoMap;
     MBondInfo _tempMbondInfo;
     uint64 _counter;
+    uint64 _full;
 
     struct Stake_locals
     {
@@ -211,10 +212,21 @@ private:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        CALL_OTHER_CONTRACT_FUNCTION(QEARN, getEndedStatus, locals.getEndedStatus_input, locals.getEndedStatus_output);
-        if (locals.getEndedStatus_output.fullyUnlockedAmount > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 52, state._tempMbondInfo))
+        state._counter = 0;
+        state._full = 0;
+        if (qpi.epoch() == 175)
         {
-            locals.rewardPerMBond = QPI::div(locals.getEndedStatus_output.fullyRewardedAmount, (uint64) state._tempMbondInfo.totalStaked);
+            state._counter = 7500000ULL;
+            state._full = 15000000ULL;
+        }
+
+        CALL_OTHER_CONTRACT_FUNCTION(QEARN, getEndedStatus, locals.getEndedStatus_input, locals.getEndedStatus_output);
+        //if (locals.getEndedStatus_output.fullyUnlockedAmount > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 52, state._tempMbondInfo))
+        if (state._full > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 5, state._tempMbondInfo))
+        {
+            //locals.rewardPerMBond = QPI::div(locals.getEndedStatus_output.fullyRewardedAmount, (uint64) state._tempMbondInfo.totalStaked);
+            locals.rewardPerMBond = QPI::div(state._counter, (uint64) state._tempMbondInfo.totalStaked);
+
             locals.tempAsset.assetName = state._tempMbondInfo.name;
             locals.tempAsset.issuer = SELF;
             locals.transferredShares = 0;
