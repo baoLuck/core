@@ -336,7 +336,7 @@ private:
 
     POST_INCOMING_TRANSFER()
     {
-        state._getQUEpoch = qpi.epoch();
+        
     }
 
     struct END_EPOCH_locals
