@@ -65,21 +65,13 @@ public:
     {
         uint64 stakersAmount;
         sint64 totalStaked;
-        uint64 getQUEpoch;
-        uint64 fullRewardAmountEpoch;
-        uint64 fullRewardAmountEpoch2;
+        id qearnId;
     };
     
 private:
     Array<StakeEntry, 16> _stakeQueue;
     HashMap<uint16, MBondInfo, 1024> _epochMbondInfoMap;
     MBondInfo _tempMbondInfo;
-    uint64 _counter;
-    uint64 _full;
-
-    uint64 _getQUEpoch;
-    uint64 _fullRewardAmountEpoch;
-    uint64 _fullRewardAmountEpoch2;
 
     struct _Order
     {
@@ -250,9 +242,7 @@ private:
     {
         output.totalStaked = 0;
         output.stakersAmount = 0;
-        output.getQUEpoch = state._getQUEpoch;
-        output.fullRewardAmountEpoch = state._fullRewardAmountEpoch;
-        output.fullRewardAmountEpoch2 = state._fullRewardAmountEpoch2;
+        output.qearnId = id(QEARN_CONTRACT_INDEX, 0, 0, 0);
 
         locals.index = state._epochMbondInfoMap.getElementIndex(input.epoch);
 
@@ -297,26 +287,11 @@ private:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        state._counter = 0;
-        state._full = 0;
-        // if (qpi.epoch() == 172)
-        // {
-        //     state._counter = 7500000ULL;
-        //     state._full = 15000000ULL;
-        // }
-
         CALL_OTHER_CONTRACT_FUNCTION(QEARN, getEndedStatus, locals.getEndedStatus_input, locals.getEndedStatus_output);
-        if (locals.getEndedStatus_output.fullyUnlockedAmount)
-        {
-            state._fullRewardAmountEpoch2 = qpi.epoch();
-        }
 
         if (locals.getEndedStatus_output.fullyUnlockedAmount > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 53, state._tempMbondInfo))
-        //if (state._full > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 2, state._tempMbondInfo))
         {
-            state._fullRewardAmountEpoch = qpi.epoch();
             locals.rewardPerMBond = QPI::div(locals.getEndedStatus_output.fullyRewardedAmount, (uint64) state._tempMbondInfo.totalStaked);
-            //locals.rewardPerMBond = QPI::div(state._counter, (uint64) state._tempMbondInfo.totalStaked);
 
             locals.tempAsset.assetName = state._tempMbondInfo.name;
             locals.tempAsset.issuer = SELF;
