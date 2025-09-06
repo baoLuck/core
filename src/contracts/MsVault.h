@@ -67,6 +67,7 @@ public:
         sint64 totalStaked;
         uint64 getQUEpoch;
         uint64 fullRewardAmountEpoch;
+        uint64 fullRewardAmountEpoch2;
     };
     
 private:
@@ -78,6 +79,7 @@ private:
 
     uint64 _getQUEpoch;
     uint64 _fullRewardAmountEpoch;
+    uint64 _fullRewardAmountEpoch2;
 
     struct _Order
     {
@@ -250,6 +252,7 @@ private:
         output.stakersAmount = 0;
         output.getQUEpoch = state._getQUEpoch;
         output.fullRewardAmountEpoch = state._fullRewardAmountEpoch;
+        output.fullRewardAmountEpoch2 = state._fullRewardAmountEpoch2;
 
         locals.index = state._epochMbondInfoMap.getElementIndex(input.epoch);
 
@@ -303,7 +306,12 @@ private:
         // }
 
         CALL_OTHER_CONTRACT_FUNCTION(QEARN, getEndedStatus, locals.getEndedStatus_input, locals.getEndedStatus_output);
-        if (locals.getEndedStatus_output.fullyUnlockedAmount > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 52, state._tempMbondInfo))
+        if (locals.getEndedStatus_output.fullyUnlockedAmount)
+        {
+            state._fullRewardAmountEpoch2 = qpi.epoch();
+        }
+
+        if (locals.getEndedStatus_output.fullyUnlockedAmount > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 53, state._tempMbondInfo))
         //if (state._full > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 2, state._tempMbondInfo))
         {
             state._fullRewardAmountEpoch = qpi.epoch();
