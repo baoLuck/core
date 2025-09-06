@@ -65,6 +65,8 @@ public:
     {
         uint64 stakersAmount;
         sint64 totalStaked;
+        uint64 getQUEpoch;
+        uint64 fullRewardAmountEpoch;
     };
     
 private:
@@ -73,6 +75,9 @@ private:
     MBondInfo _tempMbondInfo;
     uint64 _counter;
     uint64 _full;
+
+    uint64 _getQUEpoch;
+    uint64 _fullRewardAmountEpoch;
 
     struct _Order
     {
@@ -243,6 +248,8 @@ private:
     {
         output.totalStaked = 0;
         output.stakersAmount = 0;
+        output.getQUEpoch = state._getQUEpoch;
+        output.fullRewardAmountEpoch = state._fullRewardAmountEpoch;
 
         locals.index = state._epochMbondInfoMap.getElementIndex(input.epoch);
 
@@ -289,16 +296,17 @@ private:
     {
         state._counter = 0;
         state._full = 0;
-        if (qpi.epoch() == 172)
-        {
-            state._counter = 7500000ULL;
-            state._full = 15000000ULL;
-        }
+        // if (qpi.epoch() == 172)
+        // {
+        //     state._counter = 7500000ULL;
+        //     state._full = 15000000ULL;
+        // }
 
         CALL_OTHER_CONTRACT_FUNCTION(QEARN, getEndedStatus, locals.getEndedStatus_input, locals.getEndedStatus_output);
         if (locals.getEndedStatus_output.fullyUnlockedAmount > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 52, state._tempMbondInfo))
         //if (state._full > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 2, state._tempMbondInfo))
         {
+            state._fullRewardAmountEpoch = qpi.epoch();
             locals.rewardPerMBond = QPI::div(locals.getEndedStatus_output.fullyRewardedAmount, (uint64) state._tempMbondInfo.totalStaked);
             //locals.rewardPerMBond = QPI::div(state._counter, (uint64) state._tempMbondInfo.totalStaked);
 
@@ -341,6 +349,11 @@ private:
         state._tempMbondInfo.stakersAmount = 0;
         state._epochMbondInfoMap.set(qpi.epoch(), state._tempMbondInfo);
         state._stakeQueue.setAll(locals.emptyEntry);
+    }
+
+    POST_INCOMING_TRANSFER()
+    {
+        state._getQUEpoch = qpi.epoch();
     }
 
     struct END_EPOCH_locals
