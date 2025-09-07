@@ -311,7 +311,7 @@ private:
 
     POST_INCOMING_TRANSFER_WITH_LOCALS()
     {
-        if (input.sourceId != id(QEARN_CONTRACT_INDEX, 0, 0, 0) || state._epochMbondInfoMap.get(qpi.epoch() - 52, state._tempMbondInfo))
+        if (input.sourceId != id(QEARN_CONTRACT_INDEX, 0, 0, 0) || !state._epochMbondInfoMap.get(qpi.epoch() - 52, state._tempMbondInfo))
         {
             return;
         }
