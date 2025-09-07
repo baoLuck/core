@@ -304,6 +304,7 @@ private:
                         SELF);
                 locals.assetIt.next();
             }
+            state._qearnIncomeAmount = 0;
         }
 
         locals.currentName = 1145979469ULL;   // MBND
