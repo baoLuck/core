@@ -606,33 +606,38 @@ public:
 
     PUBLIC_PROCEDURE(TransferShareManagementRights)
     {
-        state._counter = 1;
-        // if (qpi.invocationReward() > 0)
-        // {
-        //     qpi.transfer(qpi.invocator(), qpi.invocationReward());
-        // }
+        //state._counter = 1;
+        if (qpi.invocationReward() < 100)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
 
-        state._counter = 2;
+        if (qpi.invocationReward() > 100)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - 100);
+        }
+
+        state._counter = qpi.numberOfShares(input.asset, {qpi.invocator(), 3, false, false}, {qpi.invocator(), 3, false, false});
         state._numberOfReservedShares_input.issuer = input.asset.issuer;
         state._numberOfReservedShares_input.assetName = input.asset.assetName;
         state._numberOfReservedShares_input.owner = qpi.invocator();
         CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
         if (qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount < input.amount)
         {
-            state._counter = qpi.numberOfShares(input.asset, {qpi.invocator(), 3, false, false}, {qpi.invocator(), 3, false, false});
+            //state._counter = qpi.numberOfShares(input.asset, {qpi.invocator(), 3, false, false}, {qpi.invocator(), 3, false, false});
             output.transferredShares = 0;
         }
         else
         {
-            state._counter = 4;
-            if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.amount, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX, 1000000) < 0)
+            //state._counter = 4;
+            if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.amount, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX, 100) < 0)
             {
-                state._counter = qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.amount, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX, 1000000);
                 output.transferredShares = 0;
             }
             else
             {
-                state._counter = 6;
+                //state._counter = 6;
                 output.transferredShares = input.amount;
             }
         }
