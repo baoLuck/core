@@ -276,6 +276,16 @@ private:
         locals.mbondIdentity = SELF;
         locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
 
+        if (state._askOrders.population() == 0)
+        {
+            state._counter = 22;
+            locals.order.epoch = input.epoch;
+            locals.order.numberOfMBonds = input.numberOfMBonds;
+            locals.order.owner = qpi.invocator();
+            state._askOrders.add(locals.mbondIdentity, locals.order, -input.price);
+            return;
+        }
+
         state._counter = 6;
         locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity, 0);
         while (locals.elementIndex != NULL_INDEX)
