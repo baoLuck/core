@@ -94,6 +94,7 @@ public:
     };
     struct GetDeals_output
     {
+        uint64 counter;
         uint64 ownedDealsAmount;
         uint64 proposedDealsAmount;
         uint64 publicDealsAmount;
@@ -123,6 +124,8 @@ public:
     Collection<Deal, ESCROW_MAX_DEALS> _deals;
     Collection<Deal, ESCROW_MAX_DEALS> _dealsCopy;
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
+
+    uint64 _counter;
 
     struct _NumberOfReservedShares_input
     {
@@ -603,27 +606,33 @@ public:
 
     PUBLIC_PROCEDURE(TransferShareManagementRights)
     {
+        state._counter = 1;
         if (qpi.invocationReward() > 0)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
 
+        state._counter = 2;
         state._numberOfReservedShares_input.issuer = input.asset.issuer;
         state._numberOfReservedShares_input.assetName = input.asset.assetName;
         state._numberOfReservedShares_input.owner = qpi.invocator();
         CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
         if (qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount < input.amount)
         {
+            state._counter = 3;
             output.transferredShares = 0;
         }
         else
         {
+            state._counter = 4;
             if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.amount, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX, 0) < 0)
             {
+                state._counter = 5;
                 output.transferredShares = 0;
             }
             else
             {
+                state._counter = 6;
                 output.transferredShares = input.amount;
             }
         }
@@ -639,6 +648,7 @@ public:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
+        output.counter = state._counter;
         output.ownedDealsAmount = state._deals.population(input.owner);
 
         locals.elementIndex = state._deals.headIndex(input.owner);
