@@ -94,7 +94,7 @@ public:
         uint64 publicDealsAmount;
         Array<Deal, ESCROW_MAX_DEALS_PER_USER> ownedDeals;
         Array<Deal, 32> proposedDeals;
-        Array<Deal, 128> publicDeals;
+        Array<Deal, 64> publicDeals;
     };
 
     struct GetFreeAssetAmount_input
@@ -632,7 +632,7 @@ public:
                 locals.elementIndex2++;
             }
             if (locals.tempDeal.acceptorId == SELF
-                && locals.elementIndex3 < 128
+                && locals.elementIndex3 < 64
                 && state._deals.pov(locals.elementIndex) != input.owner)
             {
                     locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
