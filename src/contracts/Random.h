@@ -93,8 +93,8 @@ public:
         uint64 proposedDealsAmount;
         uint64 publicDealsAmount;
         Array<Deal, ESCROW_MAX_DEALS_PER_USER> ownedDeals;
-        Array<Deal, 128> proposedDeals;
-        Array<Deal, 512> publicDeals;
+        Array<Deal, 64> proposedDeals;
+        Array<Deal, 256> publicDeals;
     };
 
     struct GetFreeAssetAmount_input
