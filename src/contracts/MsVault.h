@@ -74,9 +74,16 @@ public:
     };
     struct GetAskOrders_output
     {
-        sint64 ordersAmount;
-        sint64 lockedAmount;
         uint64 counter;
+        struct Order
+        {
+            id owner;
+            sint64 epoch;
+            sint64 numberOfMBonds;
+            sint64 price;
+        };
+
+        Array<Order, 256> orders;
     };
     
 private:
@@ -276,7 +283,7 @@ private:
         locals.mbondIdentity = SELF;
         locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
 
-        if (state._askOrders.population() == 0)
+        if (state._askOrders.population(locals.mbondIdentity) == 0)
         {
             state._counter = 22;
             locals.order.epoch = input.epoch;
@@ -336,13 +343,6 @@ private:
     
     PUBLIC_FUNCTION_WITH_LOCALS(GetInfoPerEpoch)
     {
-        
-
-
-
-
-
-        /* --------------------------------- */
         output.totalStaked = 0;
         output.stakersAmount = 0;
 
@@ -359,19 +359,37 @@ private:
 
     struct GetAskOrders_locals
     {
-        sint64 index;
-        _NumberOfReservedMBonds_input numberOfReservedMBonds_input;
-        _NumberOfReservedMBonds_output numberOfReservedMBonds_output;
+        MBondInfo tempMBondInfo;
+        id mbondIdentity;
+        sint64 elementIndex;
+        sint64 arrayElementIndex;
+        GetAskOrders_output::Order tempOrder;
     };
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetAskOrders)
     {
+        if (!state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
+        {
+            return;
+        }
+
+        locals.arrayElementIndex = 0;
+        locals.mbondIdentity = SELF;
+        locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
+
+        locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity, 0);
+        while (locals.elementIndex != NULL_INDEX)
+        {
+            locals.tempOrder.owner = state._askOrders.element(locals.elementIndex).owner;
+            locals.tempOrder.epoch = state._askOrders.element(locals.elementIndex).epoch;
+            locals.tempOrder.numberOfMBonds = state._askOrders.element(locals.elementIndex).numberOfMBonds;
+            locals.tempOrder.price = state._askOrders.priority(locals.elementIndex);
+            output.orders.set(locals.arrayElementIndex, locals.tempOrder);
+            locals.arrayElementIndex++;
+            locals.elementIndex = state._askOrders.nextElementIndex(locals.elementIndex);
+        }
+
         output.counter = state._counter;
-        locals.numberOfReservedMBonds_input.epoch = input.epoch;
-        locals.numberOfReservedMBonds_input.owner = state._askOrders.element(0).owner;
-        CALL(_NumberOfReservedMBonds, locals.numberOfReservedMBonds_input, locals.numberOfReservedMBonds_output);
-        output.lockedAmount = locals.numberOfReservedMBonds_output.amount;
-        output.ordersAmount = state._askOrders.population(); 
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
