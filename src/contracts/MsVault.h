@@ -359,7 +359,7 @@ private:
 
     struct GetAskOrders_locals
     {
-        MBondInfo tempMBondInfo;
+        MBondInfo tempMbondInfo;
         id mbondIdentity;
         sint64 elementIndex;
         sint64 arrayElementIndex;
