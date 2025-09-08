@@ -619,8 +619,7 @@ public:
         CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
         if (qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount < input.amount)
         {
-            AssetOwnershipSelect::
-            state._counter = qpi.numberOfShares(input.asset, AssetOwnershipSelect::byOwner(qpi.invocator()), AssetPossessionSelect::byPossessor(qpi.invocator()));
+            state._counter = qpi.numberOfShares(input.asset, {qpi.invocator(), 3, false, false}, {qpi.invocator(), 3, false, false});
             output.transferredShares = 0;
         }
         else
@@ -740,7 +739,7 @@ public:
         state._dealsCopy = state._deals;
         for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
         {
-            if (state._dealsCopy.element(locals.dealIndexInCollection).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT > qpi.epoch())
+            if (state._dealsCopy.pov(locals.dealIndexInCollection) == NULL_ID || state._dealsCopy.element(locals.dealIndexInCollection).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT > qpi.epoch())
             {
                 continue;
             }
@@ -788,7 +787,10 @@ public:
                 }
             }
 
-            qpi.transfer(state._dealsCopy.pov(locals.dealIndexInCollection), locals.quForReturn);
+            if (locals.quForReturn > 0)
+            {
+                qpi.transfer(state._dealsCopy.pov(locals.dealIndexInCollection), locals.quForReturn);
+            }
 
             locals.elementIndex = state._deals.headIndex(state._dealsCopy.pov(locals.dealIndexInCollection));
             while (locals.elementIndex != NULL_INDEX)
