@@ -93,7 +93,7 @@ public:
         uint64 proposedDealsAmount;
         uint64 publicDealsAmount;
         Array<Deal, ESCROW_MAX_DEALS_PER_USER> ownedDeals;
-        Array<Deal, 64> proposedDeals;
+        Array<Deal, 32> proposedDeals;
         Array<Deal, 128> publicDeals;
     };
 
@@ -625,7 +625,7 @@ public:
         for (locals.elementIndex = 0; locals.elementIndex < ESCROW_MAX_DEALS; locals.elementIndex++)
         {
             locals.tempDeal = state._deals.element(locals.elementIndex);
-            if (locals.tempDeal.acceptorId == input.owner && locals.elementIndex2 < 64)
+            if (locals.tempDeal.acceptorId == input.owner && locals.elementIndex2 < 32)
             {
                 locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
                 output.proposedDeals.set(locals.elementIndex2, locals.tempDeal);
