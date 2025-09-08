@@ -50,7 +50,6 @@ public:
         uint64 requestedAssetsNumber;
         Array<AssetWithAmount, ESCROW_MAX_ASSETS_IN_DEAL> requestedAssets;
     };
-
     struct CreateDeal_output
     {
     };
@@ -59,7 +58,6 @@ public:
     {
         sint64 index;
     };
-
     struct AcceptDeal_output
     {
     };
@@ -68,7 +66,6 @@ public:
     {
         sint64 index;
     };
-
     struct MakeDealPublic_output
     {
     };
@@ -77,16 +74,24 @@ public:
     {
         sint64 index;
     };
-
     struct CancelDeal_output
     {
+    };
+
+    struct TransferShareManagementRights_input
+    {
+        Asset asset;
+        sint64 amount;
+    };
+    struct TransferShareManagementRights_output
+    {
+        sint64 transferredShares;
     };
 
     struct GetDeals_input
     {
         id owner;
     };
-
     struct GetDeals_output
     {
         uint64 ownedDealsAmount;
@@ -103,7 +108,6 @@ public:
         id issuer;
         uint64 assetName;
     };
-
     struct GetFreeAssetAmount_output
     {
         uint64 freeAmount;
@@ -597,6 +601,34 @@ public:
         state._deals.remove(locals.dealIndexInCollection);
     }
 
+    PUBLIC_PROCEDURE(TransferShareManagementRights)
+    {
+        if (qpi.invocationReward() > 0)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+        }
+
+        state._numberOfReservedShares_input.issuer = input.asset.issuer;
+        state._numberOfReservedShares_input.assetName = input.asset.assetName;
+        state._numberOfReservedShares_input.owner = qpi.invocator();
+        CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
+        if (qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount < input.amount)
+        {
+            output.transferredShares = 0;
+        }
+        else
+        {
+            if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.amount, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX, 0) < 0)
+            {
+                output.transferredShares = 0;
+            }
+            else
+            {
+                output.transferredShares = input.amount;
+            }
+        }
+    }
+
     struct GetDeals_locals
     {
         sint64 elementIndex;
@@ -665,6 +697,7 @@ public:
         REGISTER_USER_PROCEDURE(AcceptDeal, 2);
         REGISTER_USER_PROCEDURE(MakeDealPublic, 3);
         REGISTER_USER_PROCEDURE(CancelDeal, 4);
+        REGISTER_USER_PROCEDURE(TransferShareManagementRights, 5);
 
         REGISTER_USER_FUNCTION(GetDeals, 1);
         REGISTER_USER_FUNCTION(GetFreeAssetAmount, 2);
