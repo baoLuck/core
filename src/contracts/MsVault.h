@@ -76,12 +76,14 @@ public:
     {
         sint64 ordersAmount;
         sint64 lockedAmount;
+        uint64 counter;
     };
     
 private:
     Array<StakeEntry, 16> _stakeQueue;
     HashMap<uint16, MBondInfo, 1024> _epochMbondInfoMap;
     uint64 _qearnIncomeAmount;
+    uint64 _counter;
 
     struct _Order
     {
@@ -244,6 +246,7 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(AddAskOrder)
     {
+        state._counter = 1;
         if (qpi.invocationReward() > 0)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
@@ -251,29 +254,36 @@ private:
 
         if (input.price <= 0 || input.numberOfMBonds <= 0 || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
         {
+            state._counter = 2;
             output.addedMBondsAmount = 0;
             return;
         }
 
+        state._counter = 3;
         state._numberOfReservedMBonds_input.epoch = input.epoch;
         state._numberOfReservedMBonds_input.owner = qpi.invocator();
         CALL(_NumberOfReservedMBonds, state._numberOfReservedMBonds_input, state._numberOfReservedMBonds_output);
         if (qpi.numberOfPossessedShares(locals.tempMbondInfo.name, SELF, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedMBonds_output.amount < input.numberOfMBonds)
         {
+            state._counter = 4;
             output.addedMBondsAmount = 0;
             return;
         }
 
+        state._counter = 5;
         output.addedMBondsAmount = input.numberOfMBonds;
 
         locals.mbondIdentity = SELF;
         locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
 
+        state._counter = 6;
         locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity, 0);
         while (locals.elementIndex != NULL_INDEX)
         {
+            state._counter = 7;
             if (input.price < -state._askOrders.priority(locals.elementIndex))
             {
+                state._counter = 8;
                 locals.order.epoch = input.epoch;
                 locals.order.numberOfMBonds = input.numberOfMBonds;
                 locals.order.owner = qpi.invocator();
@@ -282,8 +292,10 @@ private:
             }
             else if (input.price == -state._askOrders.priority(locals.elementIndex))
             {
+                state._counter = 9;
                 if (state._askOrders.element(locals.elementIndex).owner == qpi.invocator())
                 {
+                    state._counter = 10;
                     locals.order = state._askOrders.element(locals.elementIndex);
                     locals.order.numberOfMBonds += input.numberOfMBonds;
                     state._askOrders.replace(locals.elementIndex, locals.order);
@@ -291,8 +303,10 @@ private:
                 }
             }
 
+            state._counter = 11;
             if (state._askOrders.nextElementIndex(locals.elementIndex) == NULL_INDEX)
             {
+                state._counter = 12;
                 locals.order.epoch = input.epoch;
                 locals.order.numberOfMBonds = input.numberOfMBonds;
                 locals.order.owner = qpi.invocator();
@@ -300,6 +314,7 @@ private:
                 break;
             }
 
+            state._counter = 13;
             locals.elementIndex = state._askOrders.nextElementIndex(locals.elementIndex);
         }
     }
@@ -341,6 +356,7 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetAskOrders)
     {
+        output.counter = state._counter;
         locals.numberOfReservedMBonds_input.epoch = input.epoch;
         locals.numberOfReservedMBonds_input.owner = state._askOrders.element(0).owner;
         CALL(_NumberOfReservedMBonds, locals.numberOfReservedMBonds_input, locals.numberOfReservedMBonds_output);
