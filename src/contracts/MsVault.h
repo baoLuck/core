@@ -272,7 +272,7 @@ private:
         locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity, 0);
         while (locals.elementIndex != NULL_INDEX)
         {
-            if (input.price < -state._askOrders.priority(locals._elementIndex))
+            if (input.price < -state._askOrders.priority(locals.elementIndex))
             {
                 locals.order.epoch = input.epoch;
                 locals.order.numberOfMBonds = input.numberOfMBonds;
@@ -280,7 +280,7 @@ private:
                 state._askOrders.add(locals.mbondIdentity, locals.order, -input.price);
                 break;
             }
-            else if (input.price == -state._askOrders.priority(locals._elementIndex))
+            else if (input.price == -state._askOrders.priority(locals.elementIndex))
             {
                 if (state._askOrders.element(locals.elementIndex).owner == qpi.invocator())
                 {
