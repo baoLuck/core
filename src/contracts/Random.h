@@ -609,7 +609,7 @@ public:
         QX::Fees_output feesOutput;
     };
 
-    PUBLIC_PROCEDURE(TransferShareManagementRights)
+    PUBLIC_PROCEDURE_WITH_LOCALS(TransferShareManagementRights)
     {
         CALL_OTHER_CONTRACT_FUNCTION(QX, Fees, locals.feesInput, locals.feesOutput);
 
