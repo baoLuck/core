@@ -106,8 +106,7 @@ public:
     struct GetFreeAssetAmount_input
     {
         id owner;
-        id issuer;
-        uint64 assetName;
+        Asset asset;
     };
     struct GetFreeAssetAmount_output
     {
@@ -604,40 +603,44 @@ public:
         state._deals.remove(locals.dealIndexInCollection);
     }
 
+    struct TransferShareManagementRights_locals
+    {
+        QX::Fees_input feesInput;
+        QX::Fees_output feesOutput;
+    };
+
     PUBLIC_PROCEDURE(TransferShareManagementRights)
     {
-        //state._counter = 1;
-        if (qpi.invocationReward() < 100)
+        CALL_OTHER_CONTRACT_FUNCTION(QX, Fees, locals.feesInput, locals.feesOutput);
+
+        if (qpi.invocationReward() < locals.feesOutput.transferFee)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
         }
 
-        if (qpi.invocationReward() > 100)
+        if (qpi.invocationReward() > locals.feesOutput.transferFee)
         {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - 100);
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.feesOutput.transferFee);
         }
 
-        state._counter = qpi.numberOfShares(input.asset, {qpi.invocator(), 3, false, false}, {qpi.invocator(), 3, false, false});
+        state._counter = qpi.numberOfShares(input.asset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false});
         state._numberOfReservedShares_input.issuer = input.asset.issuer;
         state._numberOfReservedShares_input.assetName = input.asset.assetName;
         state._numberOfReservedShares_input.owner = qpi.invocator();
         CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-        if (qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount < input.amount)
+        if (qpi.numberOfShares(input.asset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount < input.amount)
         {
-            //state._counter = qpi.numberOfShares(input.asset, {qpi.invocator(), 3, false, false}, {qpi.invocator(), 3, false, false});
             output.transferredShares = 0;
         }
         else
         {
-            //state._counter = 4;
-            if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.amount, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX, 100) < 0)
+            if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.amount, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX, locals.feesOutput.transferFee) < 0)
             {
                 output.transferredShares = 0;
             }
             else
             {
-                //state._counter = 6;
                 output.transferredShares = input.amount;
             }
         }
