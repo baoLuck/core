@@ -706,7 +706,7 @@ public:
         // locals.reservedInput.assetName = input.assetName;
         // locals.reservedInput.owner = input.owner;
         // CALL(_NumberOfReservedShares, locals.reservedInput, locals.reservedOutput);
-        output.freeAmount = qpi.numberOfPossessedShares(input.assetName, input.issuer, input.owner, input.owner, SELF_INDEX, SELF_INDEX) + 5;
+        output.freeAmount = qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer, input.owner, input.owner, SELF_INDEX, SELF_INDEX) + 5;
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
