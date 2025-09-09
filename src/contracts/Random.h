@@ -855,12 +855,13 @@ public:
 
             locals.tempAsset = state._earnedTokens.key(locals.counter);
             locals.tempEarnedAmount = state._earnedTokens.value(locals.counter);
-            locals.tokenAmountToDistribute = locals.tempEarnedAmount;
 
             if (state._distributedTokens.get(locals.tempAsset, locals.tempDistributedAmount))
             {
-                locals.tokenAmountToDistribute -= locals.tempDistributedAmount;
+                locals.tempEarnedAmount -= locals.tempDistributedAmount;
             }
+
+            locals.tokenAmountToDistribute = QPI::div(locals.tempEarnedAmount * ESCROW_SHAREHOLDERS_DISTRIBUTION_PERCENT, 10000ULL);
 
             if (locals.tokenAmountToDistribute < 676ULL)
             {
@@ -881,6 +882,15 @@ public:
                         locals.assetIt.owner());
                 locals.assetIt.next();
             }
+
+            qpi.transferShareOwnershipAndPossession(
+                        locals.tempAsset.assetName,
+                        locals.tempAsset.issuer,
+                        SELF,
+                        SELF,
+                        locals.tempEarnedAmount - locals.tokenAmountToDistribute,
+                        NULL_ID);
+            locals.transferredShares += (locals.tempEarnedAmount - locals.tokenAmountToDistribute);
 
             if (state._distributedTokens.get(locals.tempAsset, locals.tempDistributedAmount))
             {
