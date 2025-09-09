@@ -168,6 +168,7 @@ public:
         sint64 elementIndex;
         sint64 offeredQuAndFee;
         AssetWithAmount tempAssetWithAmount;
+        Asset tempAsset;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CreateDeal)
@@ -191,7 +192,9 @@ public:
             state._numberOfReservedShares_input.assetName = input.offeredAssets.get(locals.counter).name;
             state._numberOfReservedShares_input.owner = qpi.invocator();
             CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-            if (qpi.numberOfPossessedShares(input.offeredAssets.get(locals.counter).name, input.offeredAssets.get(locals.counter).issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount 
+            locals.tempAsset.assetName = input.offeredAssets.get(locals.counter).name;
+            locals.tempAsset.issuer = input.offeredAssets.get(locals.counter).issuer;
+            if (qpi.numberOfShares(locals.tempAsset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount 
                     < input.offeredAssets.get(locals.counter).amount)
             {
                 if (qpi.invocationReward() > 0)
@@ -315,7 +318,9 @@ public:
             state._numberOfReservedShares_input.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
             state._numberOfReservedShares_input.owner = qpi.invocator();
             CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-            if (qpi.numberOfPossessedShares(locals.tempDeal.requestedAssets.get(locals.counter).name, locals.tempDeal.requestedAssets.get(locals.counter).issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) - state._numberOfReservedShares_output.amount
+            locals.tempAsset.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
+            locals.tempAsset.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
+            if (qpi.numberOfShares(locals.tempAsset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount
                     < locals.tempDeal.requestedAssets.get(locals.counter).amount)
             {
                 if (qpi.invocationReward() > 0)
@@ -706,7 +711,7 @@ public:
         locals.reservedInput.assetName = input.asset.assetName;
         locals.reservedInput.owner = input.owner;
         CALL(_NumberOfReservedShares, locals.reservedInput, locals.reservedOutput);
-        output.freeAmount =  qpi.numberOfShares(input.asset, {input.owner, SELF_INDEX, false, false}, {input.owner, SELF_INDEX, false, false}) - locals.reservedOutput.amount;
+        output.freeAmount = qpi.numberOfShares(input.asset, {input.owner, SELF_INDEX, false, false}, {input.owner, SELF_INDEX, false, false}) - locals.reservedOutput.amount;
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
