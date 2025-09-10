@@ -450,6 +450,7 @@ private:
             if (input.offset > 0)
             {
                 input.offset--;
+                locals.elementIndex = state._askOrders.nextElementIndex(locals.elementIndex);
                 continue;
             }
 
