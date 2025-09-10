@@ -286,7 +286,7 @@ private:
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
 
-        if (input.price <= 0 || input.numberOfMBonds <= 0 || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
+        if (input.price <= 0 || input.numberOfMBonds <= 0 || !state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
         {
             output.addedMBondsAmount = 0;
             return;
@@ -496,7 +496,7 @@ private:
         id mbondIdentity;
         sint64 elementIndex;
         sint64 arrayElementIndex;
-        GetAskOrders_output::Order tempOrder;
+        GetOrders_output::Order tempOrder;
     };
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetOrders)
