@@ -1,3 +1,5 @@
+#include <qpi.h>
+
 using namespace QPI;
 
 constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
@@ -77,6 +79,17 @@ public:
     struct AddBidOrder_output
     {
         sint64 addedMBondsAmount;
+    };
+
+    struct RemoveBidOrder_input
+    {
+        sint64 epoch;
+        sint64 price;
+        sint64 numberOfMBonds;
+    };
+    struct RemoveBidOrder_output
+    {
+        sint64 removedMBondsAmount;
     };
 
     struct GetInfoPerEpoch_input
@@ -383,7 +396,7 @@ private:
                 if (state._askOrders.element(locals.elementIndex).numberOfMBonds <= input.numberOfMBonds)
                 {
                     state._askOrders.remove(locals.elementIndex);
-                    output.removedMBondsAmount = input.numberOfMBonds;
+                    output.removedMBondsAmount = state._askOrders.element(locals.elementIndex).numberOfMBonds;
                 }
                 else
                 {
@@ -469,6 +482,54 @@ private:
         }
     }
 
+    struct RemoveBidOrder_locals
+    {
+        MBondInfo tempMbondInfo;
+        id mbondIdentity;
+        sint64 elementIndex;
+        _Order order;
+    };
+
+    PUBLIC_PROCEDURE_WITH_LOCALS(RemoveBidOrder)
+    {
+        if (qpi.invocationReward() > 0)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+        }
+
+        output.removedMBondsAmount = 0;
+
+        if (input.price <= 0 || input.numberOfMBonds <= 0 || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
+        {
+            return;
+        }
+
+        locals.mbondIdentity = SELF;
+        locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
+
+        locals.elementIndex = state._bidOrders.headIndex(locals.mbondIdentity, 0);
+        while (locals.elementIndex != NULL_INDEX)
+        {
+            if (input.price == state._bidOrders.priority(locals.elementIndex) && state._bidOrders.element(locals.elementIndex).owner == qpi.invocator())
+            {
+                if (state._bidOrders.element(locals.elementIndex).numberOfMBonds <= input.numberOfMBonds)
+                {
+                    state._bidOrders.remove(locals.elementIndex);
+                    output.removedMBondsAmount = state._bidOrders.element(locals.elementIndex).numberOfMBonds;
+                }
+                else
+                {
+                    locals.order = state._bidOrders.element(locals.elementIndex);
+                    locals.order.numberOfMBonds -= input.numberOfMBonds;
+                    state._bidOrders.replace(locals.elementIndex, locals.order);
+                }
+                break;
+            }
+
+            locals.elementIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
+        }
+    }
+
     struct GetInfoPerEpoch_locals
     {
         sint64 index;
@@ -511,7 +572,7 @@ private:
         locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
 
         locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity, 0);
-        while (locals.elementIndex != NULL_INDEX)
+        while (locals.elementIndex != NULL_INDEX && locals.arrayElementIndex < 256)
         {
             if (input.askOrdersOffset > 0)
             {
@@ -531,7 +592,7 @@ private:
 
         locals.arrayElementIndex = 0;
         locals.elementIndex = state._bidOrders.headIndex(locals.mbondIdentity);
-        while (locals.elementIndex != NULL_INDEX)
+        while (locals.elementIndex != NULL_INDEX && locals.arrayElementIndex < 256)
         {
             if (input.bidOrdersOffset > 0)
             {
@@ -559,6 +620,7 @@ private:
         REGISTER_USER_PROCEDURE(AddAskOrder, 3);
         REGISTER_USER_PROCEDURE(RemoveAskOrder, 4);
         REGISTER_USER_PROCEDURE(AddBidOrder, 5);
+        REGISTER_USER_PROCEDURE(RemoveBidOrder, 6);
 
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 1);
         REGISTER_USER_FUNCTION(GetOrders, 2);
