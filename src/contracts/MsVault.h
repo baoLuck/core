@@ -506,7 +506,7 @@ private:
         locals.mbondIdentity = SELF;
         locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
 
-        locals.elementIndex = state._bidOrders.headIndex(locals.mbondIdentity, 0);
+        locals.elementIndex = state._bidOrders.headIndex(locals.mbondIdentity);
         while (locals.elementIndex != NULL_INDEX)
         {
             if (input.price == state._bidOrders.priority(locals.elementIndex) && state._bidOrders.element(locals.elementIndex).owner == qpi.invocator())
