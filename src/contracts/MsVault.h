@@ -513,8 +513,8 @@ private:
             {
                 if (state._bidOrders.element(locals.elementIndex).numberOfMBonds <= input.numberOfMBonds)
                 {
-                    state._bidOrders.remove(locals.elementIndex);
                     output.removedMBondsAmount = state._bidOrders.element(locals.elementIndex).numberOfMBonds;
+                    state._bidOrders.remove(locals.elementIndex);
                 }
                 else
                 {
