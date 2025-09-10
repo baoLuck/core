@@ -1,5 +1,3 @@
-#include <qpi.h>
-
 using namespace QPI;
 
 constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
@@ -403,6 +401,7 @@ private:
                     locals.order = state._askOrders.element(locals.elementIndex);
                     locals.order.numberOfMBonds -= input.numberOfMBonds;
                     state._askOrders.replace(locals.elementIndex, locals.order);
+                    output.removedMBondsAmount = input.numberOfMBonds;
                 }
                 break;
             }
@@ -522,7 +521,9 @@ private:
                     locals.order = state._bidOrders.element(locals.elementIndex);
                     locals.order.numberOfMBonds -= input.numberOfMBonds;
                     state._bidOrders.replace(locals.elementIndex, locals.order);
+                    output.removedMBondsAmount = input.numberOfMBonds;
                 }
+                qpi.transfer(qpi.invocator(), output.removedMBondsAmount * input.price);
                 break;
             }
 
