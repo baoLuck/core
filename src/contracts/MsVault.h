@@ -544,7 +544,7 @@ private:
             locals.tempOrder.epoch = state._bidOrders.element(locals.elementIndex).epoch;
             locals.tempOrder.numberOfMBonds = state._bidOrders.element(locals.elementIndex).numberOfMBonds;
             locals.tempOrder.price = state._bidOrders.priority(locals.elementIndex);
-            output.askOrders.set(locals.arrayElementIndex, locals.tempOrder);
+            output.bidOrders.set(locals.arrayElementIndex, locals.tempOrder);
             locals.arrayElementIndex++;
             locals.elementIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
         }
