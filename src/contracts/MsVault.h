@@ -447,6 +447,12 @@ private:
         locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity, 0);
         while (locals.elementIndex != NULL_INDEX)
         {
+            if (input.offset > 0)
+            {
+                input.offset--;
+                continue;
+            }
+
             locals.tempOrder.owner = state._askOrders.element(locals.elementIndex).owner;
             locals.tempOrder.epoch = state._askOrders.element(locals.elementIndex).epoch;
             locals.tempOrder.numberOfMBonds = state._askOrders.element(locals.elementIndex).numberOfMBonds;
@@ -489,6 +495,8 @@ private:
         Asset tempAsset;
         MBondInfo tempMbondInfo;
         AssetOwnershipIterator assetIt;
+        id mbondIdentity;
+        sint64 elementIndex;
     };
 
     BEGIN_EPOCH_WITH_LOCALS()
@@ -510,10 +518,20 @@ private:
                         locals.assetIt.owner(),
                         locals.assetIt.owner(),
                         locals.assetIt.numberOfOwnedShares(),
-                        SELF);
+                        NULL_ID);
                 locals.assetIt.next();
             }
             state._qearnIncomeAmount = 0;
+
+            locals.mbondIdentity = SELF;
+            locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
+
+            locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity, 0);
+            while (locals.elementIndex != NULL_INDEX)
+            {
+                state._askOrders.remove(locals.elementIndex);
+                locals.elementIndex = state._askOrders.nextElementIndex(locals.elementIndex);
+            }
         }
 
         locals.currentName = 1145979469ULL;   // MBND
