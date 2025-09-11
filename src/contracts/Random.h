@@ -96,9 +96,6 @@ public:
     };
     struct GetDeals_output
     {
-        uint64 burned;
-        uint64 earned;
-        uint64 distributed;
         uint64 ownedDealsAmount;
         uint64 proposedDealsAmount;
         uint64 publicDealsAmount;
@@ -128,11 +125,7 @@ public:
     Collection<Deal, ESCROW_MAX_DEALS> _dealsCopy;
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
 
-    id _adminAddress;
-
-    uint64 _burned;
-    uint64 _earned;
-    uint64 _distributed;
+    id _devAddress;
 
     struct _NumberOfReservedShares_input
     {
@@ -668,9 +661,6 @@ public:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
-        output.burned = state._burned;
-        output.earned = state._earned;
-        output.distributed = state._distributed;
         output.ownedDealsAmount = state._deals.population(input.owner);
 
         locals.elementIndex = state._deals.headIndex(input.owner);
@@ -737,7 +727,7 @@ public:
 
     INITIALIZE()
     {
-        state._adminAddress = ID(_U, _X, _U, _F, _A, _Q, _M, _C, _X, _Z, _P, _Z, _B, _C, _Z, _V, _X, _V, _D, _C, _V, _L, _B, _P, _S, _Z, _W, _A, _M, _L, _Z, _H, _M, _A, _V, _Y, _M, _Y, _Z, _B, _W, _G, _Z, _J, _J, _K, _I, _Q, _P, _D, _Y, _B, _F, _U, _F, _A);
+        state._devAddress = ID(_U, _X, _U, _F, _A, _Q, _M, _C, _X, _Z, _P, _Z, _B, _C, _Z, _V, _X, _V, _D, _C, _V, _L, _B, _P, _S, _Z, _W, _A, _M, _L, _Z, _H, _M, _A, _V, _Y, _M, _Y, _Z, _B, _W, _G, _Z, _J, _J, _K, _I, _Q, _P, _D, _Y, _B, _F, _U, _F, _A);
         state._currentDealIndex = 1;
     }
 
@@ -759,7 +749,7 @@ public:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        state._adminAddress = ID(_U, _X, _U, _F, _A, _Q, _M, _C, _X, _Z, _P, _Z, _B, _C, _Z, _V, _X, _V, _D, _C, _V, _L, _B, _P, _S, _Z, _W, _A, _M, _L, _Z, _H, _M, _A, _V, _Y, _M, _Y, _Z, _B, _W, _G, _Z, _J, _J, _K, _I, _Q, _P, _D, _Y, _B, _F, _U, _F, _A);
+        state._devAddress = ID(_U, _X, _U, _F, _A, _Q, _M, _C, _X, _Z, _P, _Z, _B, _C, _Z, _V, _X, _V, _D, _C, _V, _L, _B, _P, _S, _Z, _W, _A, _M, _L, _Z, _H, _M, _A, _V, _Y, _M, _Y, _Z, _B, _W, _G, _Z, _J, _J, _K, _I, _Q, _P, _D, _Y, _B, _F, _U, _F, _A);
         state._dealsCopy = state._deals;
         for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
         {
@@ -856,16 +846,12 @@ public:
             if (qpi.distributeDividends(QPI::div(locals.amountToDistribute, 676ULL)))
             {
                 qpi.burn(locals.amountToBurn);
-                qpi.transfer(state._adminAddress, locals.amountToDevs);
+                qpi.transfer(state._devAddress, locals.amountToDevs);
                 state._distributedAmount += QPI::div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
                 state._distributedAmount += locals.amountToBurn;
                 state._distributedAmount += locals.amountToDevs;
             }
         }
-
-        state._burned += locals.amountToBurn;
-        state._earned = state._earnedAmount;
-        state._distributed = state._distributedAmount;
 
         locals.selfShare.issuer = NULL_ID;
         locals.selfShare.assetName = 85002843734354ULL;
@@ -913,7 +899,7 @@ public:
                         SELF,
                         SELF,
                         locals.tempEarnedAmount - locals.tokenAmountToDistribute,
-                        state._adminAddress);
+                        state._devAddress);
             locals.transferredShares += (locals.tempEarnedAmount - locals.tokenAmountToDistribute);
 
             if (state._distributedTokens.get(locals.tempAsset, locals.tempDistributedAmount))
