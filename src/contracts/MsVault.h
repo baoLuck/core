@@ -287,7 +287,7 @@ private:
         MBondInfo tempMbondInfo;
         id mbondIdentity;
         sint64 elementIndex;
-        sint64 nextIndex;
+        sint64 nextElementIndex;
         _Order tempAskOrder;
         _Order tempBidOrder;
     };
@@ -327,7 +327,7 @@ private:
                 break;
             }
 
-            locals.nextIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
+            locals.nextElementIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
 
             locals.tempBidOrder = state._bidOrders.element(locals.elementIndex);
             if (input.numberOfMBonds <= locals.tempBidOrder.numberOfMBonds)
@@ -366,7 +366,7 @@ private:
                 input.numberOfMBonds -= locals.tempBidOrder.numberOfMBonds;
             }
             
-            locals.elementIndex = locals.nextIndex;
+            locals.elementIndex = locals.nextElementIndex;
         }
 
         if (state._askOrders.population(locals.mbondIdentity) == 0)
@@ -467,7 +467,9 @@ private:
         MBondInfo tempMbondInfo;
         id mbondIdentity;
         sint64 elementIndex;
-        _Order order;
+        sint64 nextElementIndex;
+        _Order tempAskOrder;
+        _Order tempBidOrder;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(AddBidOrder)
@@ -489,12 +491,73 @@ private:
         locals.mbondIdentity = SELF;
         locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
 
+        locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity);
+        while (locals.elementIndex != NULL_INDEX)
+        {
+            if (input.price < -state._askOrders.priority(locals.elementIndex))
+            {
+                break;
+            }
+
+            locals.nextElementIndex = state._askOrders.nextElementIndex(locals.elementIndex);
+
+            locals.tempAskOrder = state._askOrders.element(locals.elementIndex);
+            if (input.numberOfMBonds <= locals.tempAskOrder.numberOfMBonds)
+            {
+                qpi.transferShareOwnershipAndPossession(
+                    locals.tempMbondInfo.name,
+                    SELF,
+                    locals.tempAskOrder.owner,
+                    locals.tempAskOrder.owner,
+                    input.numberOfMBonds,
+                    qpi.invocator());
+                qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)));
+
+                if (input.price > -state._askOrders.priority(locals.elementIndex))
+                {
+                    qpi.transfer(qpi.invocator(), input.numberOfMBonds * (input.price + state._askOrders.priority(locals.elementIndex)));   // ask orders priotiry is always negative
+                }
+
+                if (input.numberOfMBonds < locals.tempAskOrder.numberOfMBonds)
+                {
+                    locals.tempAskOrder.numberOfMBonds -= input.numberOfMBonds;
+                    state._askOrders.replace(locals.elementIndex, locals.tempAskOrder);
+                }
+                else if (input.numberOfMBonds == locals.tempAskOrder.numberOfMBonds)
+                {
+                    state._askOrders.remove(locals.elementIndex);
+                }
+                return;
+            }
+            else if (input.numberOfMBonds > locals.tempAskOrder.numberOfMBonds)
+            {
+                qpi.transferShareOwnershipAndPossession(
+                    locals.tempMbondInfo.name,
+                    SELF,
+                    locals.tempAskOrder.owner,
+                    locals.tempAskOrder.owner,
+                    locals.tempAskOrder.numberOfMBonds,
+                    qpi.invocator());
+                qpi.transfer(locals.tempAskOrder.owner, -(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex)));
+                
+                if (input.price > -state._askOrders.priority(locals.elementIndex))
+                {
+                    qpi.transfer(qpi.invocator(), locals.tempAskOrder.numberOfMBonds * (input.price + state._askOrders.priority(locals.elementIndex)));   // ask orders priotiry is always negative
+                }
+
+                state._askOrders.remove(locals.elementIndex);
+                input.numberOfMBonds -= locals.tempAskOrder.numberOfMBonds;
+            }
+
+            locals.elementIndex = locals.nextElementIndex;
+        }
+
         if (state._bidOrders.population(locals.mbondIdentity) == 0)
         {
-            locals.order.epoch = input.epoch;
-            locals.order.numberOfMBonds = input.numberOfMBonds;
-            locals.order.owner = qpi.invocator();
-            state._bidOrders.add(locals.mbondIdentity, locals.order, input.price);
+            locals.tempBidOrder.epoch = input.epoch;
+            locals.tempBidOrder.numberOfMBonds = input.numberOfMBonds;
+            locals.tempBidOrder.owner = qpi.invocator();
+            state._bidOrders.add(locals.mbondIdentity, locals.tempBidOrder, input.price);
             return;
         }
 
@@ -503,29 +566,29 @@ private:
         {
             if (input.price > state._bidOrders.priority(locals.elementIndex))
             {
-                locals.order.epoch = input.epoch;
-                locals.order.numberOfMBonds = input.numberOfMBonds;
-                locals.order.owner = qpi.invocator();
-                state._bidOrders.add(locals.mbondIdentity, locals.order, input.price);
+                locals.tempBidOrder.epoch = input.epoch;
+                locals.tempBidOrder.numberOfMBonds = input.numberOfMBonds;
+                locals.tempBidOrder.owner = qpi.invocator();
+                state._bidOrders.add(locals.mbondIdentity, locals.tempBidOrder, input.price);
                 break;
             }
             else if (input.price == state._bidOrders.priority(locals.elementIndex))
             {
                 if (state._bidOrders.element(locals.elementIndex).owner == qpi.invocator())
                 {
-                    locals.order = state._bidOrders.element(locals.elementIndex);
-                    locals.order.numberOfMBonds += input.numberOfMBonds;
-                    state._bidOrders.replace(locals.elementIndex, locals.order);
+                    locals.tempBidOrder = state._bidOrders.element(locals.elementIndex);
+                    locals.tempBidOrder.numberOfMBonds += input.numberOfMBonds;
+                    state._bidOrders.replace(locals.elementIndex, locals.tempBidOrder);
                     break;
                 }
             }
 
             if (state._bidOrders.nextElementIndex(locals.elementIndex) == NULL_INDEX)
             {
-                locals.order.epoch = input.epoch;
-                locals.order.numberOfMBonds = input.numberOfMBonds;
-                locals.order.owner = qpi.invocator();
-                state._bidOrders.add(locals.mbondIdentity, locals.order, input.price);
+                locals.tempBidOrder.epoch = input.epoch;
+                locals.tempBidOrder.numberOfMBonds = input.numberOfMBonds;
+                locals.tempBidOrder.owner = qpi.invocator();
+                state._bidOrders.add(locals.mbondIdentity, locals.tempBidOrder, input.price);
                 break;
             }
 
@@ -700,6 +763,7 @@ private:
         AssetOwnershipIterator assetIt;
         id mbondIdentity;
         sint64 elementIndex;
+        sint64 nextElementIndex;
     };
 
     BEGIN_EPOCH_WITH_LOCALS()
@@ -729,11 +793,20 @@ private:
             locals.mbondIdentity = SELF;
             locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
 
-            locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity, 0);
+            locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity);
             while (locals.elementIndex != NULL_INDEX)
             {
+                locals.nextElementIndex = state._askOrders.nextElementIndex(locals.elementIndex);
                 state._askOrders.remove(locals.elementIndex);
-                locals.elementIndex = state._askOrders.nextElementIndex(locals.elementIndex);
+                locals.elementIndex = locals.nextElementIndex;
+            }
+
+            locals.elementIndex = state._bidOrders.headIndex(locals.mbondIdentity);
+            while (locals.elementIndex != NULL_INDEX)
+            {
+                locals.nextElementIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
+                state._bidOrders.remove(locals.elementIndex);
+                locals.elementIndex = locals.nextElementIndex;
             }
         }
 
