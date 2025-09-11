@@ -834,6 +834,7 @@ public:
     {
         uint64 amountToDistribute;
         uint64 amountToBurn;
+        uint64 amountToDevs;
         AssetOwnershipIterator assetIt;
         Asset selfShare;
         sint64 counter;
@@ -848,15 +849,17 @@ public:
     {
         locals.amountToDistribute = QPI::div((state._earnedAmount - state._distributedAmount) * ESCROW_SHAREHOLDERS_QU_DISTRIBUTION_PERCENT, 10000ULL);
         locals.amountToBurn = QPI::div((state._earnedAmount - state._distributedAmount) * ESCROW_BURN_QU_PERCENT, 10000ULL);
+        locals.amountToDevs = state._earnedAmount - state._distributedAmount - locals.amountToDistribute - locals.amountToBurn;
 
         if ((QPI::div(locals.amountToDistribute, 676ULL) > 0) && (state._earnedAmount > state._distributedAmount))
         {
             if (qpi.distributeDividends(QPI::div(locals.amountToDistribute, 676ULL)))
             {
                 qpi.burn(locals.amountToBurn);
-                qpi.transfer(state._adminAddress, state._earnedAmount - state._distributedAmount - locals.amountToDistribute - locals.amountToBurn);
+                qpi.transfer(state._adminAddress, locals.amountToDevs);
                 state._distributedAmount += QPI::div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
                 state._distributedAmount += locals.amountToBurn;
+                state._distributedAmount += locals.amountToDevs;
             }
         }
 
