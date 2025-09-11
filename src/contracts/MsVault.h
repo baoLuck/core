@@ -287,6 +287,7 @@ private:
         MBondInfo tempMbondInfo;
         id mbondIdentity;
         sint64 elementIndex;
+        sint64 nextIndex;
         _Order tempAskOrder;
         _Order tempBidOrder;
     };
@@ -326,6 +327,8 @@ private:
                 break;
             }
 
+            locals.nextIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
+
             locals.tempBidOrder = state._bidOrders.element(locals.elementIndex);
             if (input.numberOfMBonds <= locals.tempBidOrder.numberOfMBonds)
             {
@@ -363,14 +366,8 @@ private:
                 input.numberOfMBonds -= locals.tempBidOrder.numberOfMBonds;
             }
             
-
-            locals.elementIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
+            locals.elementIndex = locals.nextIndex;
         }
-
-
-
-
-
 
         if (state._askOrders.population(locals.mbondIdentity) == 0)
         {
