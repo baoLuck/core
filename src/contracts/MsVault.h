@@ -1,3 +1,5 @@
+#include <qpi.h>
+
 using namespace QPI;
 
 constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
@@ -287,7 +289,8 @@ private:
         MBondInfo tempMbondInfo;
         id mbondIdentity;
         sint64 elementIndex;
-        _Order order;
+        _Order tempAskOrder;
+        _Order tempBidOrder;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(AddAskOrder)
@@ -317,12 +320,66 @@ private:
         locals.mbondIdentity = SELF;
         locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
 
+        locals.elementIndex = state._bidOrders.headIndex(locals.mbondIdentity);
+        while (locals.elementIndex != NULL_INDEX)
+        {
+            if (input.price > state._bidOrders.priority(locals.elementIndex))
+            {
+                break;
+            }
+
+            locals.tempBidOrder = state._bidOrders.element(locals.elementIndex);
+            if (input.numberOfMBonds <= locals.tempBidOrder.numberOfMBonds)
+            {
+                qpi.transferShareOwnershipAndPossession(
+                    locals.tempMbondInfo.name,
+                    SELF,
+                    qpi.invocator(),
+                    qpi.invocator(),
+                    input.numberOfMBonds,
+                    locals.tempBidOrder.owner);
+                qpi.transfer(qpi.invocator(), input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex));
+
+                if (input.numberOfMBonds < locals.tempBidOrder.numberOfMBonds)
+                {
+                    locals.tempBidOrder.numberOfMBonds -= input.numberOfMBonds;
+                    state._bidOrders.replace(locals.elementIndex, locals.tempBidOrder);
+                }
+                else if (input.numberOfMBonds == locals.tempBidOrder.numberOfMBonds)
+                {
+                    state._bidOrders.remove(locals.elementIndex);
+                }
+                return;
+            }
+            else if (input.numberOfMBonds > locals.tempBidOrder.numberOfMBonds)
+            {
+                qpi.transferShareOwnershipAndPossession(
+                    locals.tempMbondInfo.name,
+                    SELF,
+                    qpi.invocator(),
+                    qpi.invocator(),
+                    locals.tempBidOrder.numberOfMBonds,
+                    locals.tempBidOrder.owner);
+                qpi.transfer(qpi.invocator(), locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex));
+                state._bidOrders.remove(locals.elementIndex);
+                input.numberOfMBonds -= locals.tempBidOrder.numberOfMBonds;
+            }
+            
+
+            locals.elementIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
+        }
+
+
+
+
+
+
         if (state._askOrders.population(locals.mbondIdentity) == 0)
         {
-            locals.order.epoch = input.epoch;
-            locals.order.numberOfMBonds = input.numberOfMBonds;
-            locals.order.owner = qpi.invocator();
-            state._askOrders.add(locals.mbondIdentity, locals.order, -input.price);
+            locals.tempAskOrder.epoch = input.epoch;
+            locals.tempAskOrder.numberOfMBonds = input.numberOfMBonds;
+            locals.tempAskOrder.owner = qpi.invocator();
+            state._askOrders.add(locals.mbondIdentity, locals.tempAskOrder, -input.price);
             return;
         }
 
@@ -331,29 +388,29 @@ private:
         {
             if (input.price < -state._askOrders.priority(locals.elementIndex))
             {
-                locals.order.epoch = input.epoch;
-                locals.order.numberOfMBonds = input.numberOfMBonds;
-                locals.order.owner = qpi.invocator();
-                state._askOrders.add(locals.mbondIdentity, locals.order, -input.price);
+                locals.tempAskOrder.epoch = input.epoch;
+                locals.tempAskOrder.numberOfMBonds = input.numberOfMBonds;
+                locals.tempAskOrder.owner = qpi.invocator();
+                state._askOrders.add(locals.mbondIdentity, locals.tempAskOrder, -input.price);
                 break;
             }
             else if (input.price == -state._askOrders.priority(locals.elementIndex))
             {
                 if (state._askOrders.element(locals.elementIndex).owner == qpi.invocator())
                 {
-                    locals.order = state._askOrders.element(locals.elementIndex);
-                    locals.order.numberOfMBonds += input.numberOfMBonds;
-                    state._askOrders.replace(locals.elementIndex, locals.order);
+                    locals.tempAskOrder = state._askOrders.element(locals.elementIndex);
+                    locals.tempAskOrder.numberOfMBonds += input.numberOfMBonds;
+                    state._askOrders.replace(locals.elementIndex, locals.tempAskOrder);
                     break;
                 }
             }
 
             if (state._askOrders.nextElementIndex(locals.elementIndex) == NULL_INDEX)
             {
-                locals.order.epoch = input.epoch;
-                locals.order.numberOfMBonds = input.numberOfMBonds;
-                locals.order.owner = qpi.invocator();
-                state._askOrders.add(locals.mbondIdentity, locals.order, -input.price);
+                locals.tempAskOrder.epoch = input.epoch;
+                locals.tempAskOrder.numberOfMBonds = input.numberOfMBonds;
+                locals.tempAskOrder.owner = qpi.invocator();
+                state._askOrders.add(locals.mbondIdentity, locals.tempAskOrder, -input.price);
                 break;
             }
 
