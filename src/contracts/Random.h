@@ -96,6 +96,9 @@ public:
     };
     struct GetDeals_output
     {
+        uint64 burned;
+        uint64 earned;
+        uint64 distributed;
         uint64 ownedDealsAmount;
         uint64 proposedDealsAmount;
         uint64 publicDealsAmount;
@@ -126,6 +129,10 @@ public:
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
 
     id _adminAddress;
+
+    uint64 _burned;
+    uint64 _earned;
+    uint64 _distributed;
 
     struct _NumberOfReservedShares_input
     {
@@ -661,6 +668,9 @@ public:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
+        output.burned = state._burned;
+        output.earned = state._earned;
+        output.distributed = state._distributed;
         output.ownedDealsAmount = state._deals.population(input.owner);
 
         locals.elementIndex = state._deals.headIndex(input.owner);
@@ -849,6 +859,10 @@ public:
                 state._distributedAmount += locals.amountToBurn;
             }
         }
+
+        state._burned += locals.amountToBurn;
+        state._earned = state._earnedAmount;
+        state._distributed = state._distributedAmount;
 
         locals.selfShare.issuer = NULL_ID;
         locals.selfShare.assetName = 85002843734354ULL;
