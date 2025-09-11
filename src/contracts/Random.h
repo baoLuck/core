@@ -11,7 +11,9 @@ constexpr uint64 ESCROW_BASE_FEE = 250000ULL;
 constexpr uint64 ESCROW_ADDITIONAL_FEE_PERCENT = 200; // 2%
 constexpr uint64 ESCROW_FEE_PER_SHARE = 1500000ULL;
 
-constexpr uint64 ESCROW_SHAREHOLDERS_DISTRIBUTION_PERCENT = 9500; // 95%
+constexpr uint64 ESCROW_SHAREHOLDERS_TOKEN_DISTRIBUTION_PERCENT = 9500; // 95%
+constexpr uint64 ESCROW_SHAREHOLDERS_QU_DISTRIBUTION_PERCENT = 9300; // 93%
+constexpr uint64 ESCROW_BURN_QU_PERCENT = 200; // 2%
 
 struct RANDOM2
 {
@@ -94,7 +96,6 @@ public:
     };
     struct GetDeals_output
     {
-        sint64 counter;
         uint64 ownedDealsAmount;
         uint64 proposedDealsAmount;
         uint64 publicDealsAmount;
@@ -124,7 +125,7 @@ public:
     Collection<Deal, ESCROW_MAX_DEALS> _dealsCopy;
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
 
-    sint64 _counter;
+    id _adminAddress;
 
     struct _NumberOfReservedShares_input
     {
@@ -629,7 +630,6 @@ public:
             qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.feesOutput.transferFee);
         }
 
-        state._counter = qpi.numberOfShares(input.asset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false});
         state._numberOfReservedShares_input.issuer = input.asset.issuer;
         state._numberOfReservedShares_input.assetName = input.asset.assetName;
         state._numberOfReservedShares_input.owner = qpi.invocator();
@@ -661,7 +661,6 @@ public:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
-        output.counter = state._counter;
         output.ownedDealsAmount = state._deals.population(input.owner);
 
         locals.elementIndex = state._deals.headIndex(input.owner);
@@ -728,6 +727,7 @@ public:
 
     INITIALIZE()
     {
+        state._adminAddress = ID(_U, _X, _U, _F, _A, _Q, _M, _C, _X, _Z, _P, _Z, _B, _C, _Z, _V, _X, _V, _D, _C, _V, _L, _B, _P, _S, _Z, _W, _A, _M, _L, _Z, _H, _M, _A, _V, _Y, _M, _Y, _Z, _B, _W, _G, _Z, _J, _J, _K, _I, _Q, _P, _D, _Y, _B, _F, _U, _F, _A);
         state._currentDealIndex = 1;
     }
 
@@ -749,6 +749,7 @@ public:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
+        state._adminAddress = ID(_U, _X, _U, _F, _A, _Q, _M, _C, _X, _Z, _P, _Z, _B, _C, _Z, _V, _X, _V, _D, _C, _V, _L, _B, _P, _S, _Z, _W, _A, _M, _L, _Z, _H, _M, _A, _V, _Y, _M, _Y, _Z, _B, _W, _G, _Z, _J, _J, _K, _I, _Q, _P, _D, _Y, _B, _F, _U, _F, _A);
         state._dealsCopy = state._deals;
         for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
         {
@@ -835,15 +836,16 @@ public:
 
     END_EPOCH_WITH_LOCALS()
     {
-        locals.amountToDistribute = QPI::div((state._earnedAmount - state._distributedAmount) * ESCROW_SHAREHOLDERS_DISTRIBUTION_PERCENT, 10000ULL);
-        locals.amountToBurn = state._earnedAmount - state._distributedAmount - locals.amountToDistribute;
+        locals.amountToDistribute = QPI::div((state._earnedAmount - state._distributedAmount) * ESCROW_SHAREHOLDERS_QU_DISTRIBUTION_PERCENT, 10000ULL);
+        locals.amountToBurn = QPI::div((state._earnedAmount - state._distributedAmount) * ESCROW_BURN_QU_PERCENT, 10000ULL);
 
         if ((QPI::div(locals.amountToDistribute, 676ULL) > 0) && (state._earnedAmount > state._distributedAmount))
         {
             if (qpi.distributeDividends(QPI::div(locals.amountToDistribute, 676ULL)))
             {
-                state._distributedAmount += QPI::div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
                 qpi.burn(locals.amountToBurn);
+                qpi.transfer(state._adminAddress, state._earnedAmount - state._distributedAmount - locals.amountToDistribute - locals.amountToBurn);
+                state._distributedAmount += QPI::div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
                 state._distributedAmount += locals.amountToBurn;
             }
         }
@@ -866,7 +868,7 @@ public:
                 locals.tempEarnedAmount -= locals.tempDistributedAmount;
             }
 
-            locals.tokenAmountToDistribute = QPI::div(locals.tempEarnedAmount * ESCROW_SHAREHOLDERS_DISTRIBUTION_PERCENT, 10000ULL);
+            locals.tokenAmountToDistribute = QPI::div(locals.tempEarnedAmount * ESCROW_SHAREHOLDERS_TOKEN_DISTRIBUTION_PERCENT, 10000ULL);
 
             if (locals.tokenAmountToDistribute < 676ULL)
             {
@@ -894,7 +896,7 @@ public:
                         SELF,
                         SELF,
                         locals.tempEarnedAmount - locals.tokenAmountToDistribute,
-                        NULL_ID);
+                        state._adminAddress);
             locals.transferredShares += (locals.tempEarnedAmount - locals.tokenAmountToDistribute);
 
             if (state._distributedTokens.get(locals.tempAsset, locals.tempDistributedAmount))
