@@ -116,7 +116,7 @@ public:
         uint64 freeAmount;
     };
 
-    private:
+private:
     uint64 _earnedAmount;
     uint64 _distributedAmount;
     HashMap<Asset, uint64, ESCROW_MAX_RESERVED_ASSETS> _earnedTokens;
@@ -124,6 +124,12 @@ public:
 
     sint64 _currentDealIndex;
     Collection<Deal, ESCROW_MAX_DEALS> _deals;
+    struct EntryForRemove
+    {
+        id owner;
+        sint64 index;
+    };
+    Array<EntryForRemove, 524288> _entriesForRemove;
     Collection<Deal, ESCROW_MAX_DEALS> _dealsCopy;
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
 
@@ -151,7 +157,7 @@ public:
     {
         output.amount = 0;
 
-        locals.elementIndex = state._reservedAssets.headIndex(input.owner, 0);
+        locals.elementIndex = state._reservedAssets.headIndex(input.owner);
         while (locals.elementIndex != NULL_INDEX)
         {
             locals.assetWithAmount = state._reservedAssets.element(locals.elementIndex);
