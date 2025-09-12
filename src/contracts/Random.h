@@ -93,8 +93,8 @@ public:
     struct GetDeals_input
     {
         id owner;
-        uint64 proposedDealsOffset;
-        uint64 publicDealsOffset;
+        sint64 proposedDealsOffset;
+        sint64 publicDealsOffset;
     };
     struct GetDeals_output
     {
@@ -104,6 +104,8 @@ public:
         Array<Deal, ESCROW_MAX_DEALS_PER_USER> ownedDeals;
         Array<Deal, 32> proposedDeals;
         Array<Deal, 64> publicDeals;
+        sint64 proposedDealsOffset;
+        sint64 publicDealsOffset;
     };
 
     struct GetFreeAssetAmount_input
@@ -664,6 +666,8 @@ public:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
+        output.proposedDealsOffset = input.proposedDealsOffset;
+        output.publicDealsOffset = input.publicDealsOffset;
         output.ownedDealsAmount = state._deals.population(input.owner);
 
         locals.elementIndex = state._deals.headIndex(input.owner);
