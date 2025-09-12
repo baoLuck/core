@@ -124,12 +124,12 @@ private:
 
     sint64 _currentDealIndex;
     Collection<Deal, ESCROW_MAX_DEALS> _deals;
-    struct EntryForRemove
+    struct _EntryForRemove
     {
         id owner;
         sint64 index;
     };
-    Array<EntryForRemove, 524288> _entriesForRemove;
+    Array<_EntryForRemove, 524288> _entriesForRemove;
     Collection<Deal, ESCROW_MAX_DEALS> _dealsCopy;
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
 
@@ -763,53 +763,53 @@ private:
     struct BEGIN_EPOCH_locals
     {
         Deal tempDeal;
-        Deal tempDeal2;
         uint64 counter;
-        sint64 dealIndexInCollection;
         sint64 elementIndex;
+        sint64 elementIndex2;
         AssetWithAmount tempAssetWithAmount;
         uint64 quForReturn;
+        _EntryForRemove tempEntry;
+        sint64 arrayIndex;
     };
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
         state._devAddress = ID(_E, _S, _C, _R, _O, _W, _F, _P, _Z, _M, _F, _P, _D, _F, _T, _M, _G, _K, _N, _N, _Z, _L, _N, _B, _U, _J, _L, _C, _W, _G, _B, _U, _L, _K, _S, _N, _W, _L, _S, _D, _R, _G, _T, _Y, _T, _B, _E, _M, _F, _O, _X, _B, _C, _A, _E, _H);
         
-        state._dealsCopy = state._deals;
-        for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
+        for (locals.elementIndex = 0; locals.elementIndex < ESCROW_MAX_DEALS; locals.elementIndex++)
         {
-            if (state._dealsCopy.pov(locals.dealIndexInCollection) == NULL_ID || state._dealsCopy.element(locals.dealIndexInCollection).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT > qpi.epoch())
+            if (state._deals.pov(locals.elementIndex) == NULL_ID || state._deals.element(locals.elementIndex).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT > qpi.epoch())
             {
                 continue;
             }
             
-            locals.tempDeal = state._dealsCopy.element(locals.dealIndexInCollection);
+            locals.tempDeal = state._deals.element(locals.elementIndex);
             locals.quForReturn = locals.tempDeal.offeredQU;
             for (locals.counter = 0; locals.counter < locals.tempDeal.offeredAssetsNumber; locals.counter++)
             {
                 state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
                 state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
-                state._numberOfReservedShares_input.owner = state._dealsCopy.pov(locals.dealIndexInCollection);
+                state._numberOfReservedShares_input.owner = state._deals.pov(locals.elementIndex);
                 CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-                locals.elementIndex = state._reservedAssets.headIndex(state._dealsCopy.pov(locals.dealIndexInCollection));
-                while (locals.elementIndex != NULL_INDEX)
+                locals.elementIndex2 = state._reservedAssets.headIndex(state._deals.pov(locals.elementIndex));
+                while (locals.elementIndex2 != NULL_INDEX)
                 {
-                    locals.tempAssetWithAmount = state._reservedAssets.element(locals.elementIndex);
+                    locals.tempAssetWithAmount = state._reservedAssets.element(locals.elementIndex2);
                     if (locals.tempAssetWithAmount.name == locals.tempDeal.offeredAssets.get(locals.counter).name
                         && locals.tempAssetWithAmount.issuer == locals.tempDeal.offeredAssets.get(locals.counter).issuer)
                     {
                         if (state._numberOfReservedShares_output.amount - locals.tempDeal.offeredAssets.get(locals.counter).amount <= 0)
                         {
-                            state._reservedAssets.remove(locals.elementIndex);
+                            state._reservedAssets.remove(locals.elementIndex2);
                             break;
                         }
                         else
                         {
                             locals.tempAssetWithAmount.amount -= locals.tempDeal.offeredAssets.get(locals.counter).amount;
-                            state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
+                            state._reservedAssets.replace(locals.elementIndex2, locals.tempAssetWithAmount);
                         }
                     }
-                    locals.elementIndex = state._reservedAssets.nextElementIndex(locals.elementIndex);
+                    locals.elementIndex2 = state._reservedAssets.nextElementIndex(locals.elementIndex2);
                 }
 
                 if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
@@ -828,20 +828,31 @@ private:
 
             if (locals.quForReturn > 0)
             {
-                qpi.transfer(state._dealsCopy.pov(locals.dealIndexInCollection), locals.quForReturn);
+                qpi.transfer(state._deals.pov(locals.elementIndex), locals.quForReturn);
             }
 
-            locals.elementIndex = state._deals.headIndex(state._dealsCopy.pov(locals.dealIndexInCollection));
-            while (locals.elementIndex != NULL_INDEX)
+            locals.tempEntry.owner = state._deals.pov(locals.elementIndex);
+            locals.tempEntry.index = locals.tempDeal.index;
+            state._entriesForRemove.set(locals.arrayIndex, locals.tempEntry);
+            locals.arrayIndex++;
+        }
+
+        locals.tempEntry.owner = NULL_ID;
+        locals.tempEntry.index = -1;
+
+        for (locals.elementIndex = 0; locals.elementIndex < locals.arrayIndex; locals.elementIndex++)
+        {
+            locals.elementIndex2 = state._deals.headIndex(state._entriesForRemove.get(locals.elementIndex).owner);
+            while (locals.elementIndex2 != NULL_INDEX)
             {
-                locals.tempDeal2 = state._deals.element(locals.elementIndex);
-                if (locals.tempDeal.index == locals.tempDeal2.index)
+                if (state._entriesForRemove.get(locals.elementIndex).index == state._deals.element(locals.elementIndex2).index)
                 {
-                    state._deals.remove(locals.elementIndex);
+                    state._deals.remove(locals.elementIndex2);
                     break;
                 }
-                locals.elementIndex = state._deals.nextElementIndex(locals.elementIndex);
-            } 
+                locals.elementIndex2 = state._deals.nextElementIndex(locals.elementIndex2);
+            }
+            state._entriesForRemove.set(locals.elementIndex, locals.tempEntry);
         }
     }
 
