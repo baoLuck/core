@@ -98,6 +98,7 @@ public:
     {
         uint64 stakersAmount;
         sint64 totalStaked;
+        sint64 apy;
     };
 
     struct GetOrders_input
@@ -649,12 +650,15 @@ private:
     struct GetInfoPerEpoch_locals
     {
         sint64 index;
+        QEARN::getLockInfoPerEpoch_input tempInput;
+        QEARN::getLockInfoPerEpoch_output tempOutput;
     };
     
     PUBLIC_FUNCTION_WITH_LOCALS(GetInfoPerEpoch)
     {
         output.totalStaked = 0;
         output.stakersAmount = 0;
+        output.apy = 0;
 
         locals.index = state._epochMbondInfoMap.getElementIndex(input.epoch);
 
@@ -663,8 +667,12 @@ private:
             return;
         }
 
+        locals.tempInput.Epoch = (uint32) input.epoch;
+        CALL_OTHER_CONTRACT_FUNCTION(QEARN, getLockInfoPerEpoch, locals.tempInput, locals.tempOutput);
+
         output.totalStaked = state._epochMbondInfoMap.value(locals.index).totalStaked;
         output.stakersAmount = state._epochMbondInfoMap.value(locals.index).stakersAmount;
+        output.apy = locals.tempOutput.yield;
     }
 
     struct GetOrders_locals
