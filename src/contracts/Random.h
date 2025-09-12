@@ -123,7 +123,7 @@ public:
 
     sint64 _currentDealIndex;
     Collection<Deal, ESCROW_MAX_DEALS> _deals;
-    Collection<Deal, ESCROW_MAX_DEALS> _dealsCopy;
+    // Collection<Deal, ESCROW_MAX_DEALS> _dealsCopy;
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
 
     id _devAddress;
@@ -768,74 +768,74 @@ public:
     {
         state._devAddress = ID(_E, _S, _C, _R, _O, _W, _F, _P, _Z, _M, _F, _P, _D, _F, _T, _M, _G, _K, _N, _N, _Z, _L, _N, _B, _U, _J, _L, _C, _W, _G, _B, _U, _L, _K, _S, _N, _W, _L, _S, _D, _R, _G, _T, _Y, _T, _B, _E, _M, _F, _O, _X, _B, _C, _A, _E, _H);
         
-        state._dealsCopy = state._deals;
-        for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
-        {
-            if (state._dealsCopy.pov(locals.dealIndexInCollection) == NULL_ID || state._dealsCopy.element(locals.dealIndexInCollection).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT > qpi.epoch())
-            {
-                continue;
-            }
+        // state._dealsCopy = state._deals;
+        // for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
+        // {
+        //     if (state._dealsCopy.pov(locals.dealIndexInCollection) == NULL_ID || state._dealsCopy.element(locals.dealIndexInCollection).creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT > qpi.epoch())
+        //     {
+        //         continue;
+        //     }
             
-            locals.tempDeal = state._dealsCopy.element(locals.dealIndexInCollection);
-            locals.quForReturn = locals.tempDeal.offeredQU;
-            for (locals.counter = 0; locals.counter < locals.tempDeal.offeredAssetsNumber; locals.counter++)
-            {
-                state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
-                state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
-                state._numberOfReservedShares_input.owner = state._dealsCopy.pov(locals.dealIndexInCollection);
-                CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-                locals.elementIndex = state._reservedAssets.headIndex(state._dealsCopy.pov(locals.dealIndexInCollection));
-                while (locals.elementIndex != NULL_INDEX)
-                {
-                    locals.tempAssetWithAmount = state._reservedAssets.element(locals.elementIndex);
-                    if (locals.tempAssetWithAmount.name == locals.tempDeal.offeredAssets.get(locals.counter).name
-                        && locals.tempAssetWithAmount.issuer == locals.tempDeal.offeredAssets.get(locals.counter).issuer)
-                    {
-                        if (state._numberOfReservedShares_output.amount - locals.tempDeal.offeredAssets.get(locals.counter).amount <= 0)
-                        {
-                            state._reservedAssets.remove(locals.elementIndex);
-                            break;
-                        }
-                        else
-                        {
-                            locals.tempAssetWithAmount.amount -= locals.tempDeal.offeredAssets.get(locals.counter).amount;
-                            state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
-                        }
-                    }
-                    locals.elementIndex = state._reservedAssets.nextElementIndex(locals.elementIndex);
-                }
+        //     locals.tempDeal = state._dealsCopy.element(locals.dealIndexInCollection);
+        //     locals.quForReturn = locals.tempDeal.offeredQU;
+        //     for (locals.counter = 0; locals.counter < locals.tempDeal.offeredAssetsNumber; locals.counter++)
+        //     {
+        //         state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
+        //         state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
+        //         state._numberOfReservedShares_input.owner = state._dealsCopy.pov(locals.dealIndexInCollection);
+        //         CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
+        //         locals.elementIndex = state._reservedAssets.headIndex(state._dealsCopy.pov(locals.dealIndexInCollection));
+        //         while (locals.elementIndex != NULL_INDEX)
+        //         {
+        //             locals.tempAssetWithAmount = state._reservedAssets.element(locals.elementIndex);
+        //             if (locals.tempAssetWithAmount.name == locals.tempDeal.offeredAssets.get(locals.counter).name
+        //                 && locals.tempAssetWithAmount.issuer == locals.tempDeal.offeredAssets.get(locals.counter).issuer)
+        //             {
+        //                 if (state._numberOfReservedShares_output.amount - locals.tempDeal.offeredAssets.get(locals.counter).amount <= 0)
+        //                 {
+        //                     state._reservedAssets.remove(locals.elementIndex);
+        //                     break;
+        //                 }
+        //                 else
+        //                 {
+        //                     locals.tempAssetWithAmount.amount -= locals.tempDeal.offeredAssets.get(locals.counter).amount;
+        //                     state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
+        //                 }
+        //             }
+        //             locals.elementIndex = state._reservedAssets.nextElementIndex(locals.elementIndex);
+        //         }
 
-                if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
-                {
-                    locals.quForReturn += (locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
-                }
-            }
+        //         if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
+        //         {
+        //             locals.quForReturn += (locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
+        //         }
+        //     }
 
-            for (locals.counter = 0; locals.counter < locals.tempDeal.requestedAssetsNumber; locals.counter++)
-            {
-                if (locals.tempDeal.requestedAssets.get(locals.counter).issuer == NULL_ID)
-                {
-                    locals.quForReturn += (locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
-                }
-            }
+        //     for (locals.counter = 0; locals.counter < locals.tempDeal.requestedAssetsNumber; locals.counter++)
+        //     {
+        //         if (locals.tempDeal.requestedAssets.get(locals.counter).issuer == NULL_ID)
+        //         {
+        //             locals.quForReturn += (locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
+        //         }
+        //     }
 
-            if (locals.quForReturn > 0)
-            {
-                qpi.transfer(state._dealsCopy.pov(locals.dealIndexInCollection), locals.quForReturn);
-            }
+        //     if (locals.quForReturn > 0)
+        //     {
+        //         qpi.transfer(state._dealsCopy.pov(locals.dealIndexInCollection), locals.quForReturn);
+        //     }
 
-            locals.elementIndex = state._deals.headIndex(state._dealsCopy.pov(locals.dealIndexInCollection));
-            while (locals.elementIndex != NULL_INDEX)
-            {
-                locals.tempDeal2 = state._deals.element(locals.elementIndex);
-                if (locals.tempDeal.index == locals.tempDeal2.index)
-                {
-                    state._deals.remove(locals.elementIndex);
-                    break;
-                }
-                locals.elementIndex = state._deals.nextElementIndex(locals.elementIndex);
-            } 
-        }
+        //     locals.elementIndex = state._deals.headIndex(state._dealsCopy.pov(locals.dealIndexInCollection));
+        //     while (locals.elementIndex != NULL_INDEX)
+        //     {
+        //         locals.tempDeal2 = state._deals.element(locals.elementIndex);
+        //         if (locals.tempDeal.index == locals.tempDeal2.index)
+        //         {
+        //             state._deals.remove(locals.elementIndex);
+        //             break;
+        //         }
+        //         locals.elementIndex = state._deals.nextElementIndex(locals.elementIndex);
+        //     } 
+        // }
     }
 
     struct END_EPOCH_locals
