@@ -130,7 +130,6 @@ private:
         sint64 index;
     };
     Array<_EntryForRemove, 524288> _entriesForRemove;
-    Collection<Deal, ESCROW_MAX_DEALS> _dealsCopy;
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
 
     id _devAddress;
