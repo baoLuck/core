@@ -104,8 +104,6 @@ public:
         Array<Deal, ESCROW_MAX_DEALS_PER_USER> ownedDeals;
         Array<Deal, 32> proposedDeals;
         Array<Deal, 64> publicDeals;
-        sint64 proposedDealsOffset;
-        sint64 publicDealsOffset;
     };
 
     struct GetFreeAssetAmount_input
@@ -666,8 +664,6 @@ public:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
-        output.proposedDealsOffset = input.proposedDealsOffset;
-        output.publicDealsOffset = input.publicDealsOffset;
         output.ownedDealsAmount = state._deals.population(input.owner);
 
         locals.elementIndex = state._deals.headIndex(input.owner);
@@ -686,28 +682,34 @@ public:
         for (locals.elementIndex = 0; locals.elementIndex < ESCROW_MAX_DEALS; locals.elementIndex++)
         {
             locals.tempDeal = state._deals.element(locals.elementIndex);
-            if (input.proposedDealsOffset > 0)
+            if (locals.tempDeal.acceptorId == input.owner && locals.elementIndex2 < 32)
             {
-                input.proposedDealsOffset--;
-            }
-            else if (locals.tempDeal.acceptorId == input.owner && locals.elementIndex2 < 32)
-            {
-                locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
-                output.proposedDeals.set(locals.elementIndex2, locals.tempDeal);
-                locals.elementIndex2++;
+                if (input.proposedDealsOffset > 0)
+                {
+                    input.proposedDealsOffset--;
+                }
+                else
+                {
+                    locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
+                    output.proposedDeals.set(locals.elementIndex2, locals.tempDeal);
+                    locals.elementIndex2++;
+                }
             }
 
-            if (input.publicDealsOffset > 0)
-            {
-                input.publicDealsOffset--;
-            }
-            else if (locals.tempDeal.acceptorId == SELF
+            if (locals.tempDeal.acceptorId == SELF
                 && locals.elementIndex3 < 64
                 && state._deals.pov(locals.elementIndex) != input.owner)
             {
+                if (input.publicDealsOffset > 0)
+                {
+                    input.publicDealsOffset--;
+                }
+                else
+                {
                     locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
                     output.publicDeals.set(locals.elementIndex3, locals.tempDeal);
                     locals.elementIndex3++;
+                }   
             }
         }
         output.proposedDealsAmount = locals.elementIndex2;
