@@ -93,6 +93,8 @@ public:
     struct GetDeals_input
     {
         id owner;
+        uint64 proposedDealsOffset;
+        uint64 publicDealsOffset;
     };
     struct GetDeals_output
     {
@@ -117,10 +119,10 @@ public:
     private:
     uint64 _earnedAmount;
     uint64 _distributedAmount;
-    sint64 _currentDealIndex;
     HashMap<Asset, uint64, ESCROW_MAX_RESERVED_ASSETS> _earnedTokens;
     HashMap<Asset, uint64, ESCROW_MAX_RESERVED_ASSETS> _distributedTokens;
 
+    sint64 _currentDealIndex;
     Collection<Deal, ESCROW_MAX_DEALS> _deals;
     Collection<Deal, ESCROW_MAX_DEALS> _dealsCopy;
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
@@ -514,7 +516,7 @@ public:
 
         for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
         {
-            if (state._deals.element(locals.dealIndexInCollection).index == input.index)
+            if (state._deals.pov(locals.dealIndexInCollection) != NULL_ID && state._deals.element(locals.dealIndexInCollection).index == input.index)
             {
                 locals.tempDeal = state._deals.element(locals.dealIndexInCollection);
                 break;
@@ -617,6 +619,7 @@ public:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(TransferShareManagementRights)
     {
+        output.transferredShares = 0;
         CALL_OTHER_CONTRACT_FUNCTION(QX, Fees, locals.feesInput, locals.feesOutput);
 
         if (qpi.invocationReward() < locals.feesOutput.transferFee)
@@ -679,13 +682,22 @@ public:
         for (locals.elementIndex = 0; locals.elementIndex < ESCROW_MAX_DEALS; locals.elementIndex++)
         {
             locals.tempDeal = state._deals.element(locals.elementIndex);
-            if (locals.tempDeal.acceptorId == input.owner && locals.elementIndex2 < 32)
+            if (input.proposedDealsOffset > 0)
+            {
+                input.proposedDealsOffset--;
+            }
+            else if (locals.tempDeal.acceptorId == input.owner && locals.elementIndex2 < 32)
             {
                 locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
                 output.proposedDeals.set(locals.elementIndex2, locals.tempDeal);
                 locals.elementIndex2++;
             }
-            if (locals.tempDeal.acceptorId == SELF
+
+            if (input.publicDealsOffset > 0)
+            {
+                input.publicDealsOffset--;
+            }
+            else if (locals.tempDeal.acceptorId == SELF
                 && locals.elementIndex3 < 64
                 && state._deals.pov(locals.elementIndex) != input.owner)
             {
@@ -727,7 +739,7 @@ public:
 
     INITIALIZE()
     {
-        state._devAddress = ID(_U, _X, _U, _F, _A, _Q, _M, _C, _X, _Z, _P, _Z, _B, _C, _Z, _V, _X, _V, _D, _C, _V, _L, _B, _P, _S, _Z, _W, _A, _M, _L, _Z, _H, _M, _A, _V, _Y, _M, _Y, _Z, _B, _W, _G, _Z, _J, _J, _K, _I, _Q, _P, _D, _Y, _B, _F, _U, _F, _A);
+        state._devAddress = ID(_E, _S, _C, _R, _O, _W, _F, _P, _Z, _M, _F, _P, _D, _F, _T, _M, _G, _K, _N, _N, _Z, _L, _N, _B, _U, _J, _L, _C, _W, _G, _B, _U, _L, _K, _S, _N, _W, _L, _S, _D, _R, _G, _T, _Y, _T, _B, _E, _M, _F, _O, _X, _B, _C, _A, _E, _H);
         state._currentDealIndex = 1;
     }
 
@@ -749,7 +761,8 @@ public:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        state._devAddress = ID(_U, _X, _U, _F, _A, _Q, _M, _C, _X, _Z, _P, _Z, _B, _C, _Z, _V, _X, _V, _D, _C, _V, _L, _B, _P, _S, _Z, _W, _A, _M, _L, _Z, _H, _M, _A, _V, _Y, _M, _Y, _Z, _B, _W, _G, _Z, _J, _J, _K, _I, _Q, _P, _D, _Y, _B, _F, _U, _F, _A);
+        state._devAddress = ID(_E, _S, _C, _R, _O, _W, _F, _P, _Z, _M, _F, _P, _D, _F, _T, _M, _G, _K, _N, _N, _Z, _L, _N, _B, _U, _J, _L, _C, _W, _G, _B, _U, _L, _K, _S, _N, _W, _L, _S, _D, _R, _G, _T, _Y, _T, _B, _E, _M, _F, _O, _X, _B, _C, _A, _E, _H);
+        
         state._dealsCopy = state._deals;
         for (locals.dealIndexInCollection = 0; locals.dealIndexInCollection < ESCROW_MAX_DEALS; locals.dealIndexInCollection++)
         {
