@@ -127,6 +127,7 @@ public:
     };
     struct MBondsTable_output
     {
+        sint64 counter;
         struct TableEntry
         {
             sint64 epoch;
@@ -762,10 +763,13 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(MBondsTable)
     {
+        output.counter = 1;
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
+            output.counter = 2;
             if (state._epochMbondInfoMap.get(locals.epoch, locals.tempMBondInfo))
             {
+                output.counter = 3;
                 locals.tempInput.Epoch = (uint32) locals.epoch;
                 CALL_OTHER_CONTRACT_FUNCTION(QEARN, getLockInfoPerEpoch, locals.tempInput, locals.tempOutput);
                 locals.tempTableEntry.epoch = locals.epoch;
