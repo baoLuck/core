@@ -1,3 +1,5 @@
+#include <qpi.h>
+
 using namespace QPI;
 
 constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
@@ -120,6 +122,19 @@ public:
 
         Array<Order, 256> askOrders;
         Array<Order, 256> bidOrders;
+    };
+
+    struct MBondsTable_input
+    {
+    };
+    struct MBondsTable_output
+    {
+        struct TableEntry
+        {
+            sint64 epoch;
+            uint64 apy;
+        };
+        Array<TableEntry, 512> info;
     };
     
 private:
@@ -737,6 +752,32 @@ private:
         output.counter = state._counter;
     }
 
+    struct MBondsTable_locals
+    {
+        sint64 epoch;
+        sint64 index;
+        MBondInfo tempMBondInfo;
+        MBondsTable_output::TableEntry tempTableEntry;
+        QEARN::getLockInfoPerEpoch_input tempInput;
+        QEARN::getLockInfoPerEpoch_output tempOutput;
+    };
+
+    PUBLIC_FUNCTION_WITH_LOCALS(MBondsTable)
+    {
+        for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
+        {
+            if (state._epochMbondInfoMap.get(locals.epoch, locals.tempMbondInfo))
+            {
+                locals.tempInput.Epoch = (uint32) locals.epoch;
+                CALL_OTHER_CONTRACT_FUNCTION(QEARN, getLockInfoPerEpoch, locals.tempInput, locals.tempOutput);
+                locals.tempTableEntry.epoch = locals.epoch;
+                locals.tempTableEntry.apy = locals.tempOutput.yield;
+                output.info.set(locals.index, locals.tempTableEntry);
+                locals.index++;
+            }
+        }
+    }
+
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
     {
         REGISTER_USER_PROCEDURE(Stake, 1);
@@ -748,6 +789,7 @@ private:
 
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 1);
         REGISTER_USER_FUNCTION(GetOrders, 2);
+        REGISTER_USER_FUNCTION(MBondsTable, 3);
     }
 
     INITIALIZE()
