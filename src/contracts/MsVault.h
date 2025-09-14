@@ -764,7 +764,7 @@ private:
     {
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
-            if (state._epochMbondInfoMap.get(locals.epoch, locals.tempMbondInfo))
+            if (state._epochMbondInfoMap.get(locals.epoch, locals.tempMBondInfo))
             {
                 locals.tempInput.Epoch = (uint32) locals.epoch;
                 CALL_OTHER_CONTRACT_FUNCTION(QEARN, getLockInfoPerEpoch, locals.tempInput, locals.tempOutput);
