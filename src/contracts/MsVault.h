@@ -7,6 +7,9 @@ constexpr uint64 QBOND_MIN_MBONDS_TO_STAKE = 10ULL;
 constexpr sint64 QBOND_MBONDS_EMISSION = 1000000000LL;
 constexpr uint16 QBOND_START_EPOCH = 170;
 
+constexpr uint64 QBOND_STAKE_FEE = 50; // 0.5%
+constexpr uint64 QBOND_TRADE_FEE = 50; // 0.5%
+
 struct MSVAULT2
 {
 };
@@ -109,7 +112,6 @@ public:
     };
     struct GetOrders_output
     {
-        uint64 counter;
         struct Order
         {
             id owner;
@@ -127,7 +129,6 @@ public:
     };
     struct MBondsTable_output
     {
-        sint64 counter;
         struct TableEntry
         {
             sint64 epoch;
@@ -140,7 +141,8 @@ private:
     Array<StakeEntry, 16> _stakeQueue;
     HashMap<uint16, MBondInfo, 1024> _epochMbondInfoMap;
     uint64 _qearnIncomeAmount;
-    uint64 _counter;
+    uint64 _earnedAmount;
+    uint64 _distributedAmount;
 
     struct _Order
     {
@@ -209,10 +211,19 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(Stake)
     {
-        if (input.quMillions <= 0 || (uint64) qpi.invocationReward() < input.quMillions * QBOND_MBOND_PRICE || !state._epochMbondInfoMap.get(qpi.epoch(), locals.tempMbondInfo))
+        if (input.quMillions <= 0
+                || !state._epochMbondInfoMap.get(qpi.epoch(), locals.tempMbondInfo)
+                || qpi.invocationReward() < 0
+                || 
+                || qpi.invocationReward() < input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL))
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
+        }
+
+        if (qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL))
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
         }
 
         locals.amountInQueue = input.quMillions;
@@ -747,8 +758,6 @@ private:
             locals.arrayElementIndex++;
             locals.elementIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
         }
-
-        output.counter = state._counter;
     }
 
     struct MBondsTable_locals
@@ -763,13 +772,10 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(MBondsTable)
     {
-        output.counter = 1;
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
-            output.counter = 2;
             if (state._epochMbondInfoMap.get(locals.epoch, locals.tempMBondInfo))
             {
-                output.counter = 3;
                 locals.tempInput.Epoch = (uint32) locals.epoch;
                 CALL_OTHER_CONTRACT_FUNCTION(QEARN, getLockInfoPerEpoch, locals.tempInput, locals.tempOutput);
                 locals.tempTableEntry.epoch = locals.epoch;
