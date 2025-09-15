@@ -129,6 +129,7 @@ public:
     };
     struct MBondsTable_output
     {
+        sint64 earned;
         struct TableEntry
         {
             sint64 epoch;
@@ -792,6 +793,7 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(MBondsTable)
     {
+        output.earned = state._earnedAmount;
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
             if (state._epochMbondInfoMap.get(locals.epoch, locals.tempMBondInfo))
