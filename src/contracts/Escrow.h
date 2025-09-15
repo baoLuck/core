@@ -84,6 +84,7 @@ public:
     {
         Asset asset;
         sint64 amount;
+        uint32 newContractIndex;
     };
     struct TransferShareManagementRights_output
     {
@@ -660,7 +661,7 @@ private:
         }
         else
         {
-            if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.amount, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX, locals.feesOutput.transferFee) < 0)
+            if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.amount, input.newContractIndex, input.newContractIndex, locals.feesOutput.transferFee) < 0)
             {
                 output.transferredShares = 0;
             }
