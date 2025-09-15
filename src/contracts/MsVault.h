@@ -553,7 +553,7 @@ private:
                     input.numberOfMBonds,
                     qpi.invocator());
 
-                locals.fee = QPI::div(input.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE, 10000LL);
+                locals.fee = QPI::div(input.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE, 10000ULL);
                 qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
                 state._earnedAmount += locals.fee;
 
