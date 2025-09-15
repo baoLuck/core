@@ -156,6 +156,8 @@ private:
     uint64 _distributedAmount;
     id _marketMaker;
 
+    uint64 _counter;
+
     struct _Order
     {
         id owner;
@@ -223,20 +225,24 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(Stake)
     {
+        state._counter = 1;
         if (input.quMillions <= 0
                 || !state._epochMbondInfoMap.get(qpi.epoch(), locals.tempMbondInfo)
                 || qpi.invocationReward() < 0
                 || (uint64) qpi.invocationReward() < smul((uint64) input.quMillions, QBOND_MBOND_PRICE) + QPI::div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE, 10000ULL))
         {
+            state._counter = 2;
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
         }
 
         if ((uint64) qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL))
         {
+            state._counter = 3;
             qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL));
         }
 
+        state._counter = 4;
         state._earnedAmount += QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL);
 
         locals.amountInQueue = input.quMillions;
@@ -244,10 +250,12 @@ private:
         {
             if (state._stakeQueue.get(locals.counter).staker != NULL_ID)
             {
+                state._counter = 5;
                 locals.amountInQueue += state._stakeQueue.get(locals.counter).amount;
             }
             else 
             {
+                state._counter = 6;
                 locals.tempStakeEntry.staker = qpi.invocator();
                 locals.tempStakeEntry.amount = input.quMillions;
                 state._stakeQueue.set(locals.counter, locals.tempStakeEntry);
@@ -255,8 +263,11 @@ private:
             }
         }
 
+        state._counter = 7;
+
         if (locals.amountInQueue < QBOND_MIN_MBONDS_TO_STAKE)
         {
+            state._counter = 8;
             return;
         }
 
@@ -267,21 +278,25 @@ private:
         {
             if (state._stakeQueue.get(locals.counter).staker == NULL_ID)
             {
+                state._counter = 9;
                 break;
             }
             if (qpi.numberOfPossessedShares(locals.tempMbondInfo.name, SELF, state._stakeQueue.get(locals.counter).staker, state._stakeQueue.get(locals.counter).staker, SELF_INDEX, SELF_INDEX) <= 0)
             {
+                state._counter = 10;
                 locals.tempMbondInfo.stakersAmount++;
             }
             qpi.transferShareOwnershipAndPossession(locals.tempMbondInfo.name, SELF, SELF, SELF, state._stakeQueue.get(locals.counter).amount, state._stakeQueue.get(locals.counter).staker);
             locals.amountToStake += state._stakeQueue.get(locals.counter).amount;
-
+            state._counter = 11;
             state._stakeQueue.set(locals.counter, locals.tempStakeEntry);
         }
 
+        state._counter = 12;
         locals.tempMbondInfo.totalStaked += locals.amountToStake;
         state._epochMbondInfoMap.replace(qpi.epoch(), locals.tempMbondInfo);
 
+        state._counter = 13;
         INVOKE_OTHER_CONTRACT_PROCEDURE(QEARN, lock, locals.lock_input, locals.lock_output, locals.amountToStake * QBOND_MBOND_PRICE);
     }
 
@@ -829,7 +844,7 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(MBondsTable)
     {
-        output.earned = state._earnedAmount;
+        output.earned = state._counter;
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
             if (state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMBondInfo))
