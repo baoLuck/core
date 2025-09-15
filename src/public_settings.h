@@ -56,12 +56,13 @@ static_assert(AUTO_FORCE_NEXT_TICK_THRESHOLD* TARGET_TICK_DURATION >= PEER_REFRE
 // Config options that should NOT be changed by operators
 
 #define VERSION_A 1
-#define VERSION_B 247
-#define VERSION_C 0
+#define VERSION_B 259
+#define VERSION_C 2
 
 // Epoch and initial tick for node startup
 #define EPOCH 170
 #define TICK 27280000
+#define TICK_IS_FIRST_TICK_OF_EPOCH 1 // Set to 0 if the network is restarted during the EPOCH with a new initial TICK
 
 #define ARBITRATOR "MEFKYFCDXDUILCAJKOIKWQAPENJDUHSSYPBRWFOTLALILAYWQFDSITJELLHG"
 #define DISPATCHER "DISPAPLNOYSWXCJMZEMFUNCCMMJANGQPYJDSEXZTTBFSUEPYPEKCICADBUCJ"
@@ -74,14 +75,16 @@ static unsigned short SCORE_CACHE_FILE_NAME[] = L"score.???";
 static unsigned short CONTRACT_FILE_NAME[] = L"contract????.???";
 static unsigned short CUSTOM_MINING_REVENUE_END_OF_EPOCH_FILE_NAME[] = L"custom_revenue.eoe";
 static unsigned short CUSTOM_MINING_CACHE_FILE_NAME[] = L"custom_mining_cache???.???";
+static unsigned short CUSTOM_MINING_V2_CACHE_FILE_NAME[] = L"custom_mining_v2_cache.???";
 
-#define DATA_LENGTH 256
-#define NUMBER_OF_HIDDEN_NEURONS 3000
-#define NUMBER_OF_NEIGHBOR_NEURONS 3000
-#define MAX_DURATION 9000000
-#define NUMBER_OF_OPTIMIZATION_STEPS 60
-#define NEURON_VALUE_LIMIT 1LL
-#define SOLUTION_THRESHOLD_DEFAULT 87
+static constexpr unsigned long long NUMBER_OF_INPUT_NEURONS = 512;     // K
+static constexpr unsigned long long NUMBER_OF_OUTPUT_NEURONS = 512;    // L
+static constexpr unsigned long long NUMBER_OF_TICKS = 600;               // N
+static constexpr unsigned long long NUMBER_OF_NEIGHBORS = 728;    // 2M. Must be divided by 2
+static constexpr unsigned long long NUMBER_OF_MUTATIONS = 150;
+static constexpr unsigned long long POPULATION_THRESHOLD = NUMBER_OF_INPUT_NEURONS + NUMBER_OF_OUTPUT_NEURONS + NUMBER_OF_MUTATIONS; // P
+static constexpr long long NEURON_VALUE_LIMIT = 1LL;
+static constexpr unsigned int SOLUTION_THRESHOLD_DEFAULT = 87;
 
 #define SOLUTION_SECURITY_DEPOSIT 1000000
 
@@ -98,6 +101,16 @@ static unsigned short CUSTOM_MINING_CACHE_FILE_NAME[] = L"custom_mining_cache???
 #define INTERNAL_COMPUTATIONS_INTERVAL 676
 #define EXTERNAL_COMPUTATIONS_INTERVAL (676 + 1)
 static_assert(INTERNAL_COMPUTATIONS_INTERVAL >= NUMBER_OF_COMPUTORS, "Internal computation phase needs to be at least equal NUMBER_OF_COMPUTORS");
+
+// List of start-end for full external computation times. The event must not be overlap.
+// Format is DoW-hh-mm-ss in hex format, total 4 bytes, each use 1 bytes
+// DoW: Day of the week 0: Sunday, 1 = Monday ...
+static unsigned long long gFullExternalComputationTimes[][2] =
+{
+    {0x040C0000ULL, 0x050C0000ULL}, // Thu 12:00:00 - Fri 12:00:00
+    {0x060C0000ULL, 0x000C0000ULL}, // Sat 12:00:00 - Sun 12:00:00
+    {0x010C0000ULL, 0x020C0000ULL}, // Mon 12:00:00 - Tue 12:00:00
+};
 
 #define STACK_SIZE 4194304
 #define TRACK_MAX_STACK_BUFFER_SIZE

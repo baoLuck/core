@@ -5,6 +5,9 @@
 // m256i is used for the id data type
 #include "../platform/m256.h"
 
+// uint128
+#include "../platform/uint128.h"
+
 // ASSERT can be used to support debugging and speed-up development
 #include "../platform/assert.h"
 
@@ -46,7 +49,10 @@ namespace QPI
 	typedef signed long long sint64;
 	typedef unsigned long long uint64;
 
+	typedef uint128_t uint128;
 	typedef m256i id;
+
+#define STATIC_ASSERT(condition, identifier) static_assert(condition, #identifier);
 
 #define NULL_ID id::zero()
 	constexpr sint64 NULL_INDEX = -1;
@@ -115,6 +121,189 @@ namespace QPI
 	template <typename T>
 	inline void setMemory(T& dst, uint8 value);
 
+	struct DateAndTime
+	{
+		// --- Member Variables ---
+		unsigned short millisecond;
+		unsigned char second;
+		unsigned char minute;
+		unsigned char hour;
+		unsigned char day;
+		unsigned char month;
+		unsigned char year;
+
+		// --- Public Member Operators ---
+
+		/**
+		 * @brief Checks if this date is earlier than the 'other' date.
+		 */
+		bool operator<(const DateAndTime& other) const
+		{
+			if (year != other.year) return year < other.year;
+			if (month != other.month) return month < other.month;
+			if (day != other.day) return day < other.day;
+			if (hour != other.hour) return hour < other.hour;
+			if (minute != other.minute) return minute < other.minute;
+			if (second != other.second) return second < other.second;
+			return millisecond < other.millisecond;
+		}
+
+		/**
+		 * @brief Checks if this date is later than the 'other' date.
+		 */
+		bool operator>(const DateAndTime& other) const
+		{
+			return other < *this; // Reuses the operator< on the 'other' object
+		}
+
+		/**
+		 * @brief Checks if this date is identical to the 'other' date.
+		 */
+		bool operator==(const DateAndTime& other) const
+		{
+			return year == other.year &&
+				month == other.month &&
+				day == other.day &&
+				hour == other.hour &&
+				minute == other.minute &&
+				second == other.second &&
+				millisecond == other.millisecond;
+		}
+
+		/**
+		 * @brief Computes the difference between this date and 'other' in milliseconds.
+		 */
+		long long operator-(const DateAndTime& other) const
+		{
+			// A member function can access private members of other instances of the same class.
+			return this->toMilliseconds() - other.toMilliseconds();
+		}
+
+		/**
+		 * @brief Adds a duration in milliseconds to the current date/time.
+		 * @param msToAdd The number of milliseconds to add. Can be negative.
+		 * @return A new DateAndTime object representing the result.
+		 */
+		DateAndTime operator+(long long msToAdd) const
+		{
+			long long totalMs = this->toMilliseconds() + msToAdd;
+
+			DateAndTime result = { 0,0,0,0,0,0,0 };
+
+			// Handle negative totalMs (dates before the epoch) if necessary
+			// For this implementation, we assume resulting dates are >= year 2000
+			if (totalMs < 0) totalMs = 0;
+
+			long long days = totalMs / 86400000LL;
+			long long msInDay = totalMs % 86400000LL;
+
+			// Calculate time part
+			result.hour = (unsigned char)(msInDay / 3600000LL);
+			msInDay %= 3600000LL;
+			result.minute = (unsigned char)(msInDay / 60000LL);
+			msInDay %= 60000LL;
+			result.second = (unsigned char)(msInDay / 1000LL);
+			result.millisecond = (unsigned short)(msInDay % 1000LL);
+
+			// Calculate date part from total days since epoch
+			unsigned char currentYear = 0;
+			while (true)
+			{
+				long long daysThisYear = isLeap(currentYear) ? 366 : 365;
+				if (days >= daysThisYear)
+				{
+					days -= daysThisYear;
+					currentYear++;
+				}
+				else
+				{
+					break;
+				}
+			}
+			result.year = currentYear;
+
+			unsigned char currentMonth = 1;
+			const int daysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+			while (true)
+			{
+				long long daysThisMonth = daysInMonth[currentMonth];
+				if (currentMonth == 2 && isLeap(result.year))
+				{
+					daysThisMonth = 29;
+				}
+				if (days >= daysThisMonth)
+				{
+					days -= daysThisMonth;
+					currentMonth++;
+				}
+				else
+				{
+					break;
+				}
+			}
+			ASSERT(days <= 31);
+			result.month = currentMonth;
+			result.day = (unsigned char)(days) + 1; // days is 0-indexed, day is 1-indexed
+
+			return result;
+		}
+
+		DateAndTime& operator+=(long long msToAdd)
+		{
+			*this = *this + msToAdd; // Reuse operator+ and assign the result back to this object
+			return *this;
+		}
+
+		DateAndTime& operator-=(long long msToSubtract)
+		{
+			*this = *this + (-msToSubtract); // Reuse operator+ with a negative value
+			return *this;
+		}
+
+	private:
+		// --- Private Helper Functions ---
+
+		/**
+		 * @brief A static helper to check if a year (yy format) is a leap year.
+		 */
+		static bool isLeap(unsigned char yr) {
+			// here we only handle the case where yr is in range [00 to 99]
+			return (2000 + yr) % 4 == 0;
+		}
+
+		/**
+		 * @brief Helper to convert this specific DateAndTime instance to total milliseconds since Jan 1, 2000.
+		 */
+		long long toMilliseconds() const {
+			long long totalDays = 0;
+
+			// Add days for full years passed since 2000
+			for (unsigned char y = 0; y < year; ++y) {
+				totalDays += isLeap(y) ? 366 : 365;
+			}
+
+			// Add days for full months passed in the current year
+			const int daysInMonth[] = { 0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+			for (unsigned char m = 1; m < month; ++m) {
+				totalDays += daysInMonth[m];
+				if (m == 2 && isLeap(year)) {
+					totalDays += 1;
+				}
+			}
+
+			// Add days in the current month
+			totalDays += day - 1;
+
+			// Convert total days and the time part to milliseconds
+			long long totalMs = totalDays * 86400000LL; // 24 * 60 * 60 * 1000
+			totalMs += hour * 3600000LL;     // 60 * 60 * 1000
+			totalMs += minute * 60000LL;       // 60 * 1000
+			totalMs += second * 1000LL;
+			totalMs += millisecond;
+
+			return totalMs;
+		}
+	};
 
 	// Array of L bits encoded in array of uint64 (overall size is at least 8 bytes, L must be 2^N)
 	template <uint64 L>
@@ -284,6 +473,21 @@ namespace QPI
 			}
 			return true;
 		}
+
+		// Implement assignment operator to prevent generating call to unavailable memcpy()
+		inline Array<T, L>& operator=(const Array<T, L>& other)
+		{
+			copyMemory(*this, other);
+			return *this;
+		}
+
+		// Implement copy constructor to prevent generating call to unavailable memcpy()
+		inline Array(const Array<T, L>& other)
+		{
+			copyMemory(*this, other);
+		}
+
+		Array() = default;
 	};
 	
 	// Array convenience definitions
@@ -384,6 +588,9 @@ namespace QPI
 		inline uint64 population() const;
 
 		// Return boolean indicating whether key is contained in the hash map.
+		bool contains(const KeyT& key) const;
+
+		// Return boolean indicating whether key is contained in the hash map.
 		// If key is contained, write the associated value into the provided ValueT&. 
 		bool get(const KeyT& key, ValueT& value) const;
 
@@ -393,11 +600,15 @@ namespace QPI
 		// Return if slot at elementIndex is empty (not occupied by an element). If false, key() is valid.
 		inline bool isEmptySlot(sint64 elementIndex) const;
 
+		// Return index of the next occupied element following the index passed as an argument. Pass NULL_INDEX to get
+		// the first occupied element. Returns NULL_INDEX if there are no more occupied elements.
+		inline sint64 nextElementIndex(sint64 elementIndex) const;
+
 		// Return key at elementIndex. Invalid if isEmptySlot(elementIndex).
-		inline KeyT key(sint64 elementIndex) const;
+		inline const KeyT& key(sint64 elementIndex) const;
 
 		// Return value at elementIndex.
-		inline ValueT value(sint64 elementIndex) const;
+		inline const ValueT& value(sint64 elementIndex) const;
 
 		// Add element (key, value) to the hash map, return elementIndex of new element.
 		// If key already exists in the hash map, the old value will be overwritten.
@@ -475,6 +686,10 @@ namespace QPI
 
 		// Return if slot at elementIndex is empty (not occupied by an element). If false, key() is valid.
 		inline bool isEmptySlot(sint64 elementIndex) const;
+
+		// Return index of the next occupied element following the index passed as an argument. Pass NULL_INDEX to get
+		// the first occupied element. Returns NULL_INDEX if there are no more occupied elements.
+		inline sint64 nextElementIndex(sint64 elementIndex) const;
 
 		// Return key at elementIndex. Invalid if isEmptySlot(elementIndex).
 		inline KeyT key(sint64 elementIndex) const;
@@ -670,17 +885,67 @@ namespace QPI
 	};
 
 	//////////
+	// safety multiplying a and b and then clamp
+	
+	inline static sint64 smul(sint64 a, sint64 b)
+	{
+		sint64 hi, lo;
+		lo = _mul128(a, b, &hi);
+		if (hi != (lo >> 63))
+		{
+			return ((a > 0) == (b > 0)) ? INT64_MAX : INT64_MIN;
+		}
+		return lo;
+	}
+
+	inline static uint64 smul(uint64 a, uint64 b)
+	{
+		uint64 hi, lo;
+		lo = _umul128(a, b, &hi);
+		if (hi != 0)
+		{
+			return UINT64_MAX;
+		}
+		return lo;
+	}
+
+	inline static sint32 smul(sint32 a, sint32 b)
+	{
+		sint64 r = (sint64)(a) * (sint64)(b);
+		if (r < INT32_MIN)
+		{
+			return INT32_MIN;
+		}
+		else if (r > INT32_MAX)
+		{
+			return INT32_MAX;
+		}
+		else
+		{
+			return (sint32)r;
+		}
+	}
+
+	inline static uint32 smul(uint32 a, uint32 b)
+	{
+		uint64 r = (uint64)(a) * (uint64)(b);
+		if (r > UINT32_MAX)
+		{
+			return UINT32_MAX;
+		}
+		return (uint32)r;
+	}
 
 	// Divide a by b, but return 0 if b is 0 (rounding to lower magnitude in case of integers)
 	template <typename T>
-	inline static T div(T a, T b)
+	inline static constexpr T div(T a, T b)
 	{
-		return b ? (a / b) : 0;
+		return b ? (a / b) : T(0);
 	}
 
 	// Return remainder of dividing a by b, but return 0 if b is 0 (requires modulo % operator)
 	template <typename T>
-	inline static T mod(T a, T b)
+	inline static constexpr T mod(T a, T b)
 	{
 		return b ? (a % b) : 0;
 	}
@@ -976,6 +1241,12 @@ namespace QPI
 			// Scalar voting result (currently only for proposalType VariableScalarMean, mean value of all valid votes)
 			sint64 scalarVotingResult;
 		};
+
+		ProposalSummarizedVotingDataV1() = default;
+		ProposalSummarizedVotingDataV1(const ProposalSummarizedVotingDataV1& src)
+		{
+			copyMemory(*this, src);
+		}
 	};
 	static_assert(sizeof(ProposalSummarizedVotingDataV1) == 16 + 8*4, "Unexpected struct size.");
 
@@ -996,6 +1267,9 @@ namespace QPI
 
 			// Propose to set variable to a value. Supported options: 2 <= N <= 5 with ProposalDataV1; N == 0 means scalar voting.
 			static constexpr uint16 Variable = 0x200;
+
+			// Propose to transfer amount to address in a specific epoch. Supported options: 1 with ProposalDataV1.
+			static constexpr uint16 TransferInEpoch = 0x400;
 		};
 
 		// Options yes and no without extra data -> result is histogram of options
@@ -1018,6 +1292,9 @@ namespace QPI
 
 		// Transfer amount to address with four options of amounts and option "no change"
 		static constexpr uint16 TransferFourAmounts = Class::Transfer | 5;
+
+		// Transfer given amount to address in a specific epoch, with options yes/no
+		static constexpr uint16 TransferInEpochYesNo = Class::TransferInEpoch | 2;
 
 		// Set given variable to proposed value with options yes/no
 		static constexpr uint16 VariableYesNo = Class::Variable | 2;
@@ -1058,7 +1335,7 @@ namespace QPI
 		inline static bool isValid(uint16 proposalType);
 	};
 
-	// Proposal data struct for all types of proposals defined in August 2024.
+	// Proposal data struct for all types of proposals defined in August 2024 and revised in June 2025.
 	// Input data for contract procedure call, usable as ProposalDataType in ProposalVoting (persisted in contract states).
 	// You have to choose, whether to support scalar votes next to option votes. Scalar votes require 8x more storage in the state.
 	template <bool SupportScalarVotes>
@@ -1085,6 +1362,14 @@ namespace QPI
 				id destination;
 				Array<sint64, 4> amounts;   // N first amounts are the proposed options (non-negative, sorted without duplicates), rest zero
 			} transfer;
+
+			// Used if type class is TransferInEpoch
+			struct TransferInEpoch
+			{
+				id destination;
+				sint64 amount;              // non-negative
+				uint16 targetEpoch;         // not checked by isValid()!
+			} transferInEpoch;
 
 			// Used if type class is Variable and type is not VariableScalarMean
 			struct VariableOptions
@@ -1138,6 +1423,9 @@ namespace QPI
 						   && transfer.amounts.rangeEquals(proposedAmounts, transfer.amounts.capacity(), 0);
 				}
 				break;
+			case ProposalTypes::Class::TransferInEpoch:
+				okay = options == 2 && !isZero(transferInEpoch.destination) && transferInEpoch.amount >= 0;
+				break;
 			case ProposalTypes::Class::Variable:
 				if (options >= 2 && options <= 5)
 				{
@@ -1161,6 +1449,12 @@ namespace QPI
 
 		// Whether to support scalar votes next to option votes.
 		static constexpr bool supportScalarVotes = SupportScalarVotes;
+
+		ProposalDataV1() = default;
+		ProposalDataV1(const ProposalDataV1<SupportScalarVotes>& src)
+		{
+			copyMemory(*this, src);
+		}
 	};
 	static_assert(sizeof(ProposalDataV1<true>) == 256 + 8 + 64, "Unexpected struct size.");
 
@@ -1345,8 +1639,8 @@ namespace QPI
 		// are discarded).
 		// If there is no free slot, one of the oldest proposals from prior epochs is deleted to free a slot.
 		// This may be also used to clear a proposal by setting proposal.epoch = 0.
-		// Return whether proposal has been set.
-		bool setProposal(
+		// Return proposalIndex if proposal has been set, or INVALID_PROPOSAL_INDEX on error.
+		uint16 setProposal(
 			const id& proposer,
 			const ProposalDataType& proposal
 		);
@@ -1513,6 +1807,11 @@ namespace QPI
 			const AssetPossessionSelect& possession = AssetPossessionSelect::any()
 		) const;
 
+		inline bool isAssetIssued(
+			const m256i& id,
+			unsigned long long assetName
+		) const;
+
 		// Returns -1 if the current tick is empty, returns the number of the transactions in the tick otherwise, including 0.
 		inline sint32 numberOfTickTransactions(
 		) const;
@@ -1522,6 +1821,21 @@ namespace QPI
 
 		inline uint8 second(
 		) const; // [0..59]
+
+		// return current datetime (year, month, day, hour, minute, second, millisec)
+		inline DateAndTime now() const;
+
+		// return last spectrum digest on etalonTick
+		inline m256i getPrevSpectrumDigest() const;
+
+		// return last universe digest on etalonTick
+		inline m256i getPrevUniverseDigest() const;
+
+		// return last computer digest on etalonTick
+		inline m256i getPrevComputerDigest() const;
+
+		// run the score function (in qubic mining) and return first 256 bit of output
+		inline m256i computeMiningFunction(const m256i miningSeed, const m256i publicKey, const m256i nonce) const;
 
 		inline bit signatureValidity(
 			const id& entity,
