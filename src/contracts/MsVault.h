@@ -958,7 +958,7 @@ private:
 
         qpi.issueAsset(locals.currentName, SELF, 0, QBOND_MBONDS_EMISSION, 0);
 
-        locals.emptyEntry.staker = SELF;
+        locals.emptyEntry.staker = NULL_ID;
         locals.emptyEntry.amount = 0;
         locals.tempMbondInfo.name = locals.currentName;
         locals.tempMbondInfo.totalStaked = 0;
