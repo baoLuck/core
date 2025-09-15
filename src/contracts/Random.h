@@ -183,7 +183,9 @@ private:
     {
         if (state._deals.population() >= ESCROW_MAX_DEALS
                 || state._deals.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER
-                || (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0))
+                || (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0)
+                || input.offeredQU >= MAX_AMOUNT
+                || input.requestedQU >= MAX_AMOUNT)
         {
             if (qpi.invocationReward() > 0)
             {
@@ -202,8 +204,9 @@ private:
             CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
             locals.tempAsset.assetName = input.offeredAssets.get(locals.counter).name;
             locals.tempAsset.issuer = input.offeredAssets.get(locals.counter).issuer;
-            if (qpi.numberOfShares(locals.tempAsset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount 
-                    < input.offeredAssets.get(locals.counter).amount)
+            if (input.offeredAssets.get(locals.counter).amount >= MAX_AMOUNT
+                    || qpi.numberOfShares(locals.tempAsset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount 
+                            < input.offeredAssets.get(locals.counter).amount)
             {
                 if (qpi.invocationReward() > 0)
                 {
@@ -220,6 +223,14 @@ private:
 
         for (locals.counter = 0; locals.counter < input.requestedAssetsNumber; locals.counter++)
         {
+            if (input.requestedAssets.get(locals.counter).amount >= MAX_AMOUNT)
+            {
+                if (qpi.invocationReward() > 0)
+                {
+                    qpi.transfer(qpi.invocator(), qpi.invocationReward());
+                }
+                return;
+            }
             if (input.requestedAssets.get(locals.counter).issuer == NULL_ID)
             {
                 locals.offeredQuAndFee += (input.requestedAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
@@ -627,7 +638,8 @@ private:
         output.transferredShares = 0;
         CALL_OTHER_CONTRACT_FUNCTION(QX, Fees, locals.feesInput, locals.feesOutput);
 
-        if (qpi.invocationReward() < locals.feesOutput.transferFee)
+        if (qpi.invocationReward() < locals.feesOutput.transferFee
+                || input.amount >= MAX_AMOUNT)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
