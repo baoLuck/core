@@ -632,7 +632,7 @@ private:
                     locals.tempAskOrder.numberOfMBonds,
                     qpi.invocator());
 
-                locals.fee = QPI::div(-(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE), 10000ULL);
+                locals.fee = QPI::div(locals.tempAskOrder.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE, 10000ULL);
                 qpi.transfer(locals.tempAskOrder.owner, -(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
                 if (qpi.invocator() == state._marketMaker)
                 {
