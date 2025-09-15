@@ -553,7 +553,7 @@ private:
                     input.numberOfMBonds,
                     qpi.invocator());
 
-                locals.fee = QPI::div(-(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE), 10000ULL);
+                locals.fee = QPI::div(input.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE, 10000LL);
                 qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
                 state._earnedAmount += locals.fee;
 
@@ -706,7 +706,7 @@ private:
         output.stakersAmount = 0;
         output.apy = 0;
 
-        locals.index = state._epochMbondInfoMap.getElementIndex(input.epoch);
+        locals.index = state._epochMbondInfoMap.getElementIndex((uint16)input.epoch);
 
         if (locals.index == NULL_INDEX)
         {
