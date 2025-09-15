@@ -215,13 +215,13 @@ private:
         if (input.quMillions <= 0
                 || !state._epochMbondInfoMap.get(qpi.epoch(), locals.tempMbondInfo)
                 || qpi.invocationReward() < 0
-                || qpi.invocationReward() < smul((uint64) input.quMillions, QBOND_MBOND_PRICE) + QPI::div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE, 10000ULL))
+                || (uint64) qpi.invocationReward() < smul((uint64) input.quMillions, QBOND_MBOND_PRICE) + QPI::div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE, 10000ULL))
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
         }
 
-        if (qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL))
+        if ((uint64) qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL))
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL));
         }
@@ -470,7 +470,7 @@ private:
 
         output.removedMBondsAmount = 0;
 
-        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
+        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get((uint16) input.epoch, locals.tempMbondInfo))
         {
             return;
         }
@@ -515,7 +515,7 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(AddBidOrder)
     {
-        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
+        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
         {
             output.addedMBondsAmount = 0;
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
@@ -660,7 +660,7 @@ private:
 
         output.removedMBondsAmount = 0;
 
-        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
+        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
         {
             return;
         }
@@ -732,7 +732,7 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetOrders)
     {
-        if (!state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
+        if (!state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
         {
             return;
         }
@@ -796,7 +796,7 @@ private:
         output.earned = state._earnedAmount;
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
-            if (state._epochMbondInfoMap.get(locals.epoch, locals.tempMBondInfo))
+            if (state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMBondInfo))
             {
                 locals.tempInput.Epoch = (uint32) locals.epoch;
                 CALL_OTHER_CONTRACT_FUNCTION(QEARN, getLockInfoPerEpoch, locals.tempInput, locals.tempOutput);
@@ -848,7 +848,7 @@ private:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get(qpi.epoch() - 53, locals.tempMbondInfo))
+        if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 53), locals.tempMbondInfo))
         {
             locals.totalReward = state._qearnIncomeAmount - locals.tempMbondInfo.totalStaked * QBOND_MBOND_PRICE;
             locals.rewardPerMBond = QPI::div(locals.totalReward, locals.tempMbondInfo.totalStaked);
