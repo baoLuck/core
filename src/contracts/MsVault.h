@@ -214,17 +214,18 @@ private:
         if (input.quMillions <= 0
                 || !state._epochMbondInfoMap.get(qpi.epoch(), locals.tempMbondInfo)
                 || qpi.invocationReward() < 0
-                || 
-                || qpi.invocationReward() < input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL))
+                || qpi.invocationReward() < smul((uint64) input.quMillions, QBOND_MBOND_PRICE) + QPI::div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE, 10000ULL))
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
         }
 
-        if (qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL))
+        if (qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL))
         {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL));
         }
+
+        state._earnedAmount += QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL);
 
         locals.amountInQueue = input.quMillions;
         for (locals.counter = 0; locals.counter < QBOND_MAX_QUEUE_SIZE; locals.counter++)
@@ -284,6 +285,11 @@ private:
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
 
+        if (input.numberOfMBonds >= MAX_AMOUNT)
+        {
+            return;
+        }
+
         state._numberOfReservedMBonds_input.epoch = input.epoch;
         state._numberOfReservedMBonds_input.owner = qpi.invocator();
         CALL(_NumberOfReservedMBonds, state._numberOfReservedMBonds_input, state._numberOfReservedMBonds_output);
@@ -314,6 +320,7 @@ private:
         id mbondIdentity;
         sint64 elementIndex;
         sint64 nextElementIndex;
+        sint64 fee;
         _Order tempAskOrder;
         _Order tempBidOrder;
     };
@@ -325,7 +332,7 @@ private:
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
 
-        if (input.price <= 0 || input.numberOfMBonds <= 0 || !state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
+        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
         {
             output.addedMBondsAmount = 0;
             return;
@@ -365,7 +372,10 @@ private:
                     qpi.invocator(),
                     input.numberOfMBonds,
                     locals.tempBidOrder.owner);
-                qpi.transfer(qpi.invocator(), input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex));
+
+                locals.fee = QPI::div(input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE, 10000ULL);
+                qpi.transfer(qpi.invocator(), input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) - locals.fee);
+                state._earnedAmount += locals.fee;
 
                 if (input.numberOfMBonds < locals.tempBidOrder.numberOfMBonds)
                 {
@@ -387,7 +397,10 @@ private:
                     qpi.invocator(),
                     locals.tempBidOrder.numberOfMBonds,
                     locals.tempBidOrder.owner);
-                qpi.transfer(qpi.invocator(), locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex));
+
+                locals.fee = QPI::div(locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE, 10000ULL);
+                qpi.transfer(qpi.invocator(), locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) - locals.fee);
+                state._earnedAmount += locals.fee;
                 state._bidOrders.remove(locals.elementIndex);
                 input.numberOfMBonds -= locals.tempBidOrder.numberOfMBonds;
             }
@@ -456,7 +469,7 @@ private:
 
         output.removedMBondsAmount = 0;
 
-        if (input.price <= 0 || input.numberOfMBonds <= 0 || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
+        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
         {
             return;
         }
@@ -494,22 +507,23 @@ private:
         id mbondIdentity;
         sint64 elementIndex;
         sint64 nextElementIndex;
+        sint64 fee;
         _Order tempAskOrder;
         _Order tempBidOrder;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(AddBidOrder)
     {
-        if (input.price <= 0 || input.numberOfMBonds <= 0 || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
+        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
         {
             output.addedMBondsAmount = 0;
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
         }
 
-        if (qpi.invocationReward() > input.numberOfMBonds * input.price)
+        if (qpi.invocationReward() > smul(input.numberOfMBonds, input.price))
         {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.numberOfMBonds * input.price);
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - smul(input.numberOfMBonds, input.price));
         }
 
         output.addedMBondsAmount = input.numberOfMBonds;
@@ -537,7 +551,10 @@ private:
                     locals.tempAskOrder.owner,
                     input.numberOfMBonds,
                     qpi.invocator());
-                qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)));
+
+                locals.fee = QPI::div(-(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE), 10000ULL);
+                qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
+                state._earnedAmount += locals.fee;
 
                 if (input.price > -state._askOrders.priority(locals.elementIndex))
                 {
@@ -564,7 +581,10 @@ private:
                     locals.tempAskOrder.owner,
                     locals.tempAskOrder.numberOfMBonds,
                     qpi.invocator());
-                qpi.transfer(locals.tempAskOrder.owner, -(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex)));
+
+                locals.fee = QPI::div(-(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE), 10000ULL);
+                qpi.transfer(locals.tempAskOrder.owner, -(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
+                state._earnedAmount += locals.fee;
                 
                 if (input.price > -state._askOrders.priority(locals.elementIndex))
                 {
@@ -639,7 +659,7 @@ private:
 
         output.removedMBondsAmount = 0;
 
-        if (input.price <= 0 || input.numberOfMBonds <= 0 || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
+        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get(input.epoch, locals.tempMbondInfo))
         {
             return;
         }
@@ -907,10 +927,15 @@ private:
     {
         sint64 availableMbonds;
         MBondInfo tempMbondInfo;
+        sint64 burnAmount;
     };
     
     END_EPOCH_WITH_LOCALS()
     {
+        locals.burnAmount = state._earnedAmount - state._distributedAmount;
+        qpi.burn(locals.burnAmount);
+        state._distributedAmount += locals.burnAmount;
+
         if (state._epochMbondInfoMap.get(qpi.epoch(), locals.tempMbondInfo))
         {
             locals.availableMbonds = qpi.numberOfPossessedShares(locals.tempMbondInfo.name, SELF, SELF, SELF, SELF_INDEX, SELF_INDEX);
