@@ -23,7 +23,7 @@
 // Number of ticks from prior epoch that are kept after seamless epoch transition. These can be requested after transition.
 #define TICKS_TO_KEEP_FROM_PRIOR_EPOCH 100
 
-#define TARGET_TICK_DURATION 1000
+#define TARGET_TICK_DURATION 7000
 #define TICK_DURATION_FOR_ALLOCATION_MS 1000
 #define TRANSACTION_SPARSENESS 4
 
