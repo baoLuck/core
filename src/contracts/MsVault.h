@@ -945,7 +945,7 @@ private:
                 locals.elementIndex1 = state._askOrders.nextElementIndex(locals.elementIndex1);
             }
 
-            locals.elementIndex2 = state._bidOrders.headIndex(locals.mbondIdentity, 0);
+            locals.elementIndex2 = state._bidOrders.headIndex(locals.mbondIdentity);
             while (locals.elementIndex2 != NULL_INDEX && locals.arrayElementIndex2 < 256)
             {
                 if (state._bidOrders.element(locals.elementIndex2).owner != input.owner)
