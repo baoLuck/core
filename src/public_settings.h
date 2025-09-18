@@ -24,6 +24,7 @@
 #define TICKS_TO_KEEP_FROM_PRIOR_EPOCH 100
 
 #define TARGET_TICK_DURATION 1000
+#define TICK_DURATION_FOR_ALLOCATION_MS 1000
 #define TRANSACTION_SPARSENESS 4
 
 // Below are 2 variables that are used for auto-F5 feature:
@@ -84,7 +85,7 @@ static constexpr unsigned long long NUMBER_OF_NEIGHBORS = 728;    // 2M. Must be
 static constexpr unsigned long long NUMBER_OF_MUTATIONS = 150;
 static constexpr unsigned long long POPULATION_THRESHOLD = NUMBER_OF_INPUT_NEURONS + NUMBER_OF_OUTPUT_NEURONS + NUMBER_OF_MUTATIONS; // P
 static constexpr long long NEURON_VALUE_LIMIT = 1LL;
-static constexpr unsigned int SOLUTION_THRESHOLD_DEFAULT = 87;
+static constexpr unsigned int SOLUTION_THRESHOLD_DEFAULT = NUMBER_OF_OUTPUT_NEURONS / 2 + NUMBER_OF_OUTPUT_NEURONS / 2 * 5 / 100;
 
 #define SOLUTION_SECURITY_DEPOSIT 1000000
 
@@ -94,7 +95,7 @@ static constexpr unsigned int SOLUTION_THRESHOLD_DEFAULT = 87;
 // include commonly needed definitions
 #include "network_messages/common_def.h"
 
-#define MAX_NUMBER_OF_TICKS_PER_EPOCH (((((60 * 60 * 24 * 1) / (TARGET_TICK_DURATION / 1000)) + NUMBER_OF_COMPUTORS - 1) / NUMBER_OF_COMPUTORS) * NUMBER_OF_COMPUTORS)
+#define MAX_NUMBER_OF_TICKS_PER_EPOCH (((((60ULL * 60 * 24 * 1000) / TICK_DURATION_FOR_ALLOCATION_MS) + NUMBER_OF_COMPUTORS - 1) / NUMBER_OF_COMPUTORS) * NUMBER_OF_COMPUTORS)
 #define FIRST_TICK_TRANSACTION_OFFSET sizeof(unsigned long long)
 #define MAX_TRANSACTION_SIZE (MAX_INPUT_SIZE + sizeof(Transaction) + SIGNATURE_SIZE)
 
