@@ -1,3 +1,5 @@
+#include <qpi.h>
+
 using namespace QPI;
 
 constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
@@ -146,6 +148,22 @@ public:
             uint64 apy;
         };
         Array<TableEntry, 512> info;
+    };
+
+    struct GetUserMBonds_input
+    {
+        id owner;
+    };
+    struct GetUserMBonds_output
+    {
+        struct MBondEntity
+        {
+            sint64 epoch;
+            sint64 amount;
+            uint64 apy;
+        };
+        
+        Array<MBondEntity, 256> mbonds;
     };
     
 private:
@@ -887,6 +905,44 @@ private:
         }
     }
 
+    struct GetUserMBonds_locals
+    {
+        GetUserMBonds_output::MBondEntity tempMbondEntity;
+        sint64 epoch;
+        sint64 index;
+        sint64 mbondsAmount;
+        MBondInfo tempMBondInfo;
+        QEARN::getLockInfoPerEpoch_input tempInput;
+        QEARN::getLockInfoPerEpoch_output tempOutput;
+    };
+
+    PUBLIC_FUNCTION_WITH_LOCALS(GetUserMBonds)
+    {
+        output.earned = state._earnedAmount;
+        for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
+        {
+            if (!state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMBondInfo))
+            {
+                continue;
+            }
+
+            locals.mbondsAmount = qpi.numberOfPossessedShares(locals.tempMBondInfo.name, SELF, input.owner, input.owner, SELF_INDEX, SELF_INDEX);
+            if (locals.mbondsAmount <= 0)
+            {
+                continue;
+            }
+
+            locals.tempInput.Epoch = (uint32) locals.epoch;
+            CALL_OTHER_CONTRACT_FUNCTION(QEARN, getLockInfoPerEpoch, locals.tempInput, locals.tempOutput);
+
+            locals.tempMbondEntity.epoch = locals.epoch;
+            locals.tempMbondEntity.amount = locals.mbondsAmount;
+            locals.tempMbondEntity.apy = locals.tempOutput.yield;
+            output.mbonds.set(locals.index, locals.tempMbondEntity);
+            locals.index++;
+        }
+    }
+
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
     {
         REGISTER_USER_PROCEDURE(Stake, 1);
@@ -900,6 +956,7 @@ private:
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 1);
         REGISTER_USER_FUNCTION(GetOrders, 2);
         REGISTER_USER_FUNCTION(MBondsTable, 3);
+        REGISTER_USER_FUNCTION(GetUserMBonds, 4);
     }
 
     INITIALIZE()
