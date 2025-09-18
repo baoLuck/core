@@ -144,6 +144,7 @@ public:
     {
         struct Order
         {
+            id owner;
             sint64 epoch;
             sint64 numberOfMBonds;
             sint64 price;
@@ -911,7 +912,7 @@ private:
     {
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
-            if (!state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
+            if (!state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMbondInfo))
             {
                 continue;
             }
@@ -935,6 +936,7 @@ private:
                     continue;
                 }
 
+                locals.tempOrder.owner = input.owner;
                 locals.tempOrder.epoch = state._askOrders.element(locals.elementIndex1).epoch;
                 locals.tempOrder.numberOfMBonds = state._askOrders.element(locals.elementIndex1).numberOfMBonds;
                 locals.tempOrder.price = -state._askOrders.priority(locals.elementIndex1);
@@ -959,6 +961,7 @@ private:
                     continue;
                 }
 
+                locals.tempOrder.owner = input.owner;
                 locals.tempOrder.epoch = state._bidOrders.element(locals.elementIndex2).epoch;
                 locals.tempOrder.numberOfMBonds = state._bidOrders.element(locals.elementIndex2).numberOfMBonds;
                 locals.tempOrder.price = -state._bidOrders.priority(locals.elementIndex2);
