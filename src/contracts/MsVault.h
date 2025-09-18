@@ -7,8 +7,8 @@ constexpr uint64 QBOND_MIN_MBONDS_TO_STAKE = 10ULL;
 constexpr sint64 QBOND_MBONDS_EMISSION = 1000000000LL;
 constexpr uint16 QBOND_START_EPOCH = 175;
 
-constexpr uint64 QBOND_STAKE_FEE = 50; // 0.5%
-constexpr uint64 QBOND_TRADE_FEE = 3; // 0.03%
+constexpr uint64 QBOND_STAKE_FEE_PERCENT = 50; // 0.5%
+constexpr uint64 QBOND_TRADE_FEE_PERCENT = 3; // 0.03%
 constexpr uint64 QBOND_MBOND_TRANSFER_FEE = 100;
 
 constexpr uint64 QBOND_QVAULT_DISTRIBUTION_PERCENT = 9900; // 99%
@@ -103,6 +103,16 @@ public:
     struct BurnQU_output
     {
         sint64 amount;
+    };
+
+    struct GetFees_input
+    {
+    };
+    struct GetFees_output
+    {
+        uint64 stakeFeePercent;
+        uint64 tradeFeePercent;
+        uint64 transferFee;
     };
 
     struct GetInfoPerEpoch_input
@@ -265,24 +275,24 @@ private:
         if (input.quMillions <= 0
                 || !state._epochMbondInfoMap.get(qpi.epoch(), locals.tempMbondInfo)
                 || qpi.invocationReward() < 0
-                || (uint64) qpi.invocationReward() < smul((uint64) input.quMillions, QBOND_MBOND_PRICE) + QPI::div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE, 10000ULL))
+                || (uint64) qpi.invocationReward() < smul((uint64) input.quMillions, QBOND_MBOND_PRICE) + QPI::div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE_PERCENT, 10000ULL))
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
         }
 
-        if ((uint64) qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL))
+        if ((uint64) qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL))
         {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL));
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
         }
 
         if (qpi.invocator() == state._marketMaker)
         {
-            qpi.transfer(qpi.invocator(), QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL));
+            qpi.transfer(qpi.invocator(), QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
         }
         else
         {
-            state._earnedAmount += QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE, 10000ULL);
+            state._earnedAmount += QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL);
         }
 
         locals.amountInQueue = input.quMillions;
@@ -439,7 +449,7 @@ private:
                     input.numberOfMBonds,
                     locals.tempBidOrder.owner);
 
-                locals.fee = QPI::div(input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE, 10000ULL);
+                locals.fee = QPI::div(input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                 qpi.transfer(qpi.invocator(), input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) - locals.fee);
                 if (qpi.invocator() == state._marketMaker)
                 {
@@ -471,7 +481,7 @@ private:
                     locals.tempBidOrder.numberOfMBonds,
                     locals.tempBidOrder.owner);
 
-                locals.fee = QPI::div(locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE, 10000ULL);
+                locals.fee = QPI::div(locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                 qpi.transfer(qpi.invocator(), locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) - locals.fee);
                 if (qpi.invocator() == state._marketMaker)
                 {
@@ -632,7 +642,7 @@ private:
                     input.numberOfMBonds,
                     qpi.invocator());
 
-                locals.fee = QPI::div(input.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE, 10000ULL);
+                locals.fee = QPI::div(input.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                 qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
                 if (qpi.invocator() == state._marketMaker)
                 {
@@ -669,7 +679,7 @@ private:
                     locals.tempAskOrder.numberOfMBonds,
                     qpi.invocator());
 
-                locals.fee = QPI::div(locals.tempAskOrder.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE, 10000ULL);
+                locals.fee = QPI::div(locals.tempAskOrder.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                 qpi.transfer(locals.tempAskOrder.owner, -(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
                 if (qpi.invocator() == state._marketMaker)
                 {
@@ -835,6 +845,13 @@ private:
         output.totalStaked = state._epochMbondInfoMap.value(locals.index).totalStaked;
         output.stakersAmount = state._epochMbondInfoMap.value(locals.index).stakersAmount;
         output.apy = locals.tempOutput.yield;
+    }
+
+    PUBLIC_FUNCTION(GetFees)
+    {
+        output.stakeFeePercent = QBOND_STAKE_FEE_PERCENT;
+        output.tradeFeePercent = QBOND_TRADE_FEE_PERCENT;
+        output.transferFee = QBOND_MBOND_TRANSFER_FEE;
     }
 
     struct GetOrders_locals
@@ -1047,11 +1064,12 @@ private:
         REGISTER_USER_PROCEDURE(RemoveBidOrder, 6);
         REGISTER_USER_PROCEDURE(BurnQU, 7);
 
-        REGISTER_USER_FUNCTION(GetInfoPerEpoch, 1);
-        REGISTER_USER_FUNCTION(GetOrders, 2);
-        REGISTER_USER_FUNCTION(GetUserOrders, 3);
-        REGISTER_USER_FUNCTION(MBondsTable, 4);
-        REGISTER_USER_FUNCTION(GetUserMBonds, 5);
+        REGISTER_USER_FUNCTION(GetFees, 1);
+        REGISTER_USER_FUNCTION(GetInfoPerEpoch, 2);
+        REGISTER_USER_FUNCTION(GetOrders, 3);
+        REGISTER_USER_FUNCTION(GetUserOrders, 4);
+        REGISTER_USER_FUNCTION(MBondsTable, 5);
+        REGISTER_USER_FUNCTION(GetUserMBonds, 6);
     }
 
     INITIALIZE()
