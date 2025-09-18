@@ -1,5 +1,3 @@
-#include <qpi.h>
-
 using namespace QPI;
 
 constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
@@ -96,11 +94,11 @@ public:
         sint64 removedMBondsAmount;
     };
 
-    struct Burn_input
+    struct BurnQU_input
     {
         sint64 amount;
     };
-    struct Burn_output
+    struct BurnQU_output
     {
         sint64 amount;
     };
@@ -767,7 +765,7 @@ private:
         }
     }
 
-    PUBLIC_PROCEDURE(Burn)
+    PUBLIC_PROCEDURE(BurnQU)
     {
         if (input.amount <= 0 || input.amount >= MAX_AMOUNT || qpi.invocationReward() < input.amount)
         {
@@ -951,7 +949,7 @@ private:
         REGISTER_USER_PROCEDURE(RemoveAskOrder, 4);
         REGISTER_USER_PROCEDURE(AddBidOrder, 5);
         REGISTER_USER_PROCEDURE(RemoveBidOrder, 6);
-        REGISTER_USER_PROCEDURE(Burn, 7);
+        REGISTER_USER_PROCEDURE(BurnQU, 7);
 
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 1);
         REGISTER_USER_FUNCTION(GetOrders, 2);
