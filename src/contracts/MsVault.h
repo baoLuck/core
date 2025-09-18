@@ -154,6 +154,7 @@ public:
     };
     struct GetUserMBonds_output
     {
+        sint64 counter;
         struct MBondEntity
         {
             sint64 epoch;
@@ -916,16 +917,20 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetUserMBonds)
     {
+        output.counter = 0;
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
+            output.counter++;
             if (!state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMBondInfo))
             {
+                output.counter += 10;
                 continue;
             }
 
             locals.mbondsAmount = qpi.numberOfPossessedShares(locals.tempMBondInfo.name, SELF, input.owner, input.owner, SELF_INDEX, SELF_INDEX);
             if (locals.mbondsAmount <= 0)
             {
+                output.counter += 100;
                 continue;
             }
 
@@ -937,6 +942,7 @@ private:
             locals.tempMbondEntity.apy = locals.tempOutput.yield;
             output.mbonds.set(locals.index, locals.tempMbondEntity);
             locals.index++;
+            output.counter += 1000;
         }
     }
 
