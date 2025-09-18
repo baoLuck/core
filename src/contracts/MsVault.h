@@ -5,7 +5,7 @@ constexpr uint64 QBOND_MBOND_PRICE = 1000000ULL;
 constexpr uint64 QBOND_MAX_QUEUE_SIZE = 10ULL;
 constexpr uint64 QBOND_MIN_MBONDS_TO_STAKE = 10ULL;
 constexpr sint64 QBOND_MBONDS_EMISSION = 1000000000LL;
-constexpr uint16 QBOND_START_EPOCH = 170;
+constexpr uint16 QBOND_START_EPOCH = 175;
 
 constexpr uint64 QBOND_STAKE_FEE = 50; // 0.5%
 constexpr uint64 QBOND_TRADE_FEE = 3; // 0.03%
@@ -134,6 +134,25 @@ public:
         Array<Order, 256> bidOrders;
     };
 
+    struct GetUserOrders_input
+    {
+        id owner;
+        sint64 askOrdersOffset;
+        sint64 bidOrdersOffset;
+    };
+    struct GetUserOrders_output
+    {
+        struct Order
+        {
+            sint64 epoch;
+            sint64 numberOfMBonds;
+            sint64 price;
+        };
+
+        Array<Order, 256> askOrders;
+        Array<Order, 256> bidOrders;
+    };
+
     struct MBondsTable_input
     {
     };
@@ -154,7 +173,6 @@ public:
     };
     struct GetUserMBonds_output
     {
-        sint64 counter;
         struct MBondEntity
         {
             sint64 epoch;
@@ -877,6 +895,80 @@ private:
         }
     }
 
+    struct GetUserOrders_locals
+    {
+        sint64 epoch;
+        MBondInfo tempMbondInfo;
+        id mbondIdentity;
+        sint64 elementIndex1;
+        sint64 arrayElementIndex1;
+        sint64 elementIndex2;
+        sint64 arrayElementIndex2;
+        GetUserOrders_output::Order tempOrder;
+    };
+
+    PUBLIC_FUNCTION_WITH_LOCALS(GetUserOrders)
+    {
+        for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
+        {
+            if (!state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
+            {
+                continue;
+            }
+
+            locals.mbondIdentity = SELF;
+            locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
+
+            locals.elementIndex1 = state._askOrders.headIndex(locals.mbondIdentity, 0);
+            while (locals.elementIndex1 != NULL_INDEX && locals.arrayElementIndex1 < 256)
+            {
+                if (state._askOrders.element(locals.elementIndex1).owner != input.owner)
+                {
+                    locals.elementIndex1 = state._askOrders.nextElementIndex(locals.elementIndex1);
+                    continue;
+                }
+
+                if (input.askOrdersOffset > 0)
+                {
+                    input.askOrdersOffset--;
+                    locals.elementIndex1 = state._askOrders.nextElementIndex(locals.elementIndex1);
+                    continue;
+                }
+
+                locals.tempOrder.epoch = state._askOrders.element(locals.elementIndex1).epoch;
+                locals.tempOrder.numberOfMBonds = state._askOrders.element(locals.elementIndex1).numberOfMBonds;
+                locals.tempOrder.price = -state._askOrders.priority(locals.elementIndex1);
+                output.askOrders.set(locals.arrayElementIndex1, locals.tempOrder);
+                locals.arrayElementIndex1++;
+                locals.elementIndex1 = state._askOrders.nextElementIndex(locals.elementIndex1);
+            }
+
+            locals.elementIndex2 = state._bidOrders.headIndex(locals.mbondIdentity, 0);
+            while (locals.elementIndex2 != NULL_INDEX && locals.arrayElementIndex2 < 256)
+            {
+                if (state._bidOrders.element(locals.elementIndex2).owner != input.owner)
+                {
+                    locals.elementIndex2 = state._bidOrders.nextElementIndex(locals.elementIndex2);
+                    continue;
+                }
+
+                if (input.bidOrdersOffset > 0)
+                {
+                    input.bidOrdersOffset--;
+                    locals.elementIndex2 = state._bidOrders.nextElementIndex(locals.elementIndex2);
+                    continue;
+                }
+
+                locals.tempOrder.epoch = state._bidOrders.element(locals.elementIndex2).epoch;
+                locals.tempOrder.numberOfMBonds = state._bidOrders.element(locals.elementIndex2).numberOfMBonds;
+                locals.tempOrder.price = -state._bidOrders.priority(locals.elementIndex2);
+                output.bidOrders.set(locals.arrayElementIndex2, locals.tempOrder);
+                locals.arrayElementIndex2++;
+                locals.elementIndex2 = state._bidOrders.nextElementIndex(locals.elementIndex2);
+            }
+        }
+    }
+
     struct MBondsTable_locals
     {
         sint64 epoch;
@@ -917,20 +1009,16 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetUserMBonds)
     {
-        output.counter = 0;
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
-            output.counter++;
             if (!state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMBondInfo))
             {
-                output.counter += 10;
                 continue;
             }
 
             locals.mbondsAmount = qpi.numberOfPossessedShares(locals.tempMBondInfo.name, SELF, input.owner, input.owner, SELF_INDEX, SELF_INDEX);
             if (locals.mbondsAmount <= 0)
             {
-                output.counter += 100;
                 continue;
             }
 
@@ -942,7 +1030,6 @@ private:
             locals.tempMbondEntity.apy = locals.tempOutput.yield;
             output.mbonds.set(locals.index, locals.tempMbondEntity);
             locals.index++;
-            output.counter += 1000;
         }
     }
 
@@ -958,8 +1045,9 @@ private:
 
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 1);
         REGISTER_USER_FUNCTION(GetOrders, 2);
-        REGISTER_USER_FUNCTION(MBondsTable, 3);
-        REGISTER_USER_FUNCTION(GetUserMBonds, 4);
+        REGISTER_USER_FUNCTION(GetUserOrders, 3);
+        REGISTER_USER_FUNCTION(MBondsTable, 4);
+        REGISTER_USER_FUNCTION(GetUserMBonds, 5);
     }
 
     INITIALIZE()
