@@ -1,3 +1,5 @@
+#include <qpi.h>
+
 using namespace QPI;
 
 constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
@@ -10,6 +12,8 @@ constexpr uint16 QBOND_START_EPOCH = 175;
 constexpr uint64 QBOND_STAKE_FEE = 50; // 0.5%
 constexpr uint64 QBOND_TRADE_FEE = 3; // 0.03%
 constexpr uint64 QBOND_MBOND_TRANSFER_FEE = 100;
+
+constexpr uint64 QBOND_QVAULT_DISTRIBUTION_PERCENT = 9900; // 99%
 
 struct MSVAULT2
 {
@@ -191,8 +195,7 @@ private:
     uint64 _earnedAmount;
     uint64 _distributedAmount;
     id _marketMaker;
-
-    uint64 _counter;
+    id _devAddress;
 
     struct _Order
     {
@@ -964,7 +967,7 @@ private:
                 locals.tempOrder.owner = input.owner;
                 locals.tempOrder.epoch = state._bidOrders.element(locals.elementIndex2).epoch;
                 locals.tempOrder.numberOfMBonds = state._bidOrders.element(locals.elementIndex2).numberOfMBonds;
-                locals.tempOrder.price = -state._bidOrders.priority(locals.elementIndex2);
+                locals.tempOrder.price = state._bidOrders.priority(locals.elementIndex2);
                 output.bidOrders.set(locals.arrayElementIndex2, locals.tempOrder);
                 locals.arrayElementIndex2++;
                 locals.elementIndex2 = state._bidOrders.nextElementIndex(locals.elementIndex2);
@@ -1054,8 +1057,9 @@ private:
     }
 
     INITIALIZE()
-    {                           
-        state._marketMaker = ID(_E, _Q, _M, _B, _B, _V, _Y, _G, _Z, _O, _F, _U, _I, _H, _E, _X, _F, _O, _X, _K, _T, _F, _T, _A, _N, _E, _K, _B, _X, _L, _B, _X, _H, _A, _Y, _D, _F, _F, _M, _R, _E, _E, _M, _R, _Q, _E, _V, _A, _D, _Y, _M, _M, _E, _W, _A, _C);    // TODO
+    {                      
+        state._devAddress = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);     
+        state._marketMaker = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
     }
 
     PRE_ACQUIRE_SHARES()
@@ -1080,7 +1084,8 @@ private:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        state._marketMaker = ID(_E, _Q, _M, _B, _B, _V, _Y, _G, _Z, _O, _F, _U, _I, _H, _E, _X, _F, _O, _X, _K, _T, _F, _T, _A, _N, _E, _K, _B, _X, _L, _B, _X, _H, _A, _Y, _D, _F, _F, _M, _R, _E, _E, _M, _R, _Q, _E, _V, _A, _D, _Y, _M, _M, _E, _W, _A, _C);
+        state._devAddress = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
+        state._marketMaker = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
 
         if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 53), locals.tempMbondInfo))
         {
@@ -1163,16 +1168,18 @@ private:
     {
         sint64 availableMbonds;
         MBondInfo tempMbondInfo;
-        sint64 burnAmount;
         sint64 counter;
         StakeEntry tempStakeEntry;
+        sint64 amountToQvault;
+        sint64 amountToDev;
     };
     
     END_EPOCH_WITH_LOCALS()
     {
-        locals.burnAmount = state._earnedAmount - state._distributedAmount;
-        qpi.burn(locals.burnAmount);
-        state._distributedAmount += locals.burnAmount;
+        locals.amountToQvault = QPI::div((state._earnedAmount - state._distributedAmount) * QBOND_QVAULT_DISTRIBUTION_PERCENT, 10000ULL);
+        locals.amountToDev = state._earnedAmount - state._distributedAmount - locals.amountToQvault;
+        qpi.transfer(id(QVAULT_CONTRACT_INDEX, 0, 0, 0), locals.amountToQvault);
+        qpi.transfer(state._devAddress, locals.amountToDev);
 
         locals.tempStakeEntry.staker = NULL_ID;
         locals.tempStakeEntry.amount = 0;
