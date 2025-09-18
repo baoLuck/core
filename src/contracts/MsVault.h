@@ -916,7 +916,6 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetUserMBonds)
     {
-        output.earned = state._earnedAmount;
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
             if (!state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMBondInfo))
