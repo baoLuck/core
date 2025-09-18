@@ -1178,6 +1178,8 @@ private:
         locals.amountToDev = state._earnedAmount - state._distributedAmount - locals.amountToQvault;
         qpi.transfer(id(QVAULT_CONTRACT_INDEX, 0, 0, 0), locals.amountToQvault);
         qpi.transfer(state._devAddress, locals.amountToDev);
+        state._distributedAmount += locals.amountToQvault;
+        state._distributedAmount += locals.amountToDev;
 
         locals.tempStakeEntry.staker = NULL_ID;
         locals.tempStakeEntry.amount = 0;
