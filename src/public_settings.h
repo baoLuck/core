@@ -39,7 +39,7 @@
 #define NEXT_TICK_TIMEOUT_THRESHOLD 5ULL // Multiplier of TARGET_TICK_DURATION for the system to discard next tick in tickData.
                                          // This will lead to zero `expectedNextTickTransactionDigest` in consensus
              
-#define PEER_REFRESHING_PERIOD 120000ULL
+#define PEER_REFRESHING_PERIOD 19000ULL
 #if AUTO_FORCE_NEXT_TICK_THRESHOLD != 0
 static_assert(NEXT_TICK_TIMEOUT_THRESHOLD < AUTO_FORCE_NEXT_TICK_THRESHOLD, "Timeout threshold must be smaller than auto F5 threshold");
 static_assert(AUTO_FORCE_NEXT_TICK_THRESHOLD* TARGET_TICK_DURATION >= PEER_REFRESHING_PERIOD, "AutoF5 threshold must be greater than PEER_REFRESHING_PERIOD");
