@@ -113,6 +113,7 @@ public:
     };
     struct UpdateCFA_output
     {
+        sint64 amount;
         bit result;
     };
 
@@ -1144,7 +1145,6 @@ private:
         REGISTER_USER_PROCEDURE(RemoveBidOrder, 6);
         REGISTER_USER_PROCEDURE(BurnQU, 7);
         REGISTER_USER_PROCEDURE(UpdateCFA, 8);
-        
 
         REGISTER_USER_FUNCTION(GetFees, 1);
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 2);
