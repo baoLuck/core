@@ -849,49 +849,49 @@ private:
     PUBLIC_PROCEDURE(UpdateCFA)
     {
         state._counter++;
-        if (input.amount <= 0 || input.amount >= MAX_AMOUNT || qpi.invocationReward() < input.amount)
-        {
-            output.amount = -1;
-            if (input.amount == 0)
-            {
-                output.amount = 0;
-            }
-
-            qpi.transfer(qpi.invocator(), qpi.invocationReward());
-            return;
-        }
-
-        if (qpi.invocationReward() > input.amount)
-        {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.amount);
-        }
-
-        qpi.burn(input.amount);
-        output.amount = input.amount;
-
-        // output.result = 0;
-
-        // state._counter += 1;
-
-        // if (qpi.invocationReward() > 0 && qpi.invocationReward() <= MAX_AMOUNT)
+        // if (input.amount <= 0 || input.amount >= MAX_AMOUNT || qpi.invocationReward() < input.amount)
         // {
+        //     output.amount = -1;
+        //     if (input.amount == 0)
+        //     {
+        //         output.amount = 0;
+        //     }
+
         //     qpi.transfer(qpi.invocator(), qpi.invocationReward());
-        // }
-
-        // if (qpi.invocator() != state._adminAddress)
-        // {
-        //     state._counter = 2;
         //     return;
         // }
 
-        // state._counter = 3;
-        // if (((input.operation == 0)
-        //     ? state._commissionFreeAddresses.remove(input.user)
-        //     : state._commissionFreeAddresses.add(input.user)) != NULL_INDEX) 
+        // if (qpi.invocationReward() > input.amount)
         // {
-        //     state._counter = 4;
-        //     output.result = 1;
+        //     qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.amount);
         // }
+
+        // qpi.burn(input.amount);
+        // output.amount = input.amount;
+
+        output.result = 0;
+
+        // state._counter += 1;
+
+        if (qpi.invocationReward() > 0 && qpi.invocationReward() <= MAX_AMOUNT)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+        }
+
+        if (qpi.invocator() != state._adminAddress)
+        {
+            // state._counter = 2;
+            return;
+        }
+
+        // state._counter = 3;
+        if (((input.operation == 0)
+            ? state._commissionFreeAddresses.remove(input.user)
+            : state._commissionFreeAddresses.add(input.user)) != NULL_INDEX) 
+        {
+            // state._counter = 4;
+            output.result = 1;
+        }
     }
 
     struct GetInfoPerEpoch_locals
