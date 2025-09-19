@@ -108,7 +108,7 @@ public:
     struct UpdateCFA_input
     {
         id user;
-        bit operation;  // 0 to remove, 1 to add
+        uint64 operation;  // 0 to remove, >0 to add
     };
     struct UpdateCFA_output
     {
@@ -181,7 +181,6 @@ public:
     };
     struct GetMBondsTable_output
     {
-        uint64 counter;
         struct TableEntry
         {
             sint64 epoch;
@@ -216,8 +215,6 @@ private:
     uint64 _distributedAmount;
     id _adminAddress;
     id _devAddress;
-
-    uint64 _counter;
 
     struct _Order
     {
@@ -822,7 +819,6 @@ private:
 
     PUBLIC_PROCEDURE(BurnQU)
     {
-        state._counter += 10;
         if (input.amount <= 0 || input.amount >= MAX_AMOUNT || qpi.invocationReward() < input.amount)
         {
             output.amount = -1;
@@ -846,31 +842,6 @@ private:
 
     PUBLIC_PROCEDURE(UpdateCFA)
     {
-        // state._counter++;
-        // if (input.amount <= 0 || input.amount >= MAX_AMOUNT || qpi.invocationReward() < input.amount)
-        // {
-        //     output.amount = -1;
-        //     if (input.amount == 0)
-        //     {
-        //         output.amount = 0;
-        //     }
-
-        //     qpi.transfer(qpi.invocator(), qpi.invocationReward());
-        //     return;
-        // }
-
-        // if (qpi.invocationReward() > input.amount)
-        // {
-        //     qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.amount);
-        // }
-
-        // qpi.burn(input.amount);
-        // output.amount = input.amount;
-
-        output.result = 0;
-
-        // state._counter += 1;
-
         if (qpi.invocationReward() > 0 && qpi.invocationReward() <= MAX_AMOUNT)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
@@ -878,17 +849,16 @@ private:
 
         if (qpi.invocator() != state._adminAddress)
         {
-            state._counter = 2;
             return;
         }
 
-        state._counter = 3;
-        if (((input.operation == 0)
-            ? state._commissionFreeAddresses.remove(input.user)
-            : state._commissionFreeAddresses.add(input.user)) != NULL_INDEX) 
+        if (input.operation == 0)
         {
-            state._counter = 4;
-            output.result = 1;
+            state._commissionFreeAddresses.remove(input.user);
+        }
+        else
+        {
+            state._commissionFreeAddresses.add(input.user);
         }
     }
 
@@ -1075,7 +1045,6 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetMBondsTable)
     {
-        output.counter = state._counter;
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
             if (state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMBondInfo))
