@@ -1005,7 +1005,7 @@ private:
         sint64 epoch;
         sint64 index;
         MBondInfo tempMBondInfo;
-        MBondsTable_output::TableEntry tempTableEntry;
+        GetMBondsTable_output::TableEntry tempTableEntry;
         QEARN::getLockInfoPerEpoch_input tempInput;
         QEARN::getLockInfoPerEpoch_output tempOutput;
     };
