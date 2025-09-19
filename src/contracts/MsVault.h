@@ -1,3 +1,5 @@
+#include <qpi.h>
+
 using namespace QPI;
 
 constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
@@ -166,12 +168,11 @@ public:
         Array<Order, 256> bidOrders;
     };
 
-    struct MBondsTable_input
+    struct GetMBondsTable_input
     {
     };
-    struct MBondsTable_output
+    struct GetMBondsTable_output
     {
-        sint64 earned;
         struct TableEntry
         {
             sint64 epoch;
@@ -186,19 +187,20 @@ public:
     };
     struct GetUserMBonds_output
     {
+        sint64 totalMBondsAmount;
         struct MBondEntity
         {
             sint64 epoch;
             sint64 amount;
             uint64 apy;
         };
-        
         Array<MBondEntity, 256> mbonds;
     };
     
 private:
     Array<StakeEntry, 16> _stakeQueue;
     HashMap<uint16, MBondInfo, 1024> _epochMbondInfoMap;
+    HashMap<id, sint64, 524288> _userTotalStakedMap;
     uint64 _qearnIncomeAmount;
     uint64 _earnedAmount;
     uint64 _distributedAmount;
@@ -260,7 +262,7 @@ private:
     struct Stake_locals
     {
         sint64 amountInQueue;
-        sint64 index;
+        sint64 userMBondsAmount;
         sint64 tempAmount;
         uint64 counter;
         sint64 amountToStake;
@@ -325,6 +327,16 @@ private:
             {
                 break;
             }
+
+            if (state._userTotalStakedMap.get(qpi.invocator(), locals.userMBondsAmount))
+            {
+                state._userTotalStakedMap.replace(qpi.invocator(), locals.userMBondsAmount + state._stakeQueue.get(locals.counter).amount);
+            }
+            else
+            {
+                state._userTotalStakedMap.set(qpi.invocator(), state._stakeQueue.get(locals.counter).amount);
+            }
+
             if (qpi.numberOfPossessedShares(locals.tempMbondInfo.name, SELF, state._stakeQueue.get(locals.counter).staker, state._stakeQueue.get(locals.counter).staker, SELF_INDEX, SELF_INDEX) <= 0)
             {
                 locals.tempMbondInfo.stakersAmount++;
@@ -990,7 +1002,7 @@ private:
         }
     }
 
-    struct MBondsTable_locals
+    struct GetMBondsTable_locals
     {
         sint64 epoch;
         sint64 index;
@@ -1000,9 +1012,8 @@ private:
         QEARN::getLockInfoPerEpoch_output tempOutput;
     };
 
-    PUBLIC_FUNCTION_WITH_LOCALS(MBondsTable)
+    PUBLIC_FUNCTION_WITH_LOCALS(GetMBondsTable)
     {
-        output.earned = state._earnedAmount;
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
             if (state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMBondInfo))
@@ -1030,6 +1041,12 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetUserMBonds)
     {
+        output.totalMBondsAmount = 0;
+        if (state._userTotalStakedMap.get(input.owner, locals.mbondsAmount))
+        {
+            output.totalMBondsAmount = locals.mbondsAmount;
+        }
+
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
             if (!state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMBondInfo))
@@ -1068,7 +1085,7 @@ private:
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 2);
         REGISTER_USER_FUNCTION(GetOrders, 3);
         REGISTER_USER_FUNCTION(GetUserOrders, 4);
-        REGISTER_USER_FUNCTION(MBondsTable, 5);
+        REGISTER_USER_FUNCTION(GetMBondsTable, 5);
         REGISTER_USER_FUNCTION(GetUserMBonds, 6);
     }
 
