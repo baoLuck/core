@@ -108,10 +108,12 @@ public:
     struct UpdateCFA_input
     {
         sint64 amount;
+        id user;
+        bit operation;  // 0 to remove, 1 to add
     };
     struct UpdateCFA_output
     {
-        sint64 amount;
+        bit result;
     };
 
     struct GetFees_input
@@ -868,7 +870,7 @@ private:
 
         // output.result = 0;
 
-        //state._counter += 1;
+        // state._counter += 1;
 
         // if (qpi.invocationReward() > 0 && qpi.invocationReward() <= MAX_AMOUNT)
         // {
@@ -1142,6 +1144,7 @@ private:
         REGISTER_USER_PROCEDURE(RemoveBidOrder, 6);
         REGISTER_USER_PROCEDURE(BurnQU, 7);
         REGISTER_USER_PROCEDURE(UpdateCFA, 8);
+        
 
         REGISTER_USER_FUNCTION(GetFees, 1);
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 2);
