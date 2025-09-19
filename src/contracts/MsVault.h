@@ -1120,8 +1120,8 @@ private:
         REGISTER_USER_PROCEDURE(RemoveAskOrder, 4);
         REGISTER_USER_PROCEDURE(AddBidOrder, 5);
         REGISTER_USER_PROCEDURE(RemoveBidOrder, 6);
-        REGISTER_USER_PROCEDURE(BurnQU, 7);
-        REGISTER_USER_PROCEDURE(UpdateCFA, 8);
+        REGISTER_USER_PROCEDURE(UpdateCFA, 7);
+        REGISTER_USER_PROCEDURE(BurnQU, 8);
 
         REGISTER_USER_FUNCTION(GetFees, 1);
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 2);
