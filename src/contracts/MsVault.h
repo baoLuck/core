@@ -181,6 +181,7 @@ public:
     };
     struct GetMBondsTable_output
     {
+        uint64 counter;
         struct TableEntry
         {
             sint64 epoch;
@@ -1045,6 +1046,7 @@ private:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetMBondsTable)
     {
+        output.counter = state._commissionFreeAddresses.population();
         for (locals.epoch = QBOND_START_EPOCH; locals.epoch <= qpi.epoch(); locals.epoch++)
         {
             if (state._epochMbondInfoMap.get((uint16)locals.epoch, locals.tempMBondInfo))
