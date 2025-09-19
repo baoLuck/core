@@ -822,6 +822,7 @@ private:
 
     PUBLIC_PROCEDURE(BurnQU)
     {
+        state._counter += 10;
         if (input.amount <= 0 || input.amount >= MAX_AMOUNT || qpi.invocationReward() < input.amount)
         {
             output.amount = -1;
@@ -847,7 +848,7 @@ private:
     {
         // output.result = 0;
 
-        state._counter += 2;
+        state._counter += 1;
 
         // if (qpi.invocationReward() > 0 && qpi.invocationReward() <= MAX_AMOUNT)
         // {
