@@ -105,11 +105,11 @@ public:
         sint64 amount;
     };
 
-    struct BurnQU2_input
+    struct UpdateCFA_input
     {
         sint64 amount;
     };
-    struct BurnQU2_output
+    struct UpdateCFA_output
     {
         sint64 amount;
     };
@@ -843,7 +843,7 @@ private:
         output.amount = input.amount;
     }
 
-    PUBLIC_PROCEDURE(BurnQU2)
+    PUBLIC_PROCEDURE(UpdateCFA)
     {
         state._counter++;
         if (input.amount <= 0 || input.amount >= MAX_AMOUNT || qpi.invocationReward() < input.amount)
@@ -1141,7 +1141,7 @@ private:
         REGISTER_USER_PROCEDURE(AddBidOrder, 5);
         REGISTER_USER_PROCEDURE(RemoveBidOrder, 6);
         REGISTER_USER_PROCEDURE(BurnQU, 7);
-        REGISTER_USER_PROCEDURE(BurnQU2, 8);
+        REGISTER_USER_PROCEDURE(UpdateCFA, 8);
 
         REGISTER_USER_FUNCTION(GetFees, 1);
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 2);
