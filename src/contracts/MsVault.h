@@ -107,12 +107,12 @@ public:
 
     struct UpdateCFA_input
     {
-        id user;
-        bit operation;  // 0 to remove, 1 to add
+        // id user;
+        // bit operation;  // 0 to remove, 1 to add
     };
     struct UpdateCFA_output
     {
-        bit result;
+        // bit result;
     };
 
     struct GetFees_input
@@ -845,29 +845,29 @@ private:
 
     PUBLIC_PROCEDURE(UpdateCFA)
     {
-        output.result = 0;
+        // output.result = 0;
 
-        state._counter = 1;
+        state._counter += 2;
 
-        if (qpi.invocationReward() > 0 && qpi.invocationReward() <= MAX_AMOUNT)
-        {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward());
-        }
+        // if (qpi.invocationReward() > 0 && qpi.invocationReward() <= MAX_AMOUNT)
+        // {
+        //     qpi.transfer(qpi.invocator(), qpi.invocationReward());
+        // }
 
-        if (qpi.invocator() != state._adminAddress)
-        {
-            state._counter = 2;
-            return;
-        }
+        // if (qpi.invocator() != state._adminAddress)
+        // {
+        //     state._counter = 2;
+        //     return;
+        // }
 
-        state._counter = 3;
-        if (((input.operation == 0)
-            ? state._commissionFreeAddresses.remove(input.user)
-            : state._commissionFreeAddresses.add(input.user)) != NULL_INDEX) 
-        {
-            state._counter = 4;
-            output.result = 1;
-        }
+        // state._counter = 3;
+        // if (((input.operation == 0)
+        //     ? state._commissionFreeAddresses.remove(input.user)
+        //     : state._commissionFreeAddresses.add(input.user)) != NULL_INDEX) 
+        // {
+        //     state._counter = 4;
+        //     output.result = 1;
+        // }
     }
 
     struct GetInfoPerEpoch_locals
