@@ -105,6 +105,16 @@ public:
         sint64 amount;
     };
 
+    struct UpdateCFA_input
+    {
+        id user;
+        bit operation;  // 0 to remove, 1 to add
+    };
+    struct UpdateCFA_output
+    {
+        bit result;
+    };
+
     struct GetFees_input
     {
     };
@@ -197,12 +207,13 @@ public:
     
 private:
     Array<StakeEntry, 16> _stakeQueue;
-    HashMap<uint16, MBondInfo, 1024> _epochMbondInfoMap;
+    HashMap<uint16, MBondInfo, QBOND_MAX_EPOCH_COUNT> _epochMbondInfoMap;
     HashMap<id, sint64, 524288> _userTotalStakedMap;
+    HashSet<id, 1024> _commissionFreeAddresses;
     uint64 _qearnIncomeAmount;
     uint64 _earnedAmount;
     uint64 _distributedAmount;
-    id _marketMaker;
+    id _adminAddress;
     id _devAddress;
 
     struct _Order
@@ -286,7 +297,7 @@ private:
             qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
         }
 
-        if (qpi.invocator() == state._marketMaker)
+        if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
         {
             qpi.transfer(qpi.invocator(), QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
         }
@@ -389,7 +400,7 @@ private:
                 locals.tempMbondInfo.stakersAmount--;
             }
             state._epochMbondInfoMap.replace((uint16)input.epoch, locals.tempMbondInfo);
-            if (qpi.invocator() == state._marketMaker)
+            if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
             {
                 qpi.transfer(qpi.invocator(), QBOND_MBOND_TRANSFER_FEE);
             }
@@ -461,7 +472,7 @@ private:
 
                 locals.fee = QPI::div(input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                 qpi.transfer(qpi.invocator(), input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) - locals.fee);
-                if (qpi.invocator() == state._marketMaker)
+                if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
                 {
                     qpi.transfer(qpi.invocator(), locals.fee);
                 }
@@ -493,7 +504,7 @@ private:
 
                 locals.fee = QPI::div(locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                 qpi.transfer(qpi.invocator(), locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) - locals.fee);
-                if (qpi.invocator() == state._marketMaker)
+                if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
                 {
                     qpi.transfer(qpi.invocator(), locals.fee);
                 }
@@ -654,7 +665,7 @@ private:
 
                 locals.fee = QPI::div(input.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                 qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
-                if (qpi.invocator() == state._marketMaker)
+                if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
                 {
                     qpi.transfer(qpi.invocator(), locals.fee);
                 }
@@ -691,7 +702,7 @@ private:
 
                 locals.fee = QPI::div(locals.tempAskOrder.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                 qpi.transfer(locals.tempAskOrder.owner, -(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
-                if (qpi.invocator() == state._marketMaker)
+                if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
                 {
                     qpi.transfer(qpi.invocator(), locals.fee);
                 }
@@ -827,6 +838,28 @@ private:
 
         qpi.burn(input.amount);
         output.amount = input.amount;
+    }
+
+    PUBLIC_PROCEDURE(UpdateCFA)
+    {
+        output.result = 0;
+
+        if (qpi.invocationReward() > 0 && qpi.invocationReward() <= MAX_AMOUNT)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+        }
+
+        if (qpi.invocator() != state._adminAddress)
+        {
+            return;
+        }
+
+        if (((input.operation == 0)
+            ? state._commissionFreeAddresses.remove(input.user)
+            : state._commissionFreeAddresses.add(input.user)) != NULL_INDEX) 
+        {
+            output.result = 1;
+        }
     }
 
     struct GetInfoPerEpoch_locals
@@ -1078,6 +1111,7 @@ private:
         REGISTER_USER_PROCEDURE(AddBidOrder, 5);
         REGISTER_USER_PROCEDURE(RemoveBidOrder, 6);
         REGISTER_USER_PROCEDURE(BurnQU, 7);
+        REGISTER_USER_PROCEDURE(UpdateCFA, 8);
 
         REGISTER_USER_FUNCTION(GetFees, 1);
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 2);
@@ -1090,7 +1124,7 @@ private:
     INITIALIZE()
     {                      
         state._devAddress = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);     
-        state._marketMaker = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
+        state._adminAddress = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
     }
 
     PRE_ACQUIRE_SHARES()
@@ -1116,7 +1150,7 @@ private:
     BEGIN_EPOCH_WITH_LOCALS()
     {
         state._devAddress = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
-        state._marketMaker = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
+        state._adminAddress = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
 
         if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 53), locals.tempMbondInfo))
         {
