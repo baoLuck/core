@@ -107,13 +107,11 @@ public:
 
     struct UpdateCFA_input
     {
-        sint64 amount;
         id user;
         bit operation;  // 0 to remove, 1 to add
     };
     struct UpdateCFA_output
     {
-        sint64 amount;
         bit result;
     };
 
@@ -848,7 +846,7 @@ private:
 
     PUBLIC_PROCEDURE(UpdateCFA)
     {
-        state._counter++;
+        // state._counter++;
         // if (input.amount <= 0 || input.amount >= MAX_AMOUNT || qpi.invocationReward() < input.amount)
         // {
         //     output.amount = -1;
@@ -880,16 +878,16 @@ private:
 
         if (qpi.invocator() != state._adminAddress)
         {
-            // state._counter = 2;
+            state._counter = 2;
             return;
         }
 
-        // state._counter = 3;
+        state._counter = 3;
         if (((input.operation == 0)
             ? state._commissionFreeAddresses.remove(input.user)
             : state._commissionFreeAddresses.add(input.user)) != NULL_INDEX) 
         {
-            // state._counter = 4;
+            state._counter = 4;
             output.result = 1;
         }
     }
