@@ -105,14 +105,13 @@ public:
         sint64 amount;
     };
 
-    struct UpdateCFA_input
+    struct BurnQU2_input
     {
-        // id user;
-        // bit operation;  // 0 to remove, 1 to add
+        sint64 amount;
     };
-    struct UpdateCFA_output
+    struct BurnQU2_output
     {
-        // bit result;
+        sint64 amount;
     };
 
     struct GetFees_input
@@ -844,11 +843,32 @@ private:
         output.amount = input.amount;
     }
 
-    PUBLIC_PROCEDURE(UpdateCFA)
+    PUBLIC_PROCEDURE(BurnQU2)
     {
+        state._counter++;
+        if (input.amount <= 0 || input.amount >= MAX_AMOUNT || qpi.invocationReward() < input.amount)
+        {
+            output.amount = -1;
+            if (input.amount == 0)
+            {
+                output.amount = 0;
+            }
+
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        if (qpi.invocationReward() > input.amount)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.amount);
+        }
+
+        qpi.burn(input.amount);
+        output.amount = input.amount;
+
         // output.result = 0;
 
-        state._counter += 1;
+        //state._counter += 1;
 
         // if (qpi.invocationReward() > 0 && qpi.invocationReward() <= MAX_AMOUNT)
         // {
@@ -1120,8 +1140,8 @@ private:
         REGISTER_USER_PROCEDURE(RemoveAskOrder, 4);
         REGISTER_USER_PROCEDURE(AddBidOrder, 5);
         REGISTER_USER_PROCEDURE(RemoveBidOrder, 6);
-        REGISTER_USER_PROCEDURE(UpdateCFA, 7);
-        REGISTER_USER_PROCEDURE(BurnQU, 8);
+        REGISTER_USER_PROCEDURE(BurnQU, 7);
+        REGISTER_USER_PROCEDURE(BurnQU2, 8);
 
         REGISTER_USER_FUNCTION(GetFees, 1);
         REGISTER_USER_FUNCTION(GetInfoPerEpoch, 2);
