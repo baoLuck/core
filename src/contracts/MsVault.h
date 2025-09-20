@@ -294,7 +294,7 @@ private:
 
         if ((uint64) qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL))
         {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE - QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
         }
 
         if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
