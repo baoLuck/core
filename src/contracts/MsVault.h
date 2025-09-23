@@ -125,6 +125,15 @@ public:
         uint64 transferFee;
     };
 
+    struct GetEarnedFees_input
+    {
+    };
+    struct GetEarnedFees_output
+    {
+        uint64 stakeFees;
+        uint64 tradeFees;
+    };
+
     struct GetInfoPerEpoch_input
     {
         sint64 epoch;
@@ -211,7 +220,8 @@ private:
     HashMap<id, sint64, 524288> _userTotalStakedMap;
     HashSet<id, 1024> _commissionFreeAddresses;
     uint64 _qearnIncomeAmount;
-    uint64 _earnedAmount;
+    uint64 _totalEarnedAmount;
+    uint64 _earnedAmountFromTrade;
     uint64 _distributedAmount;
     id _adminAddress;
     id _devAddress;
@@ -303,7 +313,7 @@ private:
         }
         else
         {
-            state._earnedAmount += QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL);
+            state._totalEarnedAmount += QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL);
         }
 
         locals.amountInQueue = input.quMillions;
@@ -373,6 +383,12 @@ private:
             return;
         }
 
+        if (qpi.invocationReward() < QBOND_MBOND_TRANSFER_FEE)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
         if (qpi.invocationReward() > QBOND_MBOND_TRANSFER_FEE)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward() - QBOND_MBOND_TRANSFER_FEE);
@@ -406,7 +422,7 @@ private:
             }
             else
             {
-                state._earnedAmount += QBOND_MBOND_TRANSFER_FEE;
+                state._totalEarnedAmount += QBOND_MBOND_TRANSFER_FEE;
             }
         }
     }
@@ -478,7 +494,8 @@ private:
                 }
                 else
                 {
-                    state._earnedAmount += locals.fee;
+                    state._totalEarnedAmount += locals.fee;
+                    state._earnedAmountFromTrade += locals.fee;
                 }
 
                 if (input.numberOfMBonds < locals.tempBidOrder.numberOfMBonds)
@@ -510,7 +527,8 @@ private:
                 }
                 else
                 {
-                    state._earnedAmount += locals.fee;
+                    state._totalEarnedAmount += locals.fee;
+                    state._earnedAmountFromTrade += locals.fee;
                 }
                 state._bidOrders.remove(locals.elementIndex);
                 input.numberOfMBonds -= locals.tempBidOrder.numberOfMBonds;
@@ -671,7 +689,8 @@ private:
                 }
                 else
                 {
-                    state._earnedAmount += locals.fee;
+                    state._totalEarnedAmount += locals.fee;
+                    state._earnedAmountFromTrade += locals.fee;
                 }
 
                 if (input.price > -state._askOrders.priority(locals.elementIndex))
@@ -708,7 +727,8 @@ private:
                 }
                 else
                 {
-                    state._earnedAmount += locals.fee;
+                    state._totalEarnedAmount += locals.fee;
+                    state._earnedAmountFromTrade += locals.fee;
                 }
                 
                 if (input.price > -state._askOrders.priority(locals.elementIndex))
@@ -895,6 +915,12 @@ private:
         output.stakeFeePercent = QBOND_STAKE_FEE_PERCENT;
         output.tradeFeePercent = QBOND_TRADE_FEE_PERCENT;
         output.transferFee = QBOND_MBOND_TRANSFER_FEE;
+    }
+
+    PUBLIC_FUNCTION(GetEarnedFees)
+    {
+        output.stakeFees = state._totalEarnedAmount - state._earnedAmountFromTrade;
+        output.tradeFees = state._earnedAmountFromTrade;
     }
 
     struct GetOrders_locals
@@ -1114,11 +1140,12 @@ private:
         REGISTER_USER_PROCEDURE(UpdateCFA, 8);
 
         REGISTER_USER_FUNCTION(GetFees, 1);
-        REGISTER_USER_FUNCTION(GetInfoPerEpoch, 2);
-        REGISTER_USER_FUNCTION(GetOrders, 3);
-        REGISTER_USER_FUNCTION(GetUserOrders, 4);
-        REGISTER_USER_FUNCTION(GetMBondsTable, 5);
-        REGISTER_USER_FUNCTION(GetUserMBonds, 6);
+        REGISTER_USER_FUNCTION(GetEarnedFees, 2);
+        REGISTER_USER_FUNCTION(GetInfoPerEpoch, 3);
+        REGISTER_USER_FUNCTION(GetOrders, 4);
+        REGISTER_USER_FUNCTION(GetUserOrders, 5);
+        REGISTER_USER_FUNCTION(GetMBondsTable, 6);
+        REGISTER_USER_FUNCTION(GetUserMBonds, 7);
     }
 
     INITIALIZE()
@@ -1241,8 +1268,8 @@ private:
     
     END_EPOCH_WITH_LOCALS()
     {
-        locals.amountToQvault = QPI::div((state._earnedAmount - state._distributedAmount) * QBOND_QVAULT_DISTRIBUTION_PERCENT, 10000ULL);
-        locals.amountToDev = state._earnedAmount - state._distributedAmount - locals.amountToQvault;
+        locals.amountToQvault = QPI::div((state._totalEarnedAmount - state._distributedAmount) * QBOND_QVAULT_DISTRIBUTION_PERCENT, 10000ULL);
+        locals.amountToDev = state._totalEarnedAmount - state._distributedAmount - locals.amountToQvault;
         qpi.transfer(id(QVAULT_CONTRACT_INDEX, 0, 0, 0), locals.amountToQvault);
         qpi.transfer(state._devAddress, locals.amountToDev);
         state._distributedAmount += locals.amountToQvault;
