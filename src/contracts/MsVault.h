@@ -1,3 +1,5 @@
+#include "qpi.h"
+
 using namespace QPI;
 
 constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
@@ -212,6 +214,14 @@ public:
             uint64 apy;
         };
         Array<MBondEntity, 256> mbonds;
+    };
+
+    struct GetCFA_input
+    {
+    };
+    struct GetCFA_output
+    {
+        Array<id, 1024> commissionFreeAddresses;
     };
     
 private:
@@ -1128,6 +1138,22 @@ private:
         }
     }
 
+    struct GetCFA_locals
+    {
+        sint64 index;
+        sint64 counter;
+    };
+
+    PUBLIC_FUNCTION_WITH_LOCALS(GetCFA)
+    {
+        locals.index = state._commissionFreeAddresses.nextElementIndex(NULL_INDEX);
+        while (locals.index != NULL_INDEX)
+        {
+            output.commissionFreeAddresses.set(locals.counter, state._commissionFreeAddresses.key(locals.index));
+            locals.index = state._commissionFreeAddresses.nextElementIndex(locals.index);
+        }
+    }
+
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
     {
         REGISTER_USER_PROCEDURE(Stake, 1);
@@ -1146,6 +1172,7 @@ private:
         REGISTER_USER_FUNCTION(GetUserOrders, 5);
         REGISTER_USER_FUNCTION(GetMBondsTable, 6);
         REGISTER_USER_FUNCTION(GetUserMBonds, 7);
+        REGISTER_USER_FUNCTION(GetCFA, 8);
     }
 
     INITIALIZE()
