@@ -1,5 +1,3 @@
-#include "qpi.h"
-
 using namespace QPI;
 
 constexpr uint64 QBOND_MAX_EPOCH_COUNT = 1024ULL;
