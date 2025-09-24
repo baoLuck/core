@@ -108,7 +108,7 @@ public:
     struct UpdateCFA_input
     {
         id user;
-        bit operation;  // 0 to remove, >0 to add
+        bit operation;  // 0 to remove, 1 to add
     };
     struct UpdateCFA_output
     {
@@ -304,24 +304,24 @@ private:
         if (input.quMillions <= 0
                 || !state._epochMbondInfoMap.get(qpi.epoch(), locals.tempMbondInfo)
                 || qpi.invocationReward() < 0
-                || (uint64) qpi.invocationReward() < smul((uint64) input.quMillions, QBOND_MBOND_PRICE) + QPI::div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE_PERCENT, 10000ULL))
+                || (uint64) qpi.invocationReward() < sadd(smul((uint64) input.quMillions, QBOND_MBOND_PRICE), div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE_PERCENT, 10000ULL)))
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
         }
 
-        if ((uint64) qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL))
+        if ((uint64) qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL))
         {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE - QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE - div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
         }
 
         if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
         {
-            qpi.transfer(qpi.invocator(), QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
+            qpi.transfer(qpi.invocator(), div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
         }
         else
         {
-            state._totalEarnedAmount += QPI::div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL);
+            state._totalEarnedAmount += div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL);
         }
 
         locals.amountInQueue = input.quMillions;
@@ -494,7 +494,7 @@ private:
                     input.numberOfMBonds,
                     locals.tempBidOrder.owner);
 
-                locals.fee = QPI::div(input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
+                locals.fee = div(input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                 qpi.transfer(qpi.invocator(), input.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) - locals.fee);
                 if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
                 {
@@ -527,7 +527,7 @@ private:
                     locals.tempBidOrder.numberOfMBonds,
                     locals.tempBidOrder.owner);
 
-                locals.fee = QPI::div(locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
+                locals.fee = div(locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                 qpi.transfer(qpi.invocator(), locals.tempBidOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex) - locals.fee);
                 if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
                 {
@@ -651,7 +651,12 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(AddBidOrder)
     {
-        if (input.price <= 0 || input.price >= MAX_AMOUNT || input.numberOfMBonds <= 0 || input.numberOfMBonds >= MAX_AMOUNT || !state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
+        if (qpi.invocationReward() < smul(input.numberOfMBonds, input.price)
+                || input.price <= 0
+                || input.price >= MAX_AMOUNT
+                || input.numberOfMBonds <= 0
+                || input.numberOfMBonds >= MAX_AMOUNT
+                || !state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
         {
             output.addedMBondsAmount = 0;
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
@@ -695,7 +700,7 @@ private:
                 }
                 else
                 {
-                    locals.fee = QPI::div(input.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
+                    locals.fee = div(input.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                     qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
                     state._totalEarnedAmount += locals.fee;
                     state._earnedAmountFromTrade += locals.fee;
@@ -733,7 +738,7 @@ private:
                 }
                 else
                 {
-                     locals.fee = QPI::div(locals.tempAskOrder.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
+                    locals.fee = div(locals.tempAskOrder.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
                     qpi.transfer(locals.tempAskOrder.owner, -(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
                     state._totalEarnedAmount += locals.fee;
                     state._earnedAmountFromTrade += locals.fee;
@@ -1210,7 +1215,7 @@ private:
         if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 53), locals.tempMbondInfo))
         {
             locals.totalReward = state._qearnIncomeAmount - locals.tempMbondInfo.totalStaked * QBOND_MBOND_PRICE;
-            locals.rewardPerMBond = QPI::div(locals.totalReward, locals.tempMbondInfo.totalStaked);
+            locals.rewardPerMBond = div(locals.totalReward, locals.tempMbondInfo.totalStaked);
             
             locals.tempAsset.assetName = locals.tempMbondInfo.name;
             locals.tempAsset.issuer = SELF;
@@ -1251,13 +1256,13 @@ private:
 
         locals.currentName = 1145979469ULL;   // MBND
 
-        locals.chunk = (sint8) (48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 100ULL), 10ULL));
+        locals.chunk = (sint8) (48 + mod(div((uint64)qpi.epoch(), 100ULL), 10ULL));
         locals.currentName |= (uint64)locals.chunk << (4 * 8);
 
-        locals.chunk = (sint8) (48 + QPI::mod(QPI::div((uint64)qpi.epoch(), 10ULL), 10ULL));
+        locals.chunk = (sint8) (48 + mod(div((uint64)qpi.epoch(), 10ULL), 10ULL));
         locals.currentName |= (uint64)locals.chunk << (5 * 8);
 
-        locals.chunk = (sint8) (48 + QPI::mod((uint64)qpi.epoch(), 10ULL));
+        locals.chunk = (sint8) (48 + mod((uint64)qpi.epoch(), 10ULL));
         locals.currentName |= (uint64)locals.chunk << (6 * 8);
 
         qpi.issueAsset(locals.currentName, SELF, 0, QBOND_MBONDS_EMISSION, 0);
@@ -1296,7 +1301,7 @@ private:
     
     END_EPOCH_WITH_LOCALS()
     {
-        locals.amountToQvault = QPI::div((state._totalEarnedAmount - state._distributedAmount) * QBOND_QVAULT_DISTRIBUTION_PERCENT, 10000ULL);
+        locals.amountToQvault = div((state._totalEarnedAmount - state._distributedAmount) * QBOND_QVAULT_DISTRIBUTION_PERCENT, 10000ULL);
         locals.amountToDev = state._totalEarnedAmount - state._distributedAmount - locals.amountToQvault;
         qpi.transfer(id(QVAULT_CONTRACT_INDEX, 0, 0, 0), locals.amountToQvault);
         qpi.transfer(state._devAddress, locals.amountToDev);
