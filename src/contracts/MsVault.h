@@ -108,7 +108,7 @@ public:
     struct UpdateCFA_input
     {
         id user;
-        uint64 operation;  // 0 to remove, >0 to add
+        bit operation;  // 0 to remove, >0 to add
     };
     struct UpdateCFA_output
     {
@@ -689,14 +689,14 @@ private:
                     input.numberOfMBonds,
                     qpi.invocator());
 
-                locals.fee = QPI::div(input.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
-                qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
-                if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
+                if (state._commissionFreeAddresses.getElementIndex(locals.tempAskOrder.owner) != NULL_INDEX)
                 {
-                    qpi.transfer(qpi.invocator(), locals.fee);
+                    qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)));
                 }
                 else
                 {
+                    locals.fee = QPI::div(input.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
+                    qpi.transfer(locals.tempAskOrder.owner, -(input.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
                     state._totalEarnedAmount += locals.fee;
                     state._earnedAmountFromTrade += locals.fee;
                 }
@@ -727,14 +727,14 @@ private:
                     locals.tempAskOrder.numberOfMBonds,
                     qpi.invocator());
 
-                locals.fee = QPI::div(locals.tempAskOrder.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
-                qpi.transfer(locals.tempAskOrder.owner, -(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
-                if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
+                if (state._commissionFreeAddresses.getElementIndex(locals.tempAskOrder.owner) != NULL_INDEX)
                 {
-                    qpi.transfer(qpi.invocator(), locals.fee);
+                    qpi.transfer(locals.tempAskOrder.owner, -(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex)));
                 }
                 else
                 {
+                     locals.fee = QPI::div(locals.tempAskOrder.numberOfMBonds * -state._askOrders.priority(locals.elementIndex) * QBOND_TRADE_FEE_PERCENT, 10000ULL);
+                    qpi.transfer(locals.tempAskOrder.owner, -(locals.tempAskOrder.numberOfMBonds * state._askOrders.priority(locals.elementIndex)) - locals.fee);
                     state._totalEarnedAmount += locals.fee;
                     state._earnedAmountFromTrade += locals.fee;
                 }
@@ -1321,5 +1321,9 @@ private:
             locals.availableMbonds = qpi.numberOfPossessedShares(locals.tempMbondInfo.name, SELF, SELF, SELF, SELF_INDEX, SELF_INDEX);
             qpi.transferShareOwnershipAndPossession(locals.tempMbondInfo.name, SELF, SELF, SELF, locals.availableMbonds, NULL_ID);
         }
+
+        state._commissionFreeAddresses.cleanupIfNeeded();
+        state._askOrders.cleanupIfNeeded();
+        state._bidOrders.cleanupIfNeeded();
     }
 };
