@@ -293,6 +293,7 @@ private:
         sint64 tempAmount;
         uint64 counter;
         sint64 amountToStake;
+        uint64 amountAndFee;
         StakeEntry tempStakeEntry;
         MBondInfo tempMbondInfo;
         QEARN::lock_input lock_input;
@@ -301,27 +302,29 @@ private:
 
     PUBLIC_PROCEDURE_WITH_LOCALS(Stake)
     {
+        locals.amountAndFee = sadd(smul((uint64) input.quMillions, QBOND_MBOND_PRICE), div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE_PERCENT, 10000ULL));
+
         if (input.quMillions <= 0
                 || !state._epochMbondInfoMap.get(qpi.epoch(), locals.tempMbondInfo)
                 || qpi.invocationReward() < 0
-                || (uint64) qpi.invocationReward() < sadd(smul((uint64) input.quMillions, QBOND_MBOND_PRICE), div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE_PERCENT, 10000ULL)))
+                || (uint64) qpi.invocationReward() < locals.amountAndFee)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
         }
 
-        if ((uint64) qpi.invocationReward() > input.quMillions * QBOND_MBOND_PRICE + div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL))
+        if ((uint64) qpi.invocationReward() > locals.amountAndFee )
         {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.quMillions * QBOND_MBOND_PRICE - div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.amountAndFee);
         }
 
         if (state._commissionFreeAddresses.getElementIndex(qpi.invocator()) != NULL_INDEX)
         {
-            qpi.transfer(qpi.invocator(), div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL));
+            qpi.transfer(qpi.invocator(), div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE_PERCENT, 10000ULL));
         }
         else
         {
-            state._totalEarnedAmount += div(input.quMillions * QBOND_MBOND_PRICE * QBOND_STAKE_FEE_PERCENT, 10000ULL);
+            state._totalEarnedAmount += div(smul((uint64) input.quMillions, QBOND_MBOND_PRICE) * QBOND_STAKE_FEE_PERCENT, 10000ULL);
         }
 
         locals.amountInQueue = input.quMillions;
@@ -1180,9 +1183,9 @@ private:
     }
 
     INITIALIZE()
-    {                      
-        state._devAddress = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);     
-        state._adminAddress = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
+    {
+        state._devAddress = ID(_B, _O, _N, _D, _D, _J, _N, _U, _H, _O, _G, _Y, _L, _A, _A, _A, _C, _V, _X, _C, _X, _F, _G, _F, _R, _C, _S, _D, _C, _U, _W, _C, _Y, _U, _N, _K, _M, _P, _G, _O, _I, _F, _E, _P, _O, _E, _M, _Y, _T, _L, _Q, _L, _F, _C, _S, _B);     
+        state._adminAddress = ID(_B, _O, _N, _D, _A, _A, _F, _B, _U, _G, _H, _E, _L, _A, _N, _X, _G, _H, _N, _L, _M, _S, _U, _I, _V, _B, _K, _B, _H, _A, _Y, _E, _Q, _S, _Q, _B, _V, _P, _V, _N, _B, _H, _L, _F, _J, _I, _A, _Z, _F, _Q, _C, _W, _W, _B, _V, _E);
         state._commissionFreeAddresses.add(state._adminAddress);
     }
 
@@ -1208,10 +1211,6 @@ private:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        state._devAddress = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
-        state._adminAddress = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
-        state._commissionFreeAddresses.add(state._adminAddress);
-        
         if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 53), locals.tempMbondInfo))
         {
             locals.totalReward = state._qearnIncomeAmount - locals.tempMbondInfo.totalStaked * QBOND_MBOND_PRICE;
