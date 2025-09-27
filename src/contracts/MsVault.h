@@ -222,7 +222,7 @@ public:
         Array<id, 1024> commissionFreeAddresses;
     };
     
-private:
+protected:
     Array<StakeEntry, 16> _stakeQueue;
     HashMap<uint16, MBondInfo, QBOND_MAX_EPOCH_COUNT> _epochMbondInfoMap;
     HashMap<id, sint64, 524288> _userTotalStakedMap;
@@ -313,7 +313,7 @@ private:
             return;
         }
 
-        if ((uint64) qpi.invocationReward() > locals.amountAndFee )
+        if ((uint64) qpi.invocationReward() > locals.amountAndFee)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.amountAndFee);
         }
@@ -358,13 +358,13 @@ private:
                 break;
             }
 
-            if (state._userTotalStakedMap.get(qpi.invocator(), locals.userMBondsAmount))
+            if (state._userTotalStakedMap.get(state._stakeQueue.get(locals.counter).staker, locals.userMBondsAmount))
             {
-                state._userTotalStakedMap.replace(qpi.invocator(), locals.userMBondsAmount + state._stakeQueue.get(locals.counter).amount);
+                state._userTotalStakedMap.replace(state._stakeQueue.get(locals.counter).staker, locals.userMBondsAmount + state._stakeQueue.get(locals.counter).amount);
             }
             else
             {
-                state._userTotalStakedMap.set(qpi.invocator(), state._stakeQueue.get(locals.counter).amount);
+                state._userTotalStakedMap.set(state._stakeQueue.get(locals.counter).staker, state._stakeQueue.get(locals.counter).amount);
             }
 
             if (qpi.numberOfPossessedShares(locals.tempMbondInfo.name, SELF, state._stakeQueue.get(locals.counter).staker, state._stakeQueue.get(locals.counter).staker, SELF_INDEX, SELF_INDEX) <= 0)
@@ -624,8 +624,8 @@ private:
             {
                 if (state._askOrders.element(locals.elementIndex).numberOfMBonds <= input.numberOfMBonds)
                 {
-                    state._askOrders.remove(locals.elementIndex);
                     output.removedMBondsAmount = state._askOrders.element(locals.elementIndex).numberOfMBonds;
+                    state._askOrders.remove(locals.elementIndex);
                 }
                 else
                 {
@@ -1217,7 +1217,7 @@ private:
         if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 53), locals.tempMbondInfo))
         {
             locals.totalReward = state._qearnIncomeAmount - locals.tempMbondInfo.totalStaked * QBOND_MBOND_PRICE;
-            locals.rewardPerMBond = div(locals.totalReward, locals.tempMbondInfo.totalStaked);
+            locals.rewardPerMBond = QPI::div(locals.totalReward, locals.tempMbondInfo.totalStaked);
             
             locals.tempAsset.assetName = locals.tempMbondInfo.name;
             locals.tempAsset.issuer = SELF;
