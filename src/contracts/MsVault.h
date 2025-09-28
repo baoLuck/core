@@ -5,7 +5,7 @@ constexpr uint64 QBOND_MBOND_PRICE = 1000000ULL;
 constexpr uint64 QBOND_MAX_QUEUE_SIZE = 10ULL;
 constexpr uint64 QBOND_MIN_MBONDS_TO_STAKE = 10ULL;
 constexpr sint64 QBOND_MBONDS_EMISSION = 1000000000LL;
-constexpr uint16 QBOND_START_EPOCH = 175;
+constexpr uint16 QBOND_START_EPOCH = 182;
 
 constexpr uint64 QBOND_STAKE_FEE_PERCENT = 50; // 0.5%
 constexpr uint64 QBOND_TRADE_FEE_PERCENT = 3; // 0.03%
@@ -859,7 +859,10 @@ protected:
                 output.amount = 0;
             }
 
-            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            if (qpi.invocationReward() > 0 && qpi.invocationReward() < MAX_AMOUNT)
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            }
             return;
         }
 
@@ -886,11 +889,11 @@ protected:
 
         if (input.operation == 0)
         {
-            state._commissionFreeAddresses.remove(input.user);
+            output.result = state._commissionFreeAddresses.remove(input.user);
         }
         else
         {
-            state._commissionFreeAddresses.add(input.user);
+            output.result = state._commissionFreeAddresses.add(input.user);
         }
     }
 
