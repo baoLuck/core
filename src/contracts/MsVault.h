@@ -193,6 +193,7 @@ public:
         struct TableEntry
         {
             sint64 epoch;
+            sint64 totalStaked;
             uint64 apy;
         };
         Array<TableEntry, 512> info;
