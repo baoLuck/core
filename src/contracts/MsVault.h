@@ -1095,7 +1095,7 @@ protected:
                 locals.tempInput.Epoch = (uint32) locals.epoch;
                 CALL_OTHER_CONTRACT_FUNCTION(QEARN, getLockInfoPerEpoch, locals.tempInput, locals.tempOutput);
                 locals.tempTableEntry.epoch = locals.epoch;
-                locals.tempTableEntry.totalStakedQBond = locals.tempMBondInfo.totalStaked;
+                locals.tempTableEntry.totalStakedQBond = locals.tempMBondInfo.totalStaked * QBOND_MBOND_PRICE;
                 locals.tempTableEntry.totalStakedQEarn = locals.tempOutput.currentLockedAmount;
                 locals.tempTableEntry.apy = locals.tempOutput.yield;
                 output.info.set(locals.index, locals.tempTableEntry);
