@@ -951,14 +951,22 @@ protected:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetOrders)
     {
-        if (!state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
+        if (input.epoch != 0 && !state._epochMbondInfoMap.get((uint16)input.epoch, locals.tempMbondInfo))
         {
             return;
         }
 
+        if (input.epoch == 0)
+        {
+            locals.mbondIdentity = NULL_ID;
+        }
+        else
+        {
+            locals.mbondIdentity = SELF;
+            locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
+        }
+
         locals.arrayElementIndex = 0;
-        locals.mbondIdentity = SELF;
-        locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
 
         locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity, 0);
         while (locals.elementIndex != NULL_INDEX && locals.arrayElementIndex < 256)
