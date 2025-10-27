@@ -946,6 +946,7 @@ protected:
         id mbondIdentity;
         sint64 elementIndex;
         sint64 arrayElementIndex;
+        sint64 arrayElementIndex2;
         sint64 startEpoch;
         sint64 endEpoch;
         sint64 epochCounter;
@@ -960,6 +961,7 @@ protected:
         }
 
         locals.arrayElementIndex = 0;
+        locals.arrayElementIndex2 = 0;
         locals.mbondIdentity = SELF;
 
         if (input.epoch == 0)
@@ -1000,9 +1002,8 @@ protected:
                 locals.elementIndex = state._askOrders.nextElementIndex(locals.elementIndex);
             }
 
-            locals.arrayElementIndex = 0;
             locals.elementIndex = state._bidOrders.headIndex(locals.mbondIdentity);
-            while (locals.elementIndex != NULL_INDEX && locals.arrayElementIndex < 256)
+            while (locals.elementIndex != NULL_INDEX && locals.arrayElementIndex2 < 256)
             {
                 if (input.bidOrdersOffset > 0)
                 {
@@ -1015,8 +1016,8 @@ protected:
                 locals.tempOrder.epoch = state._bidOrders.element(locals.elementIndex).epoch;
                 locals.tempOrder.numberOfMBonds = state._bidOrders.element(locals.elementIndex).numberOfMBonds;
                 locals.tempOrder.price = state._bidOrders.priority(locals.elementIndex);
-                output.bidOrders.set(locals.arrayElementIndex, locals.tempOrder);
-                locals.arrayElementIndex++;
+                output.bidOrders.set(locals.arrayElementIndex2, locals.tempOrder);
+                locals.arrayElementIndex2++;
                 locals.elementIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
             }
         } 
