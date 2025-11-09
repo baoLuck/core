@@ -484,8 +484,6 @@ protected:
                 break;
             }
 
-            locals.nextElementIndex = state._bidOrders.nextElementIndex(locals.elementIndex);
-
             locals.tempBidOrder = state._bidOrders.element(locals.elementIndex);
             if (input.numberOfMBonds <= locals.tempBidOrder.numberOfMBonds)
             {
@@ -545,7 +543,7 @@ protected:
                 input.numberOfMBonds -= locals.tempBidOrder.numberOfMBonds;
             }
             
-            locals.elementIndex = locals.nextElementIndex;
+            locals.elementIndex = state._bidOrders.headIndex(locals.mbondIdentity);
         }
 
         if (state._askOrders.population(locals.mbondIdentity) == 0)
