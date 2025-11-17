@@ -1321,10 +1321,10 @@ protected:
             }
         }
 
-        locals.chunk = (sint8) (48 + div(state._cyclicMbondCounter, 10ULL));
+        locals.chunk = (sint8) (48 + div(state._cyclicMbondCounter, (unsigned short) 10));
         locals.currentName |= (uint64)locals.chunk << (4 * 8);
 
-        locals.chunk = (sint8) (48 + mod(state._cyclicMbondCounter, 10ULL));
+        locals.chunk = (sint8) (48 + mod(state._cyclicMbondCounter, (unsigned short) 10));
         locals.currentName |= (uint64)locals.chunk << (5 * 8);
 
         locals.tempMbondInfo.name = locals.currentName;
