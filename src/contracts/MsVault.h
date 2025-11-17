@@ -1304,13 +1304,13 @@ protected:
             state._cyclicMbondCounter++;
         }
 
-        locals.currentName = 1145979469ULL;   // MBND
-
         if (qpi.epoch() == QBOND_CYCLIC_START_EPOCH)
         {
             state._cyclicMbondCounter = 1;
             for (locals.counter = 1; locals.counter <= 52; locals.counter++)
             {
+                locals.currentName = 1145979469ULL;   // MBND
+
                 locals.chunk = (sint8) (48 + div(locals.counter, 10ULL));
                 locals.currentName |= (uint64)locals.chunk << (4 * 8);
 
