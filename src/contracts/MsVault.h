@@ -1321,6 +1321,7 @@ protected:
             }
         }
 
+        locals.currentName = 1145979469ULL;   // MBND
         locals.chunk = (sint8) (48 + div(state._cyclicMbondCounter, (unsigned char) 10));
         locals.currentName |= (uint64)locals.chunk << (4 * 8);
 
