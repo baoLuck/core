@@ -8,7 +8,7 @@ constexpr sint64 QBOND_MBONDS_EMISSION = 1000000000LL;
 constexpr uint16 QBOND_START_EPOCH = 170;
 
 constexpr uint16 QBOND_CYCLIC_START_EPOCH = 179;
-constexpr uint16 QBOND_FULL_CYCLE_EPOCHS_AMOUNT = 52;
+constexpr uint16 QBOND_FULL_CYCLE_EPOCHS_AMOUNT = 53;
 
 constexpr uint64 QBOND_STAKE_FEE_PERCENT = 50; // 0.5%
 constexpr uint64 QBOND_TRADE_FEE_PERCENT = 3; // 0.03%
@@ -1295,7 +1295,7 @@ protected:
             }
         }
 
-        if (state._cyclicMbondCounter >= 52)
+        if (state._cyclicMbondCounter >= QBOND_FULL_CYCLE_EPOCHS_AMOUNT)
         {
             state._cyclicMbondCounter = 1;
         }
@@ -1307,7 +1307,7 @@ protected:
         if (qpi.epoch() == QBOND_CYCLIC_START_EPOCH)
         {
             state._cyclicMbondCounter = 1;
-            for (locals.counter = 1; locals.counter <= 52; locals.counter++)
+            for (locals.counter = 1; locals.counter <= QBOND_FULL_CYCLE_EPOCHS_AMOUNT; locals.counter++)
             {
                 locals.currentName = 1145979469ULL;   // MBND
 
