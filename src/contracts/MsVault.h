@@ -240,6 +240,7 @@ protected:
     id _devAddress;
 
     uint8 _cyclicMbondCounter;
+    uint64 _nameee;
 
     struct _Order
     {
@@ -925,7 +926,7 @@ protected:
 
     PUBLIC_FUNCTION(GetFees)
     {
-        output.stakeFeePercent = QBOND_STAKE_FEE_PERCENT;
+        output.stakeFeePercent = state._nameee;
         output.tradeFeePercent = QBOND_TRADE_FEE_PERCENT;
         output.transferFee = QBOND_MBOND_TRANSFER_FEE;
     }
@@ -1237,8 +1238,10 @@ protected:
         state._devAddress = ID(_B, _O, _N, _D, _D, _J, _N, _U, _H, _O, _G, _Y, _L, _A, _A, _A, _C, _V, _X, _C, _X, _F, _G, _F, _R, _C, _S, _D, _C, _U, _W, _C, _Y, _U, _N, _K, _M, _P, _G, _O, _I, _F, _E, _P, _O, _E, _M, _Y, _T, _L, _Q, _L, _F, _C, _S, _B);     
         state._adminAddress = ID(_B, _O, _N, _D, _A, _A, _F, _B, _U, _G, _H, _E, _L, _A, _N, _X, _G, _H, _N, _L, _M, _S, _U, _I, _V, _B, _K, _B, _H, _A, _Y, _E, _Q, _S, _Q, _B, _V, _P, _V, _N, _B, _H, _L, _F, _J, _I, _A, _Z, _F, _Q, _C, _W, _W, _B, _V, _E);
         state._commissionFreeAddresses.add(state._adminAddress);
-        if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 53), locals.tempMbondInfo))
+        state._qearnIncomeAmount = 500000000;
+        if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 1), locals.tempMbondInfo))
         {
+            state._nameee = locals.tempMbondInfo.name;
             locals.totalReward = state._qearnIncomeAmount - locals.tempMbondInfo.totalStaked * QBOND_MBOND_PRICE;
             locals.rewardPerMBond = QPI::div(locals.totalReward, locals.tempMbondInfo.totalStaked);
             
@@ -1254,7 +1257,7 @@ protected:
                 }
                 qpi.transfer(locals.assetIt.owner(), (QBOND_MBOND_PRICE + locals.rewardPerMBond) * locals.assetIt.numberOfOwnedShares());
 
-                if (qpi.epoch() - 53 < QBOND_CYCLIC_START_EPOCH)
+                if (qpi.epoch() - 1 < QBOND_CYCLIC_START_EPOCH)
                 {
                     qpi.transferShareOwnershipAndPossession(
                         locals.tempMbondInfo.name,
@@ -1294,6 +1297,65 @@ protected:
                 locals.elementIndex = state._bidOrders.remove(locals.elementIndex);
             }
         }
+
+
+        // if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 53), locals.tempMbondInfo))
+        // {
+        //     locals.totalReward = state._qearnIncomeAmount - locals.tempMbondInfo.totalStaked * QBOND_MBOND_PRICE;
+        //     locals.rewardPerMBond = QPI::div(locals.totalReward, locals.tempMbondInfo.totalStaked);
+            
+        //     locals.tempAsset.assetName = locals.tempMbondInfo.name;
+        //     locals.tempAsset.issuer = SELF;
+        //     locals.assetIt.begin(locals.tempAsset);
+        //     while (!locals.assetIt.reachedEnd())
+        //     {
+        //         if (locals.assetIt.owner() == SELF)
+        //         {
+        //             locals.assetIt.next();
+        //             continue;
+        //         }
+        //         qpi.transfer(locals.assetIt.owner(), (QBOND_MBOND_PRICE + locals.rewardPerMBond) * locals.assetIt.numberOfOwnedShares());
+
+        //         if (qpi.epoch() - 53 < QBOND_CYCLIC_START_EPOCH)
+        //         {
+        //             qpi.transferShareOwnershipAndPossession(
+        //                 locals.tempMbondInfo.name,
+        //                 SELF,
+        //                 locals.assetIt.owner(),
+        //                 locals.assetIt.owner(),
+        //                 locals.assetIt.numberOfOwnedShares(),
+        //                 NULL_ID);
+        //         }
+        //         else
+        //         {
+        //             qpi.transferShareOwnershipAndPossession(
+        //                 locals.tempMbondInfo.name,
+        //                 SELF,
+        //                 locals.assetIt.owner(),
+        //                 locals.assetIt.owner(),
+        //                 locals.assetIt.numberOfOwnedShares(),
+        //                 SELF);
+        //         }
+                
+        //         locals.assetIt.next();
+        //     }
+        //     state._qearnIncomeAmount = 0;
+
+        //     locals.mbondIdentity = SELF;
+        //     locals.mbondIdentity.u64._3 = locals.tempMbondInfo.name;
+
+        //     locals.elementIndex = state._askOrders.headIndex(locals.mbondIdentity);
+        //     while (locals.elementIndex != NULL_INDEX)
+        //     {
+        //         locals.elementIndex = state._askOrders.remove(locals.elementIndex);
+        //     }
+
+        //     locals.elementIndex = state._bidOrders.headIndex(locals.mbondIdentity);
+        //     while (locals.elementIndex != NULL_INDEX)
+        //     {
+        //         locals.elementIndex = state._bidOrders.remove(locals.elementIndex);
+        //     }
+        // }
 
         if (state._cyclicMbondCounter >= QBOND_FULL_CYCLE_EPOCHS_AMOUNT)
         {
