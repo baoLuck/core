@@ -240,7 +240,6 @@ protected:
     id _devAddress;
 
     uint8 _cyclicMbondCounter;
-    uint64 _nameee;
 
     struct _Order
     {
@@ -926,7 +925,7 @@ protected:
 
     PUBLIC_FUNCTION(GetFees)
     {
-        output.stakeFeePercent = state._nameee;
+        output.stakeFeePercent = QBOND_STAKE_FEE_PERCENT;
         output.tradeFeePercent = QBOND_TRADE_FEE_PERCENT;
         output.transferFee = QBOND_MBOND_TRANSFER_FEE;
     }
@@ -1239,9 +1238,8 @@ protected:
         state._adminAddress = ID(_B, _O, _N, _D, _A, _A, _F, _B, _U, _G, _H, _E, _L, _A, _N, _X, _G, _H, _N, _L, _M, _S, _U, _I, _V, _B, _K, _B, _H, _A, _Y, _E, _Q, _S, _Q, _B, _V, _P, _V, _N, _B, _H, _L, _F, _J, _I, _A, _Z, _F, _Q, _C, _W, _W, _B, _V, _E);
         state._commissionFreeAddresses.add(state._adminAddress);
         state._qearnIncomeAmount = 500000000;
-        if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 1), locals.tempMbondInfo))
+        if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 53), locals.tempMbondInfo))
         {
-            state._nameee = locals.tempMbondInfo.name;
             locals.totalReward = state._qearnIncomeAmount - locals.tempMbondInfo.totalStaked * QBOND_MBOND_PRICE;
             locals.rewardPerMBond = QPI::div(locals.totalReward, locals.tempMbondInfo.totalStaked);
             
@@ -1257,7 +1255,7 @@ protected:
                 }
                 qpi.transfer(locals.assetIt.owner(), (QBOND_MBOND_PRICE + locals.rewardPerMBond) * locals.assetIt.numberOfOwnedShares());
 
-                if (qpi.epoch() - 1 < QBOND_CYCLIC_START_EPOCH)
+                if (qpi.epoch() - 53 < QBOND_CYCLIC_START_EPOCH)
                 {
                     qpi.transferShareOwnershipAndPossession(
                         locals.tempMbondInfo.name,
