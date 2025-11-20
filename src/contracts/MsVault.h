@@ -1237,7 +1237,6 @@ protected:
         state._devAddress = ID(_B, _O, _N, _D, _D, _J, _N, _U, _H, _O, _G, _Y, _L, _A, _A, _A, _C, _V, _X, _C, _X, _F, _G, _F, _R, _C, _S, _D, _C, _U, _W, _C, _Y, _U, _N, _K, _M, _P, _G, _O, _I, _F, _E, _P, _O, _E, _M, _Y, _T, _L, _Q, _L, _F, _C, _S, _B);     
         state._adminAddress = ID(_B, _O, _N, _D, _A, _A, _F, _B, _U, _G, _H, _E, _L, _A, _N, _X, _G, _H, _N, _L, _M, _S, _U, _I, _V, _B, _K, _B, _H, _A, _Y, _E, _Q, _S, _Q, _B, _V, _P, _V, _N, _B, _H, _L, _F, _J, _I, _A, _Z, _F, _Q, _C, _W, _W, _B, _V, _E);
         state._commissionFreeAddresses.add(state._adminAddress);
-        state._qearnIncomeAmount = 500000000;
         if (state._qearnIncomeAmount > 0 && state._epochMbondInfoMap.get((uint16) (qpi.epoch() - 53), locals.tempMbondInfo))
         {
             locals.totalReward = state._qearnIncomeAmount - locals.tempMbondInfo.totalStaked * QBOND_MBOND_PRICE;
