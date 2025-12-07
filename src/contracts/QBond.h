@@ -5,8 +5,9 @@ constexpr uint64 QBOND_MBOND_PRICE = 1000000ULL;
 constexpr uint64 QBOND_MAX_QUEUE_SIZE = 10ULL;
 constexpr uint64 QBOND_MIN_MBONDS_TO_STAKE = 10ULL;
 constexpr sint64 QBOND_MBONDS_EMISSION = 1000000000LL;
-constexpr uint16 QBOND_START_EPOCH = 182;
+constexpr uint64 QBOND_STAKE_LIMIT_PER_EPOCH = 1000000ULL;
 
+constexpr uint16 QBOND_START_EPOCH = 182;
 constexpr uint16 QBOND_CYCLIC_START_EPOCH = 190;
 constexpr uint16 QBOND_FULL_CYCLE_EPOCHS_AMOUNT = 53;
 
@@ -238,9 +239,6 @@ protected:
     uint64 _distributedAmount;
     id _adminAddress;
     id _devAddress;
-
-    uint8 _cyclicMbondCounter;
-
     struct _Order
     {
         id owner;
@@ -249,6 +247,7 @@ protected:
     };
     Collection<_Order, 1048576> _askOrders;
     Collection<_Order, 1048576> _bidOrders;
+    uint8 _cyclicMbondCounter;
 
     struct _NumberOfReservedMBonds_input
     {
@@ -301,6 +300,7 @@ protected:
         uint64 counter;
         sint64 amountToStake;
         uint64 amountAndFee;
+        uint64 stakeLimitPerUser;
         StakeEntry tempStakeEntry;
         MBondInfo tempMbondInfo;
         QEARN::lock_input lock_input;
@@ -315,7 +315,8 @@ protected:
                 || input.quMillions >= MAX_AMOUNT
                 || !state._epochMbondInfoMap.get(qpi.epoch(), locals.tempMbondInfo)
                 || qpi.invocationReward() < 0
-                || (uint64) qpi.invocationReward() < locals.amountAndFee)
+                || (uint64) qpi.invocationReward() < locals.amountAndFee
+                || locals.tempMbondInfo.totalStaked + QBOND_MIN_MBONDS_TO_STAKE > QBOND_STAKE_LIMIT_PER_EPOCH)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
@@ -342,10 +343,16 @@ protected:
             {
                 locals.amountInQueue += state._stakeQueue.get(locals.counter).amount;
             }
-            else 
+            else
             {
+                locals.stakeLimitPerUser = input.quMillions;
+                if (locals.tempMbondInfo.totalStaked + locals.amountInQueue > QBOND_STAKE_LIMIT_PER_EPOCH)
+                {
+                    locals.stakeLimitPerUser = QBOND_STAKE_LIMIT_PER_EPOCH - locals.tempMbondInfo.totalStaked - (locals.amountInQueue - input.quMillions);
+                    qpi.transfer(qpi.invocator(), (input.quMillions - locals.stakeLimitPerUser) * QBOND_MBOND_PRICE);
+                }
                 locals.tempStakeEntry.staker = qpi.invocator();
-                locals.tempStakeEntry.amount = input.quMillions;
+                locals.tempStakeEntry.amount = locals.stakeLimitPerUser;
                 state._stakeQueue.set(locals.counter, locals.tempStakeEntry);
                 break;
             }
@@ -1229,6 +1236,7 @@ protected:
         id mbondIdentity;
         sint64 elementIndex;
         uint64 counter;
+        _Order tempOrder;
     };
 
     BEGIN_EPOCH_WITH_LOCALS()
@@ -1287,6 +1295,8 @@ protected:
             locals.elementIndex = state._bidOrders.headIndex(locals.mbondIdentity);
             while (locals.elementIndex != NULL_INDEX)
             {
+                locals.tempOrder = state._bidOrders.element(locals.elementIndex);
+                qpi.transfer(locals.tempOrder.owner, locals.tempOrder.numberOfMBonds * state._bidOrders.priority(locals.elementIndex));
                 locals.elementIndex = state._bidOrders.remove(locals.elementIndex);
             }
         }
