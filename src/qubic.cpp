@@ -5800,7 +5800,7 @@ static void logInfo()
         appendNumber(message, numberOfOwnComputorIndices, false);
         appendText(message, L" indices]");
         // const CHAR16 alphabet[26][2] = { L"A", L"B", L"C", L"D", L"E", L"F", L"G", L"H", L"I", L"J", L"K", L"L", L"M", L"N", L"O", L"P", L"Q", L"R", L"S", L"T", L"U", L"V", L"W", L"X", L"Y", L"Z" };
-        // for (unsigned int i = 0; i < numberOfOwnComputorIndices; i++)Add commentMore actions
+        // for (unsigned int i = 0; i < numberOfOwnComputorIndices; i++)
         // {
         //     appendText(message, alphabet[ownComputorIndices[i] / 26]);
         //     appendText(message, alphabet[ownComputorIndices[i] % 26]);
