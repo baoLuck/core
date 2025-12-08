@@ -19,6 +19,9 @@
 #include "kangaroo_twelve.h"
 #include "vote_counter.h"
 
+#undef PENDING_TXS_POOL_NUM_TICKS
+#define PENDING_TXS_POOL_NUM_TICKS 50ULL
+
 // Mempool that saves pending transactions (txs) of all entities.
 // This is a kind of singleton class with only static members (so all instances refer to the same data).
 class PendingTxsPool
