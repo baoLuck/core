@@ -23,22 +23,29 @@
 // Number of ticks from prior epoch that are kept after seamless epoch transition. These can be requested after transition.
 #define TICKS_TO_KEEP_FROM_PRIOR_EPOCH 100
 
+// The tick duration used for timing and scheduling logic.
 #define TARGET_TICK_DURATION 7000
-#define TICK_DURATION_FOR_ALLOCATION_MS 1000
+
+// The tick duration used to calculate the size of memory buffers.
+// This determines the memory footprint of the application.
+#define TICK_DURATION_FOR_ALLOCATION_MS 7000
 #define TRANSACTION_SPARSENESS 4
+
+// Number of ticks that are stored in the pending txs pool. This also defines how many ticks in advance a tx can be registered.
+#define PENDING_TXS_POOL_NUM_TICKS (1000 * 60 * 10ULL / TICK_DURATION_FOR_ALLOCATION_MS) // 10 minutes
 
 // Below are 2 variables that are used for auto-F5 feature:
 #define AUTO_FORCE_NEXT_TICK_THRESHOLD 20ULL // Multiplier of TARGET_TICK_DURATION for the system to detect "F5 case" | set to 0 to disable
-                                             // to prevent bad actor causing misalignment.
-                                             // depends on actual tick time of the network, operators should set this number randomly in this range [12, 26]
-                                             // eg: If AUTO_FORCE_NEXT_TICK_THRESHOLD is 8 and TARGET_TICK_DURATION is 2, then the system will start "auto F5 procedure" after 16 seconds after receveing 451+ votes
+                                            // to prevent bad actor causing misalignment.
+                                            // depends on actual tick time of the network, operators should set this number randomly in this range [12, 26]
+                                            // eg: If AUTO_FORCE_NEXT_TICK_THRESHOLD is 8 and TARGET_TICK_DURATION is 2, then the system will start "auto F5 procedure" after 16 seconds after receveing 451+ votes
 
 #define PROBABILITY_TO_FORCE_EMPTY_TICK 800 // after (AUTO_FORCE_NEXT_TICK_THRESHOLD x TARGET_TICK_DURATION) seconds, the node will start casting F5 randomly every second with this probability
                                             // to prevent bad actor causing misalignment, operators should set this number in this range [700, 900] (aka [7%, 9%])
 
 #define NEXT_TICK_TIMEOUT_THRESHOLD 5ULL // Multiplier of TARGET_TICK_DURATION for the system to discard next tick in tickData.
                                          // This will lead to zero `expectedNextTickTransactionDigest` in consensus
-             
+
 #define PEER_REFRESHING_PERIOD 120000ULL
 #if AUTO_FORCE_NEXT_TICK_THRESHOLD != 0
 static_assert(NEXT_TICK_TIMEOUT_THRESHOLD < AUTO_FORCE_NEXT_TICK_THRESHOLD, "Timeout threshold must be smaller than auto F5 threshold");
@@ -57,12 +64,12 @@ static_assert(AUTO_FORCE_NEXT_TICK_THRESHOLD* TARGET_TICK_DURATION >= PEER_REFRE
 // Config options that should NOT be changed by operators
 
 #define VERSION_A 1
-#define VERSION_B 259
-#define VERSION_C 2
+#define VERSION_B 269
+#define VERSION_C 0
 
 // Epoch and initial tick for node startup
 #define EPOCH 191
-#define TICK 32450000
+#define TICK 39200000
 #define TICK_IS_FIRST_TICK_OF_EPOCH 1 // Set to 0 if the network is restarted during the EPOCH with a new initial TICK
 
 #define ARBITRATOR "MEFKYFCDXDUILCAJKOIKWQAPENJDUHSSYPBRWFOTLALILAYWQFDSITJELLHG"
@@ -75,12 +82,11 @@ static unsigned short UNIVERSE_FILE_NAME[] = L"universe.???";
 static unsigned short SCORE_CACHE_FILE_NAME[] = L"score.???";
 static unsigned short CONTRACT_FILE_NAME[] = L"contract????.???";
 static unsigned short CUSTOM_MINING_REVENUE_END_OF_EPOCH_FILE_NAME[] = L"custom_revenue.eoe";
-static unsigned short CUSTOM_MINING_CACHE_FILE_NAME[] = L"custom_mining_cache???.???";
-static unsigned short CUSTOM_MINING_V2_CACHE_FILE_NAME[] = L"custom_mining_v2_cache.???";
+static unsigned short CUSTOM_MINING_CACHE_FILE_NAME[] = L"custom_mining_cache.???";
 
 static constexpr unsigned long long NUMBER_OF_INPUT_NEURONS = 512;     // K
 static constexpr unsigned long long NUMBER_OF_OUTPUT_NEURONS = 512;    // L
-static constexpr unsigned long long NUMBER_OF_TICKS = 600;               // N
+static constexpr unsigned long long NUMBER_OF_TICKS = 1000;               // N
 static constexpr unsigned long long NUMBER_OF_NEIGHBORS = 728;    // 2M. Must be divided by 2
 static constexpr unsigned long long NUMBER_OF_MUTATIONS = 150;
 static constexpr unsigned long long POPULATION_THRESHOLD = NUMBER_OF_INPUT_NEURONS + NUMBER_OF_OUTPUT_NEURONS + NUMBER_OF_MUTATIONS; // P
@@ -90,12 +96,14 @@ static constexpr unsigned int SOLUTION_THRESHOLD_DEFAULT = NUMBER_OF_OUTPUT_NEUR
 #define SOLUTION_SECURITY_DEPOSIT 1000000
 
 // Signing difficulty
-#define TARGET_TICK_VOTE_SIGNATURE 0x3FFFFFFFU // around 4 signing operations per ID
+#define TARGET_TICK_VOTE_SIGNATURE 0x07FFFFFFU // around 32 signing operations per ID
 
 // include commonly needed definitions
 #include "network_messages/common_def.h"
 
-#define MAX_NUMBER_OF_TICKS_PER_EPOCH (((((60ULL * 60 * 24 * 1000) / TICK_DURATION_FOR_ALLOCATION_MS) + NUMBER_OF_COMPUTORS - 1) / NUMBER_OF_COMPUTORS) * NUMBER_OF_COMPUTORS)
+#define TESTNET_EPOCH_DURATION 3000
+
+#define MAX_NUMBER_OF_TICKS_PER_EPOCH (TESTNET_EPOCH_DURATION + 5)
 #define FIRST_TICK_TRANSACTION_OFFSET sizeof(unsigned long long)
 #define MAX_TRANSACTION_SIZE (MAX_INPUT_SIZE + sizeof(Transaction) + SIGNATURE_SIZE)
 
@@ -106,14 +114,13 @@ static_assert(INTERNAL_COMPUTATIONS_INTERVAL >= NUMBER_OF_COMPUTORS, "Internal c
 // List of start-end for full external computation times. The event must not be overlap.
 // Format is DoW-hh-mm-ss in hex format, total 4 bytes, each use 1 bytes
 // DoW: Day of the week 0: Sunday, 1 = Monday ...
-static unsigned long long gFullExternalComputationTimes[][2] =
+static unsigned int gFullExternalComputationTimes[][2] =
 {
-    {0x040C0000ULL, 0x050C0000ULL}, // Thu 12:00:00 - Fri 12:00:00
-    {0x060C0000ULL, 0x000C0000ULL}, // Sat 12:00:00 - Sun 12:00:00
-    {0x010C0000ULL, 0x020C0000ULL}, // Mon 12:00:00 - Tue 12:00:00
+    // only do 30 min intervals in the testnet
+    {0x040C0000U, 0x040C1E00U}, // Thu 12:00:00 - Thu 12:30:00
+    {0x060C0000U, 0x060C1E00U}, // Sat 12:00:00 - Sat 12:30:00
+    {0x010C0000U, 0x010C1E00U}, // Mon 12:00:00 - Mon 12:30:00
 };
 
 #define STACK_SIZE 4194304
 #define TRACK_MAX_STACK_BUFFER_SIZE
-
-#define TESTNET_EPOCH_DURATION 100
