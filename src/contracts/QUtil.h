@@ -14,12 +14,15 @@ using namespace QPI;
 */
 
 // Return code for logger and return struct
+
+constexpr uint64 QUTIL_CONTRACT_ASSET_NAME = 327647778129;
+
 constexpr uint64 QUTIL_STM1_SUCCESS = 0;
 constexpr uint64 QUTIL_STM1_INVALID_AMOUNT_NUMBER = 1;
 constexpr uint64 QUTIL_STM1_WRONG_FUND = 2;
 constexpr uint64 QUTIL_STM1_TRIGGERED = 3;
 constexpr uint64 QUTIL_STM1_SEND_FUND = 4;
-constexpr sint64 QUTIL_STM1_INVOCATION_FEE = 10LL; // fee to be burned and make the SC running
+constexpr sint64 QUTIL_STM1_INVOCATION_FEE = 10LL; // fee to be burned and make the SC running (initial value)
 
 // Voting-specific constants
 constexpr uint64 QUTIL_POLL_TYPE_QUBIC = 1;
@@ -29,8 +32,8 @@ constexpr uint64 QUTIL_MAX_VOTERS_PER_POLL = 131072;
 constexpr uint64 QUTIL_TOTAL_VOTERS = QUTIL_MAX_POLL * QUTIL_MAX_VOTERS_PER_POLL;
 constexpr uint64 QUTIL_MAX_OPTIONS = 64; // Maximum voting options (0 to 63)
 constexpr uint64 QUTIL_MAX_ASSETS_PER_POLL = 16; // Maximum assets per poll
-constexpr sint64 QUTIL_VOTE_FEE = 100LL; // Fee for voting, burnt 100%
-constexpr sint64 QUTIL_POLL_CREATION_FEE = 10000000LL; // Fee for poll creation to prevent spam
+constexpr sint64 QUTIL_VOTE_FEE = 100LL; // Fee for voting, burnt 100% (initial value)
+constexpr sint64 QUTIL_POLL_CREATION_FEE = 10000000LL; // Fee for poll creation to prevent spam (initial value)
 constexpr uint16 QUTIL_POLL_GITHUB_URL_MAX_SIZE = 256; // Max String Length for Poll's Github URLs
 constexpr uint64 QUTIL_MAX_NEW_POLL = div(QUTIL_MAX_POLL, 4ULL); // Max number of new poll per epoch
 
@@ -55,6 +58,11 @@ constexpr uint64 QUTILLogTypeNotAuthorized = 20;                    // Not autho
 constexpr uint64 QUTILLogTypeInsufficientFundsForCancel = 21;       // Not have enough funds for poll calcellation
 constexpr uint64 QUTILLogTypeMaxPollsReached = 22;                  // Max epoch per epoch reached
 
+// Fee per shareholder for DistributeQuToShareholders() (initial value)
+constexpr sint64 QUTIL_DISTRIBUTE_QU_TO_SHAREHOLDER_FEE_PER_SHAREHOLDER = 5;
+
+constexpr uint32 QUTIL_STMB_LOG_TYPE = 100001; // for bob to index
+
 struct QUTILLogger
 {
     uint32 contractId; // to distinguish bw SCs
@@ -66,6 +74,18 @@ struct QUTILLogger
     // Other data go here
     sint8 _terminator; // Only data before "_terminator" are logged
 };
+
+struct QUTILSendToManyBenchmarkLog
+{
+    uint32 contractId; // to distinguish bw SCs
+    uint32 logType;
+    id startId;
+    sint64 dstCount;
+    sint8 _terminator; // Only data before "_terminator" are logged
+};
+
+// Deactivate logger for delay function
+#if 0
 struct QUTILDFLogger
 {
     uint32 contractId; // to distinguish bw SCs
@@ -76,6 +96,7 @@ struct QUTILDFLogger
     id result;
     sint8 _terminator; // Only data before "_terminator" are logged
 };
+#endif
 
 // poll and voter structs
 struct QUTILPoll {
@@ -119,6 +140,25 @@ private:
     // DF function variables
     m256i dfMiningSeed;
     m256i dfCurrentState;
+
+    // Fees
+    sint64 smt1InvocationFee;
+    sint64 pollCreationFee;
+    sint64 pollVoteFee;
+    sint64 distributeQuToShareholderFeePerShareholder;
+    sint64 shareholderProposalFee;
+
+    // Placeholder for future fees, preventing that state has to be extended for every new fee
+    sint64 _futureFeePlaceholder0;
+    sint64 _futureFeePlaceholder1;
+    sint64 _futureFeePlaceholder2;
+    sint64 _futureFeePlaceholder3;
+    sint64 _futureFeePlaceholder4;
+    sint64 _futureFeePlaceholder5;
+
+    // Provide storage for shareholder proposal state (supporting up to 8 simultaneous proposals)
+    DEFINE_SHAREHOLDER_PROPOSAL_STORAGE(8, QUTIL_CONTRACT_ASSET_NAME);
+
 
     // Get Qubic Balance
     struct get_qubic_balance_input {
@@ -223,7 +263,9 @@ public:
         id currentId;
         sint64 t;
         uint64 useNext;
+        uint64 totalNumTransfers;
         QUTILLogger logger;
+        QUTILSendToManyBenchmarkLog logBenchmark;
     };
 
     struct BurnQubic_input
@@ -233,6 +275,24 @@ public:
     struct BurnQubic_output
     {
         sint64 amount;
+    };
+
+    struct BurnQubicForContract_input
+    {
+        uint32 contractIndexBurnedFor;
+    };
+    struct BurnQubicForContract_output
+    {
+        sint64 amount;
+    };
+
+    struct QueryFeeReserve_input
+    {
+        uint32 contractIndex;
+    };
+    struct QueryFeeReserve_output
+    {
+        sint64 reserveAmount;
     };
 
     typedef Asset GetTotalNumberOfAssetShares_input;
@@ -366,7 +426,7 @@ public:
     };
 
     struct GetPollInfo_output {
-        uint64 found; // 1 if exists, 0 ig not
+        uint64 found; // 1 if exists, 0 if not
         QUTILPoll poll_info;
         Array<uint8, QUTIL_POLL_GITHUB_URL_MAX_SIZE> poll_link;
     };
@@ -374,6 +434,24 @@ public:
     struct GetPollInfo_locals {
         uint64 idx;
         QUTILPoll default_poll;  // default values if not found
+    };
+
+    typedef NoData GetFees_input;
+    struct GetFees_output
+    {
+        sint64 smt1InvocationFee;
+        sint64 pollCreationFee;
+        sint64 pollVoteFee;
+        sint64 distributeQuToShareholderFeePerShareholder;
+        sint64 shareholderProposalFee;
+
+        // Placeholder for future fees, preventing incompatibilities for some extensions
+        sint64 _futureFeePlaceholder0;
+        sint64 _futureFeePlaceholder1;
+        sint64 _futureFeePlaceholder2;
+        sint64 _futureFeePlaceholder3;
+        sint64 _futureFeePlaceholder4;
+        sint64 _futureFeePlaceholder5;
     };
 
     struct END_EPOCH_locals
@@ -463,12 +541,7 @@ public:
             github_link.get(15) == 99 && // 'c'
             github_link.get(16) == 111 && // 'o'
             github_link.get(17) == 109 && // 'm'
-            github_link.get(18) == 47 && // '/'
-            github_link.get(19) == 113 && // 'q'
-            github_link.get(20) == 117 && // 'u'
-            github_link.get(21) == 98 && // 'b'
-            github_link.get(22) == 105 && // 'i'
-            github_link.get(23) == 99; // 'c'
+            github_link.get(18) == 47; // '/'
     }
 
     /**************************************/
@@ -479,7 +552,7 @@ public:
     */
     PUBLIC_FUNCTION(GetSendToManyV1Fee)
     {
-        output.fee = QUTIL_STM1_INVOCATION_FEE;
+        output.fee = state.smt1InvocationFee;
     }
 
     /**
@@ -492,9 +565,33 @@ public:
     {
         locals.logger = QUTILLogger{ 0,  0, qpi.invocator(), SELF, qpi.invocationReward(), QUTIL_STM1_TRIGGERED };
         LOG_INFO(locals.logger);
-        state.total = input.amt0 + input.amt1 + input.amt2 + input.amt3 + input.amt4 + input.amt5 + input.amt6 + input.amt7 + input.amt8 + input.amt9 + input.amt10 + input.amt11 + input.amt12 + input.amt13 + input.amt14 + input.amt15 + input.amt16 + input.amt17 + input.amt18 + input.amt19 + input.amt20 + input.amt21 + input.amt22 + input.amt23 + input.amt24 + QUTIL_STM1_INVOCATION_FEE;
-        // invalid amount (<0), return fund and exit
-        if ((input.amt0 < 0) || (input.amt1 < 0) || (input.amt2 < 0) || (input.amt3 < 0) || (input.amt4 < 0) || (input.amt5 < 0) || (input.amt6 < 0) || (input.amt7 < 0) || (input.amt8 < 0) || (input.amt9 < 0) || (input.amt10 < 0) || (input.amt11 < 0) || (input.amt12 < 0) || (input.amt13 < 0) || (input.amt14 < 0) || (input.amt15 < 0) || (input.amt16 < 0) || (input.amt17 < 0) || (input.amt18 < 0) || (input.amt19 < 0) || (input.amt20 < 0) || (input.amt21 < 0) || (input.amt22 < 0) || (input.amt23 < 0) || (input.amt24 < 0))
+
+         // invalid amount (<0 or >= MAX_AMOUNT), return fund and exit
+        if ((input.amt0 < 0) || (input.amt0 >= MAX_AMOUNT)
+            || (input.amt1 < 0) || (input.amt1 >= MAX_AMOUNT)
+            || (input.amt2 < 0) || (input.amt2 >= MAX_AMOUNT)
+            || (input.amt3 < 0) || (input.amt3 >= MAX_AMOUNT)
+            || (input.amt4 < 0) || (input.amt4 >= MAX_AMOUNT)
+            || (input.amt5 < 0) || (input.amt5 >= MAX_AMOUNT)
+            || (input.amt6 < 0) || (input.amt6 >= MAX_AMOUNT)
+            || (input.amt7 < 0) || (input.amt7 >= MAX_AMOUNT)
+            || (input.amt8 < 0) || (input.amt8 >= MAX_AMOUNT)
+            || (input.amt9 < 0) || (input.amt9 >= MAX_AMOUNT)
+            || (input.amt10 < 0) || (input.amt10 >= MAX_AMOUNT)
+            || (input.amt11 < 0) || (input.amt11 >= MAX_AMOUNT)
+            || (input.amt12 < 0) || (input.amt12 >= MAX_AMOUNT)
+            || (input.amt13 < 0) || (input.amt13 >= MAX_AMOUNT)
+            || (input.amt14 < 0) || (input.amt14 >= MAX_AMOUNT)
+            || (input.amt15 < 0) || (input.amt15 >= MAX_AMOUNT)
+            || (input.amt16 < 0) || (input.amt16 >= MAX_AMOUNT)
+            || (input.amt17 < 0) || (input.amt17 >= MAX_AMOUNT)
+            || (input.amt18 < 0) || (input.amt18 >= MAX_AMOUNT)
+            || (input.amt19 < 0) || (input.amt19 >= MAX_AMOUNT)
+            || (input.amt20 < 0) || (input.amt20 >= MAX_AMOUNT)
+            || (input.amt21 < 0) || (input.amt21 >= MAX_AMOUNT)
+            || (input.amt22 < 0) || (input.amt22 >= MAX_AMOUNT)
+            || (input.amt23 < 0) || (input.amt23 >= MAX_AMOUNT)
+            || (input.amt24 < 0) || (input.amt24 >= MAX_AMOUNT))
         {
             locals.logger = QUTILLogger{ 0,  0, qpi.invocator(), SELF, qpi.invocationReward(), QUTIL_STM1_INVALID_AMOUNT_NUMBER };
             output.returnCode = QUTIL_STM1_INVALID_AMOUNT_NUMBER;
@@ -503,10 +600,42 @@ public:
             {
                 qpi.transfer(qpi.invocator(), qpi.invocationReward());
             }
+            return;
         }
+
+        // Make sure that the sum of all amounts does not overflow and is equal to qpi.invocationReward()
+        state.total = qpi.invocationReward();
+        state.total -= input.amt0; if (state.total < 0) goto exit;
+        state.total -= input.amt1; if (state.total < 0) goto exit;
+        state.total -= input.amt2; if (state.total < 0) goto exit;
+        state.total -= input.amt3; if (state.total < 0) goto exit;
+        state.total -= input.amt4; if (state.total < 0) goto exit;
+        state.total -= input.amt5; if (state.total < 0) goto exit;
+        state.total -= input.amt6; if (state.total < 0) goto exit;
+        state.total -= input.amt7; if (state.total < 0) goto exit;
+        state.total -= input.amt8; if (state.total < 0) goto exit;
+        state.total -= input.amt9; if (state.total < 0) goto exit;
+        state.total -= input.amt10; if (state.total < 0) goto exit;
+        state.total -= input.amt11; if (state.total < 0) goto exit;
+        state.total -= input.amt12; if (state.total < 0) goto exit;
+        state.total -= input.amt13; if (state.total < 0) goto exit;
+        state.total -= input.amt14; if (state.total < 0) goto exit;
+        state.total -= input.amt15; if (state.total < 0) goto exit;
+        state.total -= input.amt16; if (state.total < 0) goto exit;
+        state.total -= input.amt17; if (state.total < 0) goto exit;
+        state.total -= input.amt18; if (state.total < 0) goto exit;
+        state.total -= input.amt19; if (state.total < 0) goto exit;
+        state.total -= input.amt20; if (state.total < 0) goto exit;
+        state.total -= input.amt21; if (state.total < 0) goto exit;
+        state.total -= input.amt22; if (state.total < 0) goto exit;
+        state.total -= input.amt23; if (state.total < 0) goto exit;
+        state.total -= input.amt24; if (state.total < 0) goto exit;
+        state.total -= state.smt1InvocationFee; if (state.total < 0) goto exit;
+
         // insufficient or too many qubic transferred, return fund and exit (we don't want to return change)
-        if (qpi.invocationReward() != state.total)
+        if (state.total != 0)
         {
+        exit:
             locals.logger = QUTILLogger{ 0,  0, qpi.invocator(), SELF, qpi.invocationReward(), QUTIL_STM1_WRONG_FUND };
             LOG_INFO(locals.logger);
             output.returnCode = QUTIL_STM1_WRONG_FUND;
@@ -667,10 +796,10 @@ public:
             LOG_INFO(locals.logger);
             qpi.transfer(input.dst24, input.amt24);
         }
-        locals.logger = QUTILLogger{ 0,  0, qpi.invocator(), SELF, state.total, QUTIL_STM1_SUCCESS };
+        locals.logger = QUTILLogger{ 0,  0, qpi.invocator(), SELF, qpi.invocationReward(), QUTIL_STM1_SUCCESS};
         LOG_INFO(locals.logger);
         output.returnCode = QUTIL_STM1_SUCCESS;
-        qpi.burn(QUTIL_STM1_INVOCATION_FEE);
+        qpi.burn(state.smt1InvocationFee);
     }
 
     /**
@@ -687,7 +816,8 @@ public:
         output.total = 0;
 
         // Number of addresses and transfers is > 0 and total transfers do not exceed limit (including 2 transfers from invocator to contract and contract to invocator)
-        if (input.dstCount <= 0 || input.numTransfersEach <= 0 || input.dstCount * input.numTransfersEach + 2 > CONTRACT_ACTION_TRACKER_SIZE)
+        locals.totalNumTransfers = smul((uint64)input.dstCount, (uint64)input.numTransfersEach);
+        if (input.dstCount <= 0 || input.numTransfersEach <= 0 || locals.totalNumTransfers > CONTRACT_ACTION_TRACKER_SIZE - 2)
         {
             if (qpi.invocationReward() > 0)
             {
@@ -700,7 +830,7 @@ public:
         }
 
         // Check the fund is enough
-        if (qpi.invocationReward() < input.dstCount * input.numTransfersEach)
+        if ((uint64)qpi.invocationReward() < locals.totalNumTransfers)
         {
             if (qpi.invocationReward() > 0)
             {
@@ -711,10 +841,17 @@ public:
             output.returnCode = QUTIL_STM1_INVALID_AMOUNT_NUMBER;
             return;
         }
-
         // Loop through the number of addresses and do the transfers
         locals.currentId = qpi.invocator();
         locals.useNext = 1;
+
+        locals.logBenchmark.startId = qpi.invocator();
+        locals.logBenchmark.logType = QUTIL_STMB_LOG_TYPE;
+        locals.logBenchmark.dstCount = input.dstCount;
+        LOG_INFO(locals.logBenchmark);
+
+        LOG_PAUSE();
+        
         while (output.dstCount < input.dstCount)
         {
             if (locals.useNext == 1)
@@ -735,6 +872,7 @@ public:
                 output.total += 1;
             }
         }
+        LOG_RESUME();
 
         // Return the change if there is any
         if (output.total < qpi.invocationReward())
@@ -749,7 +887,7 @@ public:
     /**
     * Practicing burning qubic in the QChurch
     * @param the amount of qubic to burn
-    * @return the amount of qubic has burned, < 0 if failed to burn
+    * @return the amount of qubic that was burned, < 0 if failed to burn
     */
     PUBLIC_PROCEDURE(BurnQubic)
     {
@@ -772,11 +910,52 @@ public:
         }
         if (qpi.invocationReward() > input.amount) // send more than qu to burn
         {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.amount); // return the changes
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.amount); // return the change
         }
-        qpi.burn(input.amount);
-        output.amount = input.amount;
+        // if qpi.burn() succeeds, it returns the remaining amount of QUTIL's Qu balance (>= 0), otherwise some value < 0
+        output.amount = qpi.burn(input.amount);
+        if (output.amount >= 0)
+            output.amount = input.amount;
+        else
+        {
+            qpi.transfer(qpi.invocator(), input.amount); // refund in case of failure to burn
+            output.amount = -1;
+        }
         return;
+    }
+
+    /**
+    * Burn the qubic passed as invocation reward for the contract specified in the input
+    * @param the contract index to burn for
+    * @return the amount of qubic that was burned, < 0 if failed to burn
+    */
+    PUBLIC_PROCEDURE(BurnQubicForContract)
+    {
+        if (qpi.invocationReward() <= 0) // not sending enough qu to burn
+        {
+            output.amount = -1;
+            return;
+        }
+        // if qpi.burn() succeeds, it returns the remaining amount of QUTIL's Qu balance (>= 0), otherwise some value < 0
+        output.amount = qpi.burn(qpi.invocationReward(), input.contractIndexBurnedFor);
+        if (output.amount >= 0)
+            output.amount = qpi.invocationReward();
+        else
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward()); // refund in case of failure to burn
+            output.amount = -1;
+        }
+        return;
+    }
+
+    /**
+    * Query the amount of qubic in the fee reserve of the specified contract
+    * @param the contract index to query
+    * @return the amount of qubic in the reserve
+    */
+    PUBLIC_FUNCTION(QueryFeeReserve)
+    {
+        output.reserveAmount = qpi.queryFeeReserve(input.contractIndex);
     }
 
     /**
@@ -794,7 +973,7 @@ public:
         }
 
         // insufficient fund
-        if (qpi.invocationReward() < QUTIL_POLL_CREATION_FEE)
+        if (qpi.invocationReward() < state.pollCreationFee)
         {
             locals.logger = QUTILLogger{ 0, 0, qpi.invocator(), SELF, qpi.invocationReward(), QUTILLogTypeInsufficientFundsForPoll };
             LOG_INFO(locals.logger);
@@ -837,8 +1016,8 @@ public:
             return;
         }
 
-        qpi.transfer(qpi.invocator(), qpi.invocationReward() - QUTIL_POLL_CREATION_FEE);
-        qpi.burn(QUTIL_POLL_CREATION_FEE);
+        qpi.transfer(qpi.invocator(), qpi.invocationReward() - state.pollCreationFee);
+        qpi.burn(state.pollCreationFee);
 
         locals.idx = mod(state.current_poll_id, QUTIL_MAX_POLL);
         locals.new_poll.poll_name = input.poll_name;
@@ -867,7 +1046,7 @@ public:
 
         state.new_polls_this_epoch++;
 
-        locals.logger = QUTILLogger{ 0, 0, qpi.invocator(), SELF, QUTIL_POLL_CREATION_FEE, QUTILLogTypePollCreated };
+        locals.logger = QUTILLogger{ 0, 0, qpi.invocator(), SELF, state.pollCreationFee, QUTILLogTypePollCreated };
         LOG_INFO(locals.logger);
     }
 
@@ -877,14 +1056,20 @@ public:
     PUBLIC_PROCEDURE_WITH_LOCALS(Vote)
     {
         output.success = false;
-        if (qpi.invocationReward() < QUTIL_VOTE_FEE)
+        if (qpi.invocationReward() < state.pollVoteFee)
         {
             locals.logger = QUTILLogger{ 0, 0, qpi.invocator(), SELF, qpi.invocationReward(), QUTILLogTypeInsufficientFundsForVote };
             LOG_INFO(locals.logger);
             return;
         }
-        qpi.transfer(qpi.invocator(), qpi.invocationReward() - QUTIL_VOTE_FEE);
-        qpi.burn(QUTIL_VOTE_FEE);
+        qpi.transfer(qpi.invocator(), qpi.invocationReward() - state.pollVoteFee);
+        qpi.burn(state.pollVoteFee);
+
+        if (qpi.invocator() != input.address)
+        {
+            // bad query
+            return;
+        }
 
         locals.idx = mod(input.poll_id, QUTIL_MAX_POLL);
 
@@ -1021,14 +1206,14 @@ public:
 
         if (output.success)
         {
-            locals.logger = QUTILLogger{ 0, 0, qpi.invocator(), SELF, QUTIL_VOTE_FEE, QUTILLogTypeVoteCast };
+            locals.logger = QUTILLogger{ 0, 0, qpi.invocator(), SELF, state.pollVoteFee, QUTILLogTypeVoteCast };
             LOG_INFO(locals.logger);
         }
     }
 
     PUBLIC_PROCEDURE_WITH_LOCALS(CancelPoll)
     {
-        if (qpi.invocationReward() < QUTIL_POLL_CREATION_FEE)
+        if (qpi.invocationReward() < state.pollCreationFee)
         {
             locals.logger = QUTILLogger{ 0, 0, qpi.invocator(), SELF, qpi.invocationReward(), QUTILLogTypeInsufficientFundsForCancel };
             LOG_INFO(locals.logger);
@@ -1075,8 +1260,8 @@ public:
         LOG_INFO(locals.logger);
         output.success = true;
 
-        qpi.transfer(qpi.invocator(), qpi.invocationReward() - QUTIL_POLL_CREATION_FEE);
-        qpi.burn(QUTIL_POLL_CREATION_FEE);
+        qpi.transfer(qpi.invocator(), qpi.invocationReward() - state.pollCreationFee);
+        qpi.burn(state.pollCreationFee);
     }
 
     /**
@@ -1087,8 +1272,6 @@ public:
         locals.idx = mod(input.poll_id, QUTIL_MAX_POLL);
         if (state.poll_ids.get(locals.idx) != input.poll_id)
         {
-            locals.logger = QUTILLogger{ 0, 0, qpi.invocator(), SELF, 0, QUTILLogTypeInvalidPollIdResult };
-            LOG_INFO(locals.logger);
             return;
         }
         output.is_active = state.polls.get(locals.idx).is_active;
@@ -1112,16 +1295,11 @@ public:
         output.count = 0;
         for (locals.idx = 0; locals.idx < QUTIL_MAX_POLL; locals.idx++)
         {
-            if (state.polls.get(locals.idx).is_active != 0 && state.polls.get(locals.idx).creator == input.creator)
+            if (state.polls.get(locals.idx).creator != NULL_ID && state.polls.get(locals.idx).creator == input.creator)
             {
                 output.poll_ids.set(output.count, state.poll_ids.get(locals.idx));
                 output.count++;
             }
-        }
-        if (output.count == 0)
-        {
-            locals.logger = QUTILLogger{ 0, 0, qpi.invocator(), SELF, 0, QUTILLogTypeNoPollsByCreator };
-            LOG_INFO(locals.logger);
         }
     }
 
@@ -1157,6 +1335,15 @@ public:
         }
     }
 
+    PUBLIC_FUNCTION(GetFees)
+    {
+        output.smt1InvocationFee = state.smt1InvocationFee;
+        output.pollCreationFee = state.pollCreationFee;
+        output.pollVoteFee = state.pollVoteFee;
+        output.distributeQuToShareholderFeePerShareholder = state.distributeQuToShareholderFeePerShareholder;
+        output.shareholderProposalFee = state.shareholderProposalFee;
+    }
+
     /**
     * End of epoch processing for polls, sets active polls to inactive
     */
@@ -1174,6 +1361,19 @@ public:
         }
 
         state.new_polls_this_epoch = 0;
+
+        // Check shareholder proposals and update fees if needed
+        CALL(FinalizeShareholderStateVarProposals, input, output);
+    }
+
+    INITIALIZE()
+    {
+        // init fee state variables (only called in gtest, because INITIALIZE has been added a long time after IPO)
+        state.smt1InvocationFee = QUTIL_STM1_INVOCATION_FEE;
+        state.pollCreationFee = QUTIL_POLL_CREATION_FEE;
+        state.pollVoteFee = QUTIL_VOTE_FEE;
+        state.distributeQuToShareholderFeePerShareholder = QUTIL_DISTRIBUTE_QU_TO_SHAREHOLDER_FEE_PER_SHAREHOLDER;
+        state.shareholderProposalFee = 100;
     }
 
     BEGIN_EPOCH()
@@ -1181,6 +1381,8 @@ public:
         state.dfMiningSeed = qpi.getPrevSpectrumDigest();
     }
 
+    // Deactivate delay function
+    #if 0
     struct BEGIN_TICK_locals
     {
         m256i dfPubkey, dfNonce;
@@ -1194,10 +1396,11 @@ public:
         locals.dfPubkey = qpi.getPrevSpectrumDigest();
         locals.dfNonce = qpi.getPrevComputerDigest();
         state.dfCurrentState = qpi.computeMiningFunction(state.dfMiningSeed, locals.dfPubkey, locals.dfNonce);
-        
+
         locals.logger = QUTILDFLogger{ 0, 0, locals.dfNonce, locals.dfPubkey, state.dfMiningSeed, state.dfCurrentState};
         LOG_INFO(locals.logger);
     }
+    #endif
 
     /*
     * @return Return total number of shares that currently exist of the asset given as input
@@ -1207,6 +1410,108 @@ public:
         output = qpi.numberOfShares(input);
     }
 
+    struct DistributeQuToShareholders_input
+    {
+        Asset asset;
+    };
+    struct DistributeQuToShareholders_output
+    {
+        sint64 shareholders;
+        sint64 totalShares;
+        sint64 amountPerShare;
+        sint64 fees;
+    };
+    struct DistributeQuToShareholders_locals
+    {
+        AssetPossessionIterator iter;
+        sint64 payBack;
+    };
+
+    PUBLIC_PROCEDURE_WITH_LOCALS(DistributeQuToShareholders)
+    {
+        // 1. Compute fee (increases linear with number of shareholders)
+        // 1.1. Count shareholders and shares
+        for (locals.iter.begin(input.asset); !locals.iter.reachedEnd(); locals.iter.next())
+        {
+            if (locals.iter.numberOfPossessedShares() > 0)
+            {
+                ++output.shareholders;
+                output.totalShares += locals.iter.numberOfPossessedShares();
+            }
+        }
+
+        // 1.2. Cancel if there are no shareholders
+        if (output.shareholders == 0)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        // 1.3. Compute fee (proportional to number of shareholders)
+        output.fees = output.shareholders * state.distributeQuToShareholderFeePerShareholder;
+
+        // 1.4. Compute QU per share
+        output.amountPerShare = div<sint64>(qpi.invocationReward() - output.fees, output.totalShares);
+
+        // 1.5. Cancel if amount is not sufficient to pay fees and at least one QU per share
+        if (output.amountPerShare <= 0)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        // 1.6. compute payback QU (remainder of distribution)
+        locals.payBack = qpi.invocationReward() - output.totalShares * output.amountPerShare - output.fees;
+        ASSERT(locals.payBack >= 0);
+
+        // 2. Distribute to shareholders
+        for (locals.iter.begin(input.asset); !locals.iter.reachedEnd(); locals.iter.next())
+        {
+            if (locals.iter.numberOfPossessedShares() > 0)
+            {
+                qpi.transfer(locals.iter.possessor(), locals.iter.numberOfPossessedShares() * output.amountPerShare);
+            }
+        }
+
+        // 3. Burn fee
+        qpi.burn(output.fees);
+
+        // 4. pay back QU that cannot be evenly distributed
+        if (locals.payBack > 0)
+        {
+            qpi.transfer(qpi.invocator(), locals.payBack);
+        }
+    }
+
+    /**************************************/
+    /*        SHAREHOLDER PROPOSALS       */
+    /**************************************/
+
+    IMPLEMENT_FinalizeShareholderStateVarProposals()
+    {
+        switch (input.proposal.variableOptions.variable)
+        {
+        case 0:
+            state.smt1InvocationFee = input.acceptedValue;
+            break;
+        case 1:
+            state.pollCreationFee = input.acceptedValue;
+            break;
+        case 2:
+            state.pollVoteFee = input.acceptedValue;
+            break;
+        case 3:
+            state.distributeQuToShareholderFeePerShareholder = input.acceptedValue;
+            break;
+        case 4:
+            state.shareholderProposalFee = input.acceptedValue;
+            break;
+        }
+    }
+
+    IMPLEMENT_DEFAULT_SHAREHOLDER_PROPOSAL_VOTING(5, state.shareholderProposalFee)
+
+
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
     {
         REGISTER_USER_FUNCTION(GetSendToManyV1Fee, 1);
@@ -1215,6 +1520,8 @@ public:
         REGISTER_USER_FUNCTION(GetPollsByCreator, 4);
         REGISTER_USER_FUNCTION(GetCurrentPollId, 5);
         REGISTER_USER_FUNCTION(GetPollInfo, 6);
+        REGISTER_USER_FUNCTION(GetFees, 7);
+        REGISTER_USER_FUNCTION(QueryFeeReserve, 8);
 
         REGISTER_USER_PROCEDURE(SendToManyV1, 1);
         REGISTER_USER_PROCEDURE(BurnQubic, 2);
@@ -1222,5 +1529,9 @@ public:
         REGISTER_USER_PROCEDURE(CreatePoll, 4);
         REGISTER_USER_PROCEDURE(Vote, 5);
         REGISTER_USER_PROCEDURE(CancelPoll, 6);
+        REGISTER_USER_PROCEDURE(DistributeQuToShareholders, 7);
+        REGISTER_USER_PROCEDURE(BurnQubicForContract, 8);
+
+        REGISTER_SHAREHOLDER_PROPOSAL_VOTING();
     }
 };

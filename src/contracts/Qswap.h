@@ -2108,17 +2108,13 @@ protected:
 
 	PUBLIC_PROCEDURE(TransferShareManagementRights)
 	{
-		state.a2 = 1;
 		if (qpi.invocationReward() < QSWAP_FEE_BASE_100)
 		{
-			state.a2 = 2;
 			return ;
 		}
 
-		state.a1 = qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer,qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX);
 		if (qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer,qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) < input.numberOfShares)
 		{
-			state.a2 = 3;
 			// not enough shares available
 			output.transferredNumberOfShares = 0;
 			if (qpi.invocationReward() > 0)
@@ -2128,12 +2124,9 @@ protected:
 		}
 		else
 		{
-			state.a2 = 4;
-			state.a3 = qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.numberOfShares,
-				input.newManagingContractIndex, input.newManagingContractIndex, QSWAP_FEE_BASE_100);
-			if (state.a3 < 0)
+			if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.numberOfShares,
+				input.newManagingContractIndex, input.newManagingContractIndex, QSWAP_FEE_BASE_100) < 0)
 			{
-				state.a2 = 5;
 				// error
 				output.transferredNumberOfShares = 0;
 				if (qpi.invocationReward() > 0)
@@ -2143,12 +2136,10 @@ protected:
 			}
 			else
 			{
-				state.a2 = 6;
 				// success
 				output.transferredNumberOfShares = input.numberOfShares;
 				if (qpi.invocationReward() > QSWAP_FEE_BASE_100)
 				{
-					state.a2 = 7;
 					qpi.transfer(qpi.invocator(), qpi.invocationReward() -  QSWAP_FEE_BASE_100);
 				}
 			}

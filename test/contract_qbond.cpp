@@ -3,13 +3,11 @@
 #include "contract_testing.h"
 
 std::string assetNameFromInt64(uint64 assetName);
-const id devAddress = ID(_B, _O, _N, _D, _D, _J, _N, _U, _H, _O, _G, _Y, _L, _A, _A, _A, _C, _V, _X, _C, _X, _F, _G, _F, _R, _C, _S, _D, _C, _U, _W, _C, _Y, _U, _N, _K, _M, _P, _G, _O, _I, _F, _E, _P, _O, _E, _M, _Y, _T, _L, _Q, _L, _F, _C, _S, _B);
 const id adminAddress = ID(_B, _O, _N, _D, _A, _A, _F, _B, _U, _G, _H, _E, _L, _A, _N, _X, _G, _H, _N, _L, _M, _S, _U, _I, _V, _B, _K, _B, _H, _A, _Y, _E, _Q, _S, _Q, _B, _V, _P, _V, _N, _B, _H, _L, _F, _J, _I, _A, _Z, _F, _Q, _C, _W, _W, _B, _V, _E);
 const id testAddress1 = ID(_H, _O, _G, _T, _K, _D, _N, _D, _V, _U, _U, _Z, _U, _F, _L, _A, _M, _L, _V, _B, _L, _Z, _D, _S, _G, _D, _D, _A, _E, _B, _E, _K, _K, _L, _N, _Z, _J, _B, _W, _S, _C, _A, _M, _D, _S, _X, _T, _C, _X, _A, _M, _A, _X, _U, _D, _F);
 const id testAddress2 = ID(_E, _Q, _M, _B, _B, _V, _Y, _G, _Z, _O, _F, _U, _I, _H, _E, _X, _F, _O, _X, _K, _T, _F, _T, _A, _N, _E, _K, _B, _X, _L, _B, _X, _H, _A, _Y, _D, _F, _F, _M, _R, _E, _E, _M, _R, _Q, _E, _V, _A, _D, _Y, _M, _M, _E, _W, _A, _C);
-const id testAddress3 = ID(_U, _X, _U, _F, _A, _Q, _M, _C, _X, _Z, _P, _Z, _B, _C, _Z, _V, _X, _V, _D, _C, _V, _L, _B, _P, _S, _Z, _W, _A, _M, _L, _Z, _H, _M, _A, _V, _Y, _M, _Y, _Z, _B, _W, _G, _Z, _J, _J, _K, _I, _Q, _P, _D, _Y, _B, _F, _U, _F, _A);
 
-class QBondChecker : public MSVAULT
+class QBondChecker : public QBOND
 {
 public:
     int64_t getCFAPopulation()
@@ -25,148 +23,143 @@ public:
     {
         initEmptySpectrum();
         initEmptyUniverse();
-        INIT_CONTRACT(MSVAULT);
-        callSystemProcedure(MSVAULT_CONTRACT_INDEX, INITIALIZE);
+        INIT_CONTRACT(QBOND);
+        callSystemProcedure(QBOND_CONTRACT_INDEX, INITIALIZE);
         INIT_CONTRACT(QEARN);
         callSystemProcedure(QEARN_CONTRACT_INDEX, INITIALIZE);
     }
 
     QBondChecker* getState()
     {
-        return (QBondChecker*)contractStates[MSVAULT_CONTRACT_INDEX];
-    }
-
-    bool loadState(const CHAR16* filename)
-    {
-        return load(filename, sizeof(MSVAULT), contractStates[MSVAULT_CONTRACT_INDEX]) == sizeof(MSVAULT);
+        return (QBondChecker*)contractStates[QBOND_CONTRACT_INDEX];
     }
 
     void beginEpoch(bool expectSuccess = true)
     {
-        callSystemProcedure(MSVAULT_CONTRACT_INDEX, BEGIN_EPOCH, expectSuccess);
+        callSystemProcedure(QBOND_CONTRACT_INDEX, BEGIN_EPOCH, expectSuccess);
     }
 
     void endEpoch(bool expectSuccess = true)
     {
-        callSystemProcedure(MSVAULT_CONTRACT_INDEX, END_EPOCH, expectSuccess);
+        callSystemProcedure(QBOND_CONTRACT_INDEX, END_EPOCH, expectSuccess);
     }
 
     void stake(const id& staker, const int64_t& quMillions, const int64_t& quAmount)
     {
-        MSVAULT::Stake_input input{ quMillions };
-        MSVAULT::Stake_output output;
-        invokeUserProcedure(MSVAULT_CONTRACT_INDEX, 1, input, output, staker, quAmount);
+        QBOND::Stake_input input{ quMillions };
+        QBOND::Stake_output output;
+        invokeUserProcedure(QBOND_CONTRACT_INDEX, 1, input, output, staker, quAmount);
     }
 
-    MSVAULT::TransferMBondOwnershipAndPossession_output transfer(const id& from, const id& to, const uint16_t& epoch, const int64_t& mbondsAmount, const int64_t& quAmount)
+    QBOND::TransferMBondOwnershipAndPossession_output transfer(const id& from, const id& to, const uint16_t& epoch, const int64_t& mbondsAmount, const int64_t& quAmount)
     {
-        MSVAULT::TransferMBondOwnershipAndPossession_input input{ to, epoch, mbondsAmount };
-        MSVAULT::TransferMBondOwnershipAndPossession_output output;
-        invokeUserProcedure(MSVAULT_CONTRACT_INDEX, 2, input, output, from, quAmount);
+        QBOND::TransferMBondOwnershipAndPossession_input input{ to, epoch, mbondsAmount };
+        QBOND::TransferMBondOwnershipAndPossession_output output;
+        invokeUserProcedure(QBOND_CONTRACT_INDEX, 2, input, output, from, quAmount);
         return output;
     }
 
-    MSVAULT::AddAskOrder_output addAskOrder(const id& asker, const uint16_t& epoch, const int64_t& price, const int64_t& mbondsAmount, const int64_t& quAmount)
+    QBOND::AddAskOrder_output addAskOrder(const id& asker, const uint16_t& epoch, const int64_t& price, const int64_t& mbondsAmount, const int64_t& quAmount)
     {
-        MSVAULT::AddAskOrder_input input{ epoch, price, mbondsAmount };
-        MSVAULT::AddAskOrder_output output;
-        invokeUserProcedure(MSVAULT_CONTRACT_INDEX, 3, input, output, asker, quAmount);
+        QBOND::AddAskOrder_input input{ epoch, price, mbondsAmount };
+        QBOND::AddAskOrder_output output;
+        invokeUserProcedure(QBOND_CONTRACT_INDEX, 3, input, output, asker, quAmount);
         return output;
     }
 
-    MSVAULT::RemoveAskOrder_output removeAskOrder(const id& asker, const uint16_t& epoch, const int64_t& price, const int64_t& mbondsAmount, const int64_t& quAmount)
+    QBOND::RemoveAskOrder_output removeAskOrder(const id& asker, const uint16_t& epoch, const int64_t& price, const int64_t& mbondsAmount, const int64_t& quAmount)
     {
-        MSVAULT::RemoveAskOrder_input input{ epoch, price, mbondsAmount };
-        MSVAULT::RemoveAskOrder_output output;
-        invokeUserProcedure(MSVAULT_CONTRACT_INDEX, 4, input, output, asker, quAmount);
+        QBOND::RemoveAskOrder_input input{ epoch, price, mbondsAmount };
+        QBOND::RemoveAskOrder_output output;
+        invokeUserProcedure(QBOND_CONTRACT_INDEX, 4, input, output, asker, quAmount);
         return output;
     }
 
-    MSVAULT::AddBidOrder_output addBidOrder(const id& bider, const uint16_t& epoch, const int64_t& price, const int64_t& mbondsAmount, const int64_t& quAmount)
+    QBOND::AddBidOrder_output addBidOrder(const id& bider, const uint16_t& epoch, const int64_t& price, const int64_t& mbondsAmount, const int64_t& quAmount)
     {
-        MSVAULT::AddBidOrder_input input{ epoch, price, mbondsAmount };
-        MSVAULT::AddBidOrder_output output;
-        invokeUserProcedure(MSVAULT_CONTRACT_INDEX, 5, input, output, bider, quAmount);
+        QBOND::AddBidOrder_input input{ epoch, price, mbondsAmount };
+        QBOND::AddBidOrder_output output;
+        invokeUserProcedure(QBOND_CONTRACT_INDEX, 5, input, output, bider, quAmount);
         return output;
     }
 
-    MSVAULT::RemoveBidOrder_output removeBidOrder(const id& bider, const uint16_t& epoch, const int64_t& price, const int64_t& mbondsAmount, const int64_t& quAmount)
+    QBOND::RemoveBidOrder_output removeBidOrder(const id& bider, const uint16_t& epoch, const int64_t& price, const int64_t& mbondsAmount, const int64_t& quAmount)
     {
-        MSVAULT::RemoveBidOrder_input input{ epoch, price, mbondsAmount };
-        MSVAULT::RemoveBidOrder_output output;
-        invokeUserProcedure(MSVAULT_CONTRACT_INDEX, 6, input, output, bider, quAmount);
+        QBOND::RemoveBidOrder_input input{ epoch, price, mbondsAmount };
+        QBOND::RemoveBidOrder_output output;
+        invokeUserProcedure(QBOND_CONTRACT_INDEX, 6, input, output, bider, quAmount);
         return output;
     }
 
-    MSVAULT::BurnQU_output burnQU(const id& invocator, const int64_t& quToBurn, const int64_t& quAmount)
+    QBOND::BurnQU_output burnQU(const id& invocator, const int64_t& quToBurn, const int64_t& quAmount)
     {
-        MSVAULT::BurnQU_input input{ quToBurn };
-        MSVAULT::BurnQU_output output;
-        invokeUserProcedure(MSVAULT_CONTRACT_INDEX, 7, input, output, invocator, quAmount);
+        QBOND::BurnQU_input input{ quToBurn };
+        QBOND::BurnQU_output output;
+        invokeUserProcedure(QBOND_CONTRACT_INDEX, 7, input, output, invocator, quAmount);
         return output;
     }
 
     bool updateCFA(const id& invocator, const id& address, const bool operation)
     {
-        MSVAULT::UpdateCFA_input input{ address, operation };
-        MSVAULT::UpdateCFA_output output;
-        invokeUserProcedure(MSVAULT_CONTRACT_INDEX, 8, input, output, invocator, 0);
+        QBOND::UpdateCFA_input input{ address, operation };
+        QBOND::UpdateCFA_output output;
+        invokeUserProcedure(QBOND_CONTRACT_INDEX, 8, input, output, invocator, 0);
         return output.result;
     }
 
-    MSVAULT::GetEarnedFees_output getEarnedFees()
+    QBOND::GetEarnedFees_output getEarnedFees()
     {
-        MSVAULT::GetEarnedFees_input input;
-        MSVAULT::GetEarnedFees_output output;
-        callFunction(MSVAULT_CONTRACT_INDEX, 2, input, output);
+        QBOND::GetEarnedFees_input input;
+        QBOND::GetEarnedFees_output output;
+        callFunction(QBOND_CONTRACT_INDEX, 2, input, output);
         return output;
     }
 
-    MSVAULT::GetInfoPerEpoch_output getInfoPerEpoch(const uint16_t& epoch)
+    QBOND::GetInfoPerEpoch_output getInfoPerEpoch(const uint16_t& epoch)
     {
-        MSVAULT::GetInfoPerEpoch_input input{ epoch };
-        MSVAULT::GetInfoPerEpoch_output output;
-        callFunction(MSVAULT_CONTRACT_INDEX, 3, input, output);
+        QBOND::GetInfoPerEpoch_input input{ epoch };
+        QBOND::GetInfoPerEpoch_output output;
+        callFunction(QBOND_CONTRACT_INDEX, 3, input, output);
         return output;
     }
 
-    MSVAULT::GetOrders_output getOrders(const uint16_t& epoch, const int64_t& asksOffset, const int64_t& bidsOffset)
+    QBOND::GetOrders_output getOrders(const uint16_t& epoch, const int64_t& asksOffset, const int64_t& bidsOffset)
     {
-        MSVAULT::GetOrders_input input{ epoch, asksOffset, bidsOffset };
-        MSVAULT::GetOrders_output output;
-        callFunction(MSVAULT_CONTRACT_INDEX, 4, input, output);
+        QBOND::GetOrders_input input{ epoch, asksOffset, bidsOffset };
+        QBOND::GetOrders_output output;
+        callFunction(QBOND_CONTRACT_INDEX, 4, input, output);
         return output;
     }
 
-    MSVAULT::GetUserOrders_output getUserOrders(const id& user, const int64_t& asksOffset, const int64_t& bidsOffset)
+    QBOND::GetUserOrders_output getUserOrders(const id& user, const int64_t& asksOffset, const int64_t& bidsOffset)
     {
-        MSVAULT::GetUserOrders_input input{ user, asksOffset, bidsOffset };
-        MSVAULT::GetUserOrders_output output;
-        callFunction(MSVAULT_CONTRACT_INDEX, 5, input, output);
+        QBOND::GetUserOrders_input input{ user, asksOffset, bidsOffset };
+        QBOND::GetUserOrders_output output;
+        callFunction(QBOND_CONTRACT_INDEX, 5, input, output);
         return output;
     }
 
-    MSVAULT::GetMBondsTable_output getMBondsTable()
+    QBOND::GetMBondsTable_output getMBondsTable()
     {
-        MSVAULT::GetMBondsTable_input input;
-        MSVAULT::GetMBondsTable_output output;
-        callFunction(MSVAULT_CONTRACT_INDEX, 6, input, output);
+        QBOND::GetMBondsTable_input input;
+        QBOND::GetMBondsTable_output output;
+        callFunction(QBOND_CONTRACT_INDEX, 6, input, output);
         return output;
     }
 
-    MSVAULT::GetUserMBonds_output getUserMBonds(const id& user)
+    QBOND::GetUserMBonds_output getUserMBonds(const id& user)
     {
-        MSVAULT::GetUserMBonds_input input{ user };
-        MSVAULT::GetUserMBonds_output output;
-        callFunction(MSVAULT_CONTRACT_INDEX, 7, input, output);
+        QBOND::GetUserMBonds_input input{ user };
+        QBOND::GetUserMBonds_output output;
+        callFunction(QBOND_CONTRACT_INDEX, 7, input, output);
         return output;
     }
 
-    MSVAULT::GetCFA_output getCFA()
+    QBOND::GetCFA_output getCFA()
     {
-        MSVAULT::GetCFA_input input;
-        MSVAULT::GetCFA_output output;
-        callFunction(MSVAULT_CONTRACT_INDEX, 8, input, output);
+        QBOND::GetCFA_input input;
+        QBOND::GetCFA_output output;
+        callFunction(QBOND_CONTRACT_INDEX, 8, input, output);
         return output;
     }
 };
@@ -182,24 +175,24 @@ TEST(ContractQBond, Stake)
 
     // scenario 1: testAddress1 want to stake 50 millions, but send to sc 30 millions
     qbond.stake(testAddress1, 50, 30000000LL);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 0);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 0);
 
     // scenario 2: testAddress1 want to stake 50 millions, but send to sc 50 millions (without commission)
     qbond.stake(testAddress1, 50, 50000000LL);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 0);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 0);
 
     // scenario 3: testAddress1 want to stake 50 millions and send full amount with commission
     qbond.stake(testAddress1, 50, 50250000LL);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 50LL);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 50LL);
 
     // scenario 4.1: testAddress2 want to stake 5 millions, recieve 0 MBonds, because minimum is 10 and 5 were put in queue
     qbond.stake(testAddress2, 5, 5025000);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 0);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 0);
 
     // scenario 4.2: testAddress1 want to stake 7 millions, testAddress1 recieve 7 MBonds and testAddress2 recieve 5 MBonds, because the total qu millions in the queue became more than 10
     qbond.stake(testAddress1, 7, 7035000);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 57);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 5);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 57);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 5);
 }
 
 
@@ -209,19 +202,19 @@ TEST(ContractQBond, TransferMBondOwnershipAndPossession)
     qbond.beginEpoch();
     increaseEnergy(testAddress1, 1000000000);
     qbond.stake(testAddress1, 50, 50250000);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 50);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 50);
 
     // scenario 1: not enough gas, 100 needed
     EXPECT_EQ(qbond.transfer(testAddress1, testAddress2, system.epoch, 10, 50).transferredMBonds, 0);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 0);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 0);
 
     // scenario 2: enough gas, not enough mbonds
     EXPECT_EQ(qbond.transfer(testAddress1, testAddress2, system.epoch, 70, 100).transferredMBonds, 0);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 0);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 0);
 
     // scenario 3: success
     EXPECT_EQ(qbond.transfer(testAddress1, testAddress2, system.epoch, 40, 100).transferredMBonds, 40);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 40);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 40);
 }
 
 TEST(ContractQBond, AddRemoveAskOrder)
@@ -238,10 +231,10 @@ TEST(ContractQBond, AddRemoveAskOrder)
     EXPECT_EQ(qbond.addAskOrder(testAddress1, system.epoch, 1500000, 30, 0).addedMBondsAmount, 30);
     // not enough free mbonds
     EXPECT_EQ(qbond.transfer(testAddress1, testAddress2, system.epoch, 21, 100).transferredMBonds, 0);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 0);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 0);
     // successful transfer
     EXPECT_EQ(qbond.transfer(testAddress1, testAddress2, system.epoch, 20, 100).transferredMBonds, 20);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 20);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 20);
 
     // scenario 3: no orders to remove at this price
     EXPECT_EQ(qbond.removeAskOrder(testAddress1, system.epoch, 1400000, 30, 0).removedMBondsAmount, 0);
@@ -251,7 +244,7 @@ TEST(ContractQBond, AddRemoveAskOrder)
     EXPECT_EQ(qbond.transfer(testAddress1, testAddress2, system.epoch, 1, 100).transferredMBonds, 0);
     EXPECT_EQ(qbond.removeAskOrder(testAddress1, system.epoch, 1500000, 5, 0).removedMBondsAmount, 5);
     EXPECT_EQ(qbond.transfer(testAddress1, testAddress2, system.epoch, 5, 100).transferredMBonds, 5);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 25);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 25);
 
     EXPECT_EQ(qbond.removeAskOrder(testAddress1, system.epoch, 1500000, 500, 0).removedMBondsAmount, 25);
 }
@@ -272,8 +265,8 @@ TEST(ContractQBond, AddRemoveBidOrder)
 
     // scenario 3: testAddress1 add ask order which matches the bid order
     EXPECT_EQ(qbond.addAskOrder(testAddress1, system.epoch, 1500000, 3, 0).addedMBondsAmount, 3);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 47);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(MSVAULT_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, MSVAULT_CONTRACT_INDEX, MSVAULT_CONTRACT_INDEX), 3);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress1, testAddress1, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 47);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(std::string("MBND").append(std::to_string(system.epoch)).c_str()), id(QBOND_CONTRACT_INDEX, 0, 0, 0), testAddress2, testAddress2, QBOND_CONTRACT_INDEX, QBOND_CONTRACT_INDEX), 3);
 
     // scenario 3: no orders to remove at this price
     EXPECT_EQ(qbond.removeBidOrder(testAddress2, system.epoch, 1400000, 30, 0).removedMBondsAmount, 0);

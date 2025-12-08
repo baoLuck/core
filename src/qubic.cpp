@@ -1,7 +1,5 @@
 #define SINGLE_COMPILE_UNIT
 
-// #define NO_QDRAW
-
 // contract_def.h needs to be included first to make sure that contracts have minimal access
 #include "contract_core/contract_def.h"
 #include "contract_core/contract_exec.h"
@@ -133,6 +131,7 @@ static unsigned short ownComputorIndicesMapping[sizeof(computorSeeds) / sizeof(c
 static TickStorage ts;
 static VoteCounter voteCounter;
 static TickData nextTickData;
+static PendingTxsPool pendingTxsPool;
 
 static m256i uniqueNextTickTransactionDigests[NUMBER_OF_COMPUTORS];
 static unsigned int uniqueNextTickTransactionDigestCounters[NUMBER_OF_COMPUTORS];
@@ -140,13 +139,7 @@ static unsigned int uniqueNextTickTransactionDigestCounters[NUMBER_OF_COMPUTORS]
 static unsigned int resourceTestingDigest = 0;
 
 static unsigned int numberOfTransactions = 0;
-static volatile char entityPendingTransactionsLock = 0;
-static unsigned char* entityPendingTransactions = NULL;
-static unsigned char* entityPendingTransactionDigests = NULL;
-static unsigned int entityPendingTransactionIndices[SPECTRUM_CAPACITY]; // [SPECTRUM_CAPACITY] must be >= than [NUMBER_OF_COMPUTORS * MAX_NUMBER_OF_PENDING_TRANSACTIONS_PER_COMPUTOR]
-static volatile char computorPendingTransactionsLock = 0;
-static unsigned char* computorPendingTransactions = NULL;
-static unsigned char* computorPendingTransactionDigests = NULL;
+
 static unsigned long long spectrumChangeFlags[SPECTRUM_CAPACITY / (sizeof(unsigned long long) * 8)];
 
 static unsigned long long mainLoopNumerator = 0, mainLoopDenominator = 0;
@@ -526,115 +519,7 @@ static void processBroadcastMessage(const unsigned long long processorNumber, Re
                 recordCustomMining = gIsInCustomMiningState;
                 RELEASE(gIsInCustomMiningStateLock);
 
-                if (messagePayloadSize == sizeof(CustomMiningTask) && request->sourcePublicKey == dispatcherPublicKey)
-                {
-                    // See CustomMiningTaskMessage structure
-                    // MESSAGE_TYPE_CUSTOM_MINING_TASK
-
-                     // Compute the gamming key to get the sub-type of message
-                    unsigned char sharedKeyAndGammingNonce[64];
-                    setMem(sharedKeyAndGammingNonce, 32, 0);
-                    copyMem(&sharedKeyAndGammingNonce[32], &request->gammingNonce, 32);
-                    unsigned char gammingKey[32];
-                    KangarooTwelve64To32(sharedKeyAndGammingNonce, gammingKey);
-                    
-                    // Record the task emitted by dispatcher
-                    if (recordCustomMining && gammingKey[0] == MESSAGE_TYPE_CUSTOM_MINING_TASK)
-                    {
-                        const CustomMiningTask* task = ((CustomMiningTask*)((unsigned char*)request + sizeof(BroadcastMessage)));
-
-                        // Determine the task part id
-                        int partId = customMiningGetPartitionID(task->firstComputorIndex, task->lastComputorIndex);
-                        if (partId >= 0)
-                        {
-                            // Record the task message
-                            ACQUIRE(gCustomMiningTaskStorageLock);
-                            int taskAddSts = gCustomMiningStorage._taskStorage[partId].addData(task);
-                            RELEASE(gCustomMiningTaskStorageLock);
-
-                            if (CustomMiningTaskStorage::OK == taskAddSts)
-                            {
-                                ATOMIC_INC64(gCustomMiningStats.phase[partId].tasks);
-                            }
-                        }
-                    }
-                }
-                else if (messagePayloadSize == sizeof(CustomMiningSolution))
-                {
-                    for (unsigned int i = 0; i < NUMBER_OF_COMPUTORS; i++)
-                    {
-                        if (request->sourcePublicKey == broadcastedComputors.computors.publicKeys[i])
-                        {
-                            // Compute the gamming key to get the sub-type of message
-                            unsigned char sharedKeyAndGammingNonce[64];
-                            setMem(sharedKeyAndGammingNonce, 32, 0);
-                            copyMem(&sharedKeyAndGammingNonce[32], &request->gammingNonce, 32);
-                            unsigned char gammingKey[32];
-                            KangarooTwelve64To32(sharedKeyAndGammingNonce, gammingKey);
-
-                            if (recordCustomMining && gammingKey[0] == MESSAGE_TYPE_CUSTOM_MINING_SOLUTION)
-                            {
-                                // Record the solution
-                                bool isSolutionGood = false;
-                                const CustomMiningSolution* solution = ((CustomMiningSolution*)((unsigned char*)request + sizeof(BroadcastMessage)));
-
-                                int partId = customMiningGetPartitionID(solution->firstComputorIndex, solution->lastComputorIndex);
-
-                                // TODO: taskIndex can use for detect for-sure stale shares
-                                if (partId >= 0 && solution->taskIndex > 0)
-                                {
-                                    CustomMiningSolutionCacheEntry cacheEntry;
-                                    cacheEntry.set(solution);
-
-                                    unsigned int cacheIndex = 0;
-                                    int sts = gSystemCustomMiningSolutionCache[partId].tryFetching(cacheEntry, cacheIndex);
-
-                                    // Check for duplicated solution
-                                    if (sts == CUSTOM_MINING_CACHE_MISS)
-                                    {
-                                        gSystemCustomMiningSolutionCache[partId].addEntry(cacheEntry, cacheIndex);
-                                        isSolutionGood = true;
-                                    }
-
-                                    if (isSolutionGood)
-                                    {
-                                        // Check the computor idx of this solution.
-                                        unsigned short computorID = customMiningGetComputorID(solution->nonce, partId);
-                                        if (computorID <= gTaskPartition[partId].lastComputorIdx)
-                                        {
-
-                                            ACQUIRE(gCustomMiningSharesCountLock);
-                                            gCustomMiningSharesCount[computorID]++;
-                                            RELEASE(gCustomMiningSharesCountLock);
-
-                                            CustomMiningSolutionStorageEntry solutionStorageEntry;
-                                            solutionStorageEntry.taskIndex = solution->taskIndex;
-                                            solutionStorageEntry.nonce = solution->nonce;
-                                            solutionStorageEntry.cacheEntryIndex = cacheIndex;
-
-                                            ACQUIRE(gCustomMiningSolutionStorageLock);
-                                            gCustomMiningStorage._solutionStorage[partId].addData(&solutionStorageEntry);
-                                            RELEASE(gCustomMiningSolutionStorageLock);
-
-                                        }
-                                    }
-
-                                    // Record stats
-                                    const unsigned int hitCount = gSystemCustomMiningSolutionCache[partId].hitCount();
-                                    const unsigned int missCount = gSystemCustomMiningSolutionCache[partId].missCount();
-                                    const unsigned int collision = gSystemCustomMiningSolutionCache[partId].collisionCount();
-
-                                    ATOMIC_STORE64(gCustomMiningStats.phase[partId].shares, missCount);
-                                    ATOMIC_STORE64(gCustomMiningStats.phase[partId].duplicated, hitCount);
-                                    ATOMIC_MAX64(gCustomMiningStats.maxCollisionShareCount, collision);
-
-                                }
-                            }
-                            break;
-                        }
-                    }
-                }
-                else if (messagePayloadSize == sizeof(CustomMiningTaskV2) && request->sourcePublicKey == dispatcherPublicKey)
+                if (messagePayloadSize == sizeof(CustomMiningTaskV2) && request->sourcePublicKey == dispatcherPublicKey)
                 {
                     unsigned char sharedKeyAndGammingNonce[64];
                     setMem(sharedKeyAndGammingNonce, 32, 0);
@@ -650,7 +535,7 @@ static void processBroadcastMessage(const unsigned long long processorNumber, Re
                         // Record the task message
                         ACQUIRE(gCustomMiningTaskStorageLock);
                         int taskAddSts = gCustomMiningStorage._taskV2Storage.addData(task);
-                        if (CustomMiningTaskStorage::OK == taskAddSts)
+                        if (CustomMiningTaskV2Storage::OK == taskAddSts)
                         {
                             ATOMIC_INC64(gCustomMiningStats.phaseV2.tasks);
                             gCustomMiningStorage.updateTaskIndex(task->taskIndex);
@@ -697,15 +582,7 @@ static void processBroadcastMessage(const unsigned long long processorNumber, Re
                                 if (isSolutionGood)
                                 {
                                     // Check the computor idx of this solution.
-                                    unsigned short computorID = 0;
-                                    if (solution->reserve0 == 0)
-                                    {
-                                        computorID = (solution->nonce >> 32ULL) % 676ULL;
-                                    }
-                                    else
-                                    {
-                                        computorID = solution->reserve1 % 676ULL;
-                                    }
+                                    unsigned short computorID = customMiningGetComputorID(solution);
 
                                     ACQUIRE(gCustomMiningSharesCountLock);
                                     gCustomMiningSharesCount[computorID]++;
@@ -925,21 +802,6 @@ static void processBroadcastTick(Peer* peer, RequestResponseHeader* header)
         && request->tick.second <= 59
         && request->tick.millisecond <= 999)
     {
-        // Ignore incorrect votes for specific tick
-        if (request->tick.tick == 32454208)
-        {
-            m256i saltedData[2];
-            m256i saltedDigest;
-            m256i expectedComputorDigest;
-            saltedData[0] = broadcastedComputors.computors.publicKeys[request->tick.computorIndex];
-            getPublicKeyFromIdentity((unsigned char*)"LVUYVTDYAQPPEBNIYQLVIXVAFKSCKPQMVDVGKPWLHAEWQYIQERAURSZFVZII", expectedComputorDigest.m256i_u8);
-            saltedData[1] = expectedComputorDigest;
-            KangarooTwelve64To32(saltedData, &saltedDigest);
-            if (saltedDigest != request->tick.saltedComputerDigest)
-            {
-                return; 
-            }
-        }
         unsigned char digest[32];
         request->tick.computorIndex ^= BroadcastTick::type;
         KangarooTwelve(&request->tick, sizeof(Tick) - SIGNATURE_SIZE, digest, sizeof(digest));
@@ -1097,42 +959,7 @@ static void processBroadcastTransaction(Peer* peer, RequestResponseHeader* heade
                 enqueueResponse(NULL, header);
             }
 
-            const int computorIndex = ::computorIndex(request->sourcePublicKey);
-            if (computorIndex >= 0)
-            {
-                ACQUIRE(computorPendingTransactionsLock);
-
-                const unsigned int offset = random(MAX_NUMBER_OF_PENDING_TRANSACTIONS_PER_COMPUTOR);
-                if (((Transaction*)&computorPendingTransactions[computorIndex * offset * MAX_TRANSACTION_SIZE])->tick < request->tick
-                    && request->tick < system.initialTick + MAX_NUMBER_OF_TICKS_PER_EPOCH)
-                {
-                    copyMem(&computorPendingTransactions[computorIndex * offset * MAX_TRANSACTION_SIZE], request, transactionSize);
-                    KangarooTwelve(request, transactionSize, &computorPendingTransactionDigests[computorIndex * offset * 32ULL], 32);
-                }
-
-                RELEASE(computorPendingTransactionsLock);
-            }
-            else
-            {
-                const int spectrumIndex = ::spectrumIndex(request->sourcePublicKey);
-                if (spectrumIndex >= 0)
-                {
-                    ACQUIRE(entityPendingTransactionsLock);
-
-                    // Pending transactions pool follows the rule: A transaction with a higher tick overwrites previous transaction from the same address.
-                    // The second filter is to avoid accident made by users/devs (setting scheduled tick too high) and get locked until end of epoch.
-                    // It also makes sense that a node doesn't need to store a transaction that is scheduled on a tick that node will never reach.
-                    // Notice: MAX_NUMBER_OF_TICKS_PER_EPOCH is not set globally since every node may have different TARGET_TICK_DURATION time due to memory limitation.
-                    if (((Transaction*)&entityPendingTransactions[spectrumIndex * MAX_TRANSACTION_SIZE])->tick < request->tick
-                        && request->tick < system.initialTick + MAX_NUMBER_OF_TICKS_PER_EPOCH)
-                    {
-                        copyMem(&entityPendingTransactions[spectrumIndex * MAX_TRANSACTION_SIZE], request, transactionSize);
-                        KangarooTwelve(request, transactionSize, &entityPendingTransactionDigests[spectrumIndex * 32ULL], 32);
-                    }
-
-                    RELEASE(entityPendingTransactionsLock);
-                }
-            }
+            pendingTxsPool.add(request);
 
             unsigned int tickIndex = ts.tickToIndexCurrentEpoch(request->tick);
             ts.tickData.acquireLock();
@@ -1393,6 +1220,21 @@ static void processRequestEntity(Peer* peer, RequestResponseHeader* header)
     enqueueResponse(peer, sizeof(respondedEntity), RESPOND_ENTITY, header->dejavu(), &respondedEntity);
 }
 
+static void processRequestActiveIPOs(Peer* peer, RequestResponseHeader* header)
+{
+    RespondActiveIPO response;
+    for (unsigned int contractIndex = 1; contractIndex < contractCount; ++contractIndex)
+    {
+        if (system.epoch == contractDescriptions[contractIndex].constructionEpoch - 1) // IPO happens in the epoch before construction
+        {
+            response.contractIndex = contractIndex;
+            copyMem(response.assetName, contractDescriptions[contractIndex].assetName, 8);
+            enqueueResponse(peer, sizeof(RespondActiveIPO), RespondActiveIPO::type, header->dejavu(), &response);
+        }
+    }
+    enqueueResponse(peer, 0, EndResponse::type, header->dejavu(), NULL);
+}
+
 static void processRequestContractIPO(Peer* peer, RequestResponseHeader* header)
 {
     RespondContractIPO respondContractIPO;
@@ -1401,7 +1243,7 @@ static void processRequestContractIPO(Peer* peer, RequestResponseHeader* header)
     respondContractIPO.contractIndex = request->contractIndex;
     respondContractIPO.tick = system.tick;
     if (request->contractIndex >= contractCount
-        || system.epoch >= contractDescriptions[request->contractIndex].constructionEpoch)
+        || system.epoch != (contractDescriptions[request->contractIndex].constructionEpoch - 1))
     {
         setMem(respondContractIPO.publicKeys, sizeof(respondContractIPO.publicKeys), 0);
         setMem(respondContractIPO.prices, sizeof(respondContractIPO.prices), 0);
@@ -1496,8 +1338,6 @@ static void processRequestedCustomMiningSolutionVerificationRequest(Peer* peer, 
         KangarooTwelve(request, header->size() - sizeof(RequestResponseHeader) - SIGNATURE_SIZE, digest, sizeof(digest));
         if (verify(operatorPublicKey.m256i_u8, digest, ((const unsigned char*)header + (header->size() - SIGNATURE_SIZE))))
         {
-            RespondCustomMiningSolutionVerification respond;
-
             // Update the share counting
             // Only record shares in idle phase
             char recordSolutions = 0;
@@ -1505,25 +1345,20 @@ static void processRequestedCustomMiningSolutionVerificationRequest(Peer* peer, 
             recordSolutions = gIsInCustomMiningState;
             RELEASE(gIsInCustomMiningStateLock);
 
+            RespondCustomMiningSolutionVerification respond = customMiningVerificationRequestToRespond(request);
             if (recordSolutions)
             {
-                CustomMiningSolutionCacheEntry fullEntry;
-                fullEntry.set(request->taskIndex, request->nonce, request->firstComputorIdx, request->lastComputorIdx);
+                CustomMiningSolutionV2 solution = customMiningVerificationRequestToSolution(request);
+
+                CustomMiningSolutionV2CacheEntry fullEntry;
+                fullEntry.set(&solution);
                 fullEntry.setVerified(true);
                 fullEntry.setValid(request->isValid > 0);
 
-                // Make sure the solution still existed
-                int partId = customMiningGetPartitionID(request->firstComputorIdx, request->lastComputorIdx);
                 // Check the computor idx of this solution
-                int computorID = NUMBER_OF_COMPUTORS;
-                if (partId >= 0)
-                {
-                    computorID = customMiningGetComputorID(request->nonce, partId);
-                }
-
-                if (partId >=0 
-                    && computorID <= gTaskPartition[partId].lastComputorIdx
-                    && CUSTOM_MINING_CACHE_HIT == gSystemCustomMiningSolutionCache[partId].tryFetchingAndUpdate(fullEntry, CUSTOM_MINING_CACHE_HIT))
+                unsigned short computorID = customMiningGetComputorID(&solution);
+                // Also re-update the cache data with verified = true and validity
+                if ( gSystemCustomMiningSolutionV2Cache.tryFetchingAndUpdateHitData(fullEntry))
                 {
                     // Reduce the share of this nonce if it is invalid
                     if (0 == request->isValid)
@@ -1533,13 +1368,13 @@ static void processRequestedCustomMiningSolutionVerificationRequest(Peer* peer, 
                         RELEASE(gCustomMiningSharesCountLock);
 
                         // Save the number of invalid share count
-                        ATOMIC_INC64(gCustomMiningStats.phase[partId].invalid);
+                        ATOMIC_INC64(gCustomMiningStats.phaseV2.invalid);
 
                         respond.status = RespondCustomMiningSolutionVerification::invalid;
                     }
                     else
                     {
-                        ATOMIC_INC64(gCustomMiningStats.phase[partId].valid);
+                        ATOMIC_INC64(gCustomMiningStats.phaseV2.valid);
                         respond.status = RespondCustomMiningSolutionVerification::valid;
                     }
                 }
@@ -1552,11 +1387,6 @@ static void processRequestedCustomMiningSolutionVerificationRequest(Peer* peer, 
             {
                 respond.status = RespondCustomMiningSolutionVerification::customMiningStateEnded;
             }
-
-            respond.taskIndex = request->taskIndex;
-            respond.firstComputorIdx = request->firstComputorIdx;
-            respond.lastComputorIdx = request->lastComputorIdx;
-            respond.nonce = request->nonce;
             enqueueResponse(peer, sizeof(respond), RespondCustomMiningSolutionVerification::type, header->dejavu(), &respond);
         }
     }
@@ -1609,17 +1439,11 @@ static void processCustomMiningDataRequest(Peer* peer, const unsigned long long 
             else if (request->dataType == RequestedCustomMiningData::solutionType)
             {
                 // For solution type, return all solution from the current phase
-                int partId = customMiningGetPartitionID(request->firstComputorIdx, request->lastComputorIdx);
-                if (partId >= 0)
                 {
                     ACQUIRE(gCustomMiningSolutionStorageLock);
                     // Look for all solution data
-                    respond = gCustomMiningStorage._solutionStorage[partId].getSerializedData(request->fromTaskIndex, processorNumber);
+                    respond = gCustomMiningStorage._solutionV2Storage.getSerializedData(request->fromTaskIndex, processorNumber);
                     RELEASE(gCustomMiningSolutionStorageLock);
-                }
-                else
-                {
-                    respond = NULL;
                 }
 
                 // Has the solutions
@@ -1634,12 +1458,12 @@ static void processCustomMiningDataRequest(Peer* peer, const unsigned long long 
                     unsigned char* respondSolutionPayload = respondSolution + sizeof(CustomMiningRespondDataHeader);
                     long long remainedDataToSend = CUSTOM_MINING_RESPOND_MESSAGE_MAX_SIZE;
                     int sendItem = 0;
-                    for (int k = 0; k < customMiningInternalHeader->itemCount && remainedDataToSend > sizeof(CustomMiningSolution); k++)
+                    for (int k = 0; k < customMiningInternalHeader->itemCount && remainedDataToSend > sizeof(CustomMiningSolutionV2); k++)
                     {
                         CustomMiningSolutionStorageEntry entry = solutionEntries[k];
-                        CustomMiningSolutionCacheEntry fullEntry;
+                        CustomMiningSolutionV2CacheEntry fullEntry;
 
-                        gSystemCustomMiningSolutionCache[partId].getEntry(fullEntry, (unsigned int)entry.cacheEntryIndex);
+                        gSystemCustomMiningSolutionV2Cache.getEntry(fullEntry, (unsigned int)entry.cacheEntryIndex);
 
                         // Check data is matched and not verifed yet
                         if (!fullEntry.isEmpty() 
@@ -1648,16 +1472,16 @@ static void processCustomMiningDataRequest(Peer* peer, const unsigned long long 
                             && fullEntry.getNonce() == entry.nonce)
                         {
                             // Append data to send
-                            CustomMiningSolution solution;
+                            CustomMiningSolutionV2 solution;
                             fullEntry.get(solution);
 
-                            copyMem(respondSolutionPayload + k * sizeof(CustomMiningSolution), &solution, sizeof(CustomMiningSolution));
-                            remainedDataToSend -= sizeof(CustomMiningSolution);
+                            copyMem(respondSolutionPayload + k * sizeof(CustomMiningSolutionV2), &solution, sizeof(CustomMiningSolutionV2));
+                            remainedDataToSend -= sizeof(CustomMiningSolutionV2);
                             sendItem++;
                         }
                     }
                     
-                    customMiningInternalHeader->itemSize = sizeof(CustomMiningSolution);
+                    customMiningInternalHeader->itemSize = sizeof(CustomMiningSolutionV2);
                     customMiningInternalHeader->itemCount = sendItem;
                     customMiningInternalHeader->respondType = RespondCustomMiningData::solutionType;
                     const unsigned long long respondDataSize = sizeof(CustomMiningRespondDataHeader) + customMiningInternalHeader->itemCount * customMiningInternalHeader->itemSize;
@@ -1821,6 +1645,32 @@ static void processSpecialCommand(Peer* peer, RequestResponseHeader* header)
                 enqueueResponse(peer, sizeof(SpecialCommandSetConsoleLoggingModeRequestAndResponse), SpecialCommand::type, header->dejavu(), _request);
             }
             break;
+
+            case SPECIAL_COMMAND_SAVE_SNAPSHOT:
+            {
+                SpecialCommandSaveSnapshotRequestAndResponse response;
+                response.everIncreasingNonceAndCommandType = request->everIncreasingNonceAndCommandType;
+                response.status = SpecialCommandSaveSnapshotRequestAndResponse::UNKNOWN_FAILURE;
+                response.currentTick = 0;
+
+#if TICK_STORAGE_AUTOSAVE_MODE
+                if (requestPersistingNodeState)
+                {
+                    response.status = SpecialCommandSaveSnapshotRequestAndResponse::SAVING_IN_PROGRESS;
+                }
+                else
+                {
+                    ATOMIC_STORE32(requestPersistingNodeState, 1);
+                    response.currentTick = system.tick;
+                    response.status = SpecialCommandSaveSnapshotRequestAndResponse::SAVING_TRIGGERED;
+                }
+#else
+                response.status = SpecialCommandSaveSnapshotRequestAndResponse::REMOTE_SAVE_MODE_DISABLED;
+#endif
+                enqueueResponse(peer, sizeof(SpecialCommandSaveSnapshotRequestAndResponse), SpecialCommand::type, header->dejavu(), &response);
+            }
+            break;
+
             }
         }
     }
@@ -1910,11 +1760,6 @@ static bool isFullExternalComputationTime(TimeDate tickDate)
 // Clean up before custom mining phase. Thread-safe function
 static void beginCustomMiningPhase()
 {
-    for (int i = 0; i < NUMBER_OF_TASK_PARTITIONS; i++)
-    {
-        gSystemCustomMiningSolutionCache[i].reset();
-    }
-
     gSystemCustomMiningSolutionV2Cache.reset();
     gCustomMiningStorage.reset();
     gCustomMiningStats.phaseResetAndEpochAccumulate();
@@ -2219,6 +2064,12 @@ static void requestProcessor(void* ProcedureArgument)
                 }
                 break;
 
+                case RequestActiveIPOs::type:
+                {
+                    processRequestActiveIPOs(peer, header);
+                }
+                break;
+
                 case RequestContractIPO::type:
                 {
                     processRequestContractIPO(peer, header);
@@ -2519,7 +2370,7 @@ static void processTickTransactionContractIPO(const Transaction* transaction, co
     ASSERT(!transaction->amount && transaction->inputSize == sizeof(ContractIPOBid));
     ASSERT(spectrumIndex >= 0);
     ASSERT(contractIndex < contractCount);
-    ASSERT(system.epoch < contractDescriptions[contractIndex].constructionEpoch);
+    ASSERT(system.epoch == (contractDescriptions[contractIndex].constructionEpoch - 1));
 
     ContractIPOBid* contractIPOBid = (ContractIPOBid*)transaction->inputPtr();
     bidInContractIPO(contractIPOBid->price, contractIPOBid->quantity, transaction->sourcePublicKey, spectrumIndex, contractIndex);
@@ -2926,7 +2777,7 @@ static void processTickTransaction(const Transaction* transaction, const m256i& 
                     && contractIndex < contractCount)
                 {
                     // Contract transactions
-                    if (system.epoch < contractDescriptions[contractIndex].constructionEpoch)
+                    if (system.epoch == (contractDescriptions[contractIndex].constructionEpoch - 1))
                     {
                         // IPO
                         if (!transaction->amount
@@ -2935,7 +2786,8 @@ static void processTickTransaction(const Transaction* transaction, const m256i& 
                             processTickTransactionContractIPO(transaction, spectrumIndex, contractIndex);
                         }
                     }
-                    else if (system.epoch < contractDescriptions[contractIndex].destructionEpoch)
+                    else if (system.epoch >= contractDescriptions[contractIndex].constructionEpoch 
+                        && system.epoch < contractDescriptions[contractIndex].destructionEpoch)
                     {
                         // Regular contract procedure invocation
                         moneyFlew = processTickTransactionContractProcedure(transaction, spectrumIndex, contractIndex);
@@ -3079,8 +2931,14 @@ static void processTick(unsigned long long processorNumber)
     // tick of the epoch in any case.
     if (system.tick == system.initialTick && (TICK_IS_FIRST_TICK_OF_EPOCH || system.epoch > EPOCH))
     {
-        PROFILE_NAMED_SCOPE_BEGIN("processTick(): INITIALIZE");
-        logger.registerNewTx(system.tick, logger.SC_INITIALIZE_TX);
+        {
+            // this is the very first logging event of the epoch
+            // hint message for 3rd party services the start of the epoch
+            logger.registerNewTx(system.tick, logger.SC_INITIALIZE_TX);
+            DummyCustomMessage dcm{ CUSTOM_MESSAGE_OP_START_EPOCH };
+            logger.logCustomMessage(dcm);
+        }
+        PROFILE_NAMED_SCOPE_BEGIN("processTick(): INITIALIZE");        
         contractProcessorPhase = INITIALIZE;
         contractProcessorState = 1;
         WAIT_WHILE(contractProcessorState);
@@ -3320,109 +3178,56 @@ static void processTick(unsigned long long processorNumber)
                     timelockPreimage[2] = etalonTick.saltedComputerDigest;
                     KangarooTwelve(timelockPreimage, sizeof(timelockPreimage), &broadcastedFutureTickData.tickData.timelock, sizeof(broadcastedFutureTickData.tickData.timelock));
 
-                    unsigned int j = 0;
-
-                    ACQUIRE(computorPendingTransactionsLock);
-
-                    // Get indices of pending computor transactions that are scheduled to be included in tickData
-                    unsigned int numberOfEntityPendingTransactionIndices = 0;
-                    for (unsigned int k = 0; k < NUMBER_OF_COMPUTORS * MAX_NUMBER_OF_PENDING_TRANSACTIONS_PER_COMPUTOR; k++)
+                    unsigned int nextTxIndex = 0;
+                    unsigned int numPendingTickTxs = pendingTxsPool.getNumberOfPendingTickTxs(system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET);
+                    pendingTxsPool.acquireLock();
+                    for (unsigned int tx = 0; tx < numPendingTickTxs; ++tx)
                     {
-                        const Transaction* tx = ((Transaction*)&computorPendingTransactions[k * MAX_TRANSACTION_SIZE]);
-                        if (tx->tick == system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET)
-                        {
-                            entityPendingTransactionIndices[numberOfEntityPendingTransactionIndices++] = k;
-                        }
-                    }
-
-                    // Randomly select computor tx scheduled for the tick until tick is full or all pending tx are included
-                    while (j < NUMBER_OF_TRANSACTIONS_PER_TICK && numberOfEntityPendingTransactionIndices)
-                    {
-                        const unsigned int index = random(numberOfEntityPendingTransactionIndices);
-
-                        const Transaction* pendingTransaction = ((Transaction*)&computorPendingTransactions[entityPendingTransactionIndices[index] * MAX_TRANSACTION_SIZE]);
-                        ASSERT(pendingTransaction->tick == system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET);
+#if !defined(NDEBUG) && !defined(NO_UEFI)
+                        addDebugMessage(L"pendingTxsPool.get() call in processTick()");
+#endif
+                        const Transaction* pendingTransaction = pendingTxsPool.getTx(system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET, tx);
+                        if (pendingTransaction)
                         {
                             ASSERT(pendingTransaction->checkValidity());
                             const unsigned int transactionSize = pendingTransaction->totalSize();
+                            ts.tickTransactions.acquireLock();
                             if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
                             {
-                                ts.tickTransactions.acquireLock();
-                                if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
-                                {
-                                    ts.tickTransactionOffsets(pendingTransaction->tick, j) = ts.nextTickTransactionOffset;
-                                    copyMem(ts.tickTransactions(ts.nextTickTransactionOffset), (void*)pendingTransaction, transactionSize);
-                                    broadcastedFutureTickData.tickData.transactionDigests[j] = &computorPendingTransactionDigests[entityPendingTransactionIndices[index] * 32ULL];
-                                    j++;
-                                    ts.nextTickTransactionOffset += transactionSize;
-                                }
-                                ts.tickTransactions.releaseLock();
+                                ts.tickTransactionOffsets(pendingTransaction->tick, nextTxIndex) = ts.nextTickTransactionOffset;
+                                copyMem(ts.tickTransactions(ts.nextTickTransactionOffset), (void*)pendingTransaction, transactionSize);
+                                const m256i* digest = pendingTxsPool.getDigest(system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET, tx);
+                                // digest should always be != nullptr because pendingTransaction != nullptr
+                                ASSERT(digest);
+                                broadcastedFutureTickData.tickData.transactionDigests[nextTxIndex] = digest ? *digest : m256i::zero();
+                                ts.nextTickTransactionOffset += transactionSize;
+                                nextTxIndex++;
                             }
+                            ts.tickTransactions.releaseLock();
                         }
-
-                        entityPendingTransactionIndices[index] = entityPendingTransactionIndices[--numberOfEntityPendingTransactionIndices];
-                    }
-
-                    RELEASE(computorPendingTransactionsLock);
-
-                    ACQUIRE(entityPendingTransactionsLock);
-
-                    // Get indices of pending non-computor transactions that are scheduled to be included in tickData
-                    numberOfEntityPendingTransactionIndices = 0;
-                    for (unsigned int k = 0; k < SPECTRUM_CAPACITY; k++)
-                    {
-                        const Transaction* tx = ((Transaction*)&entityPendingTransactions[k * MAX_TRANSACTION_SIZE]);
-                        if (tx->tick == system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET)
+                        else
                         {
-                            entityPendingTransactionIndices[numberOfEntityPendingTransactionIndices++] = k;
+                            break;
                         }
                     }
-
-                    // Randomly select non-computor tx scheduled for the tick until tick is full or all pending tx are included
-                    while (j < NUMBER_OF_TRANSACTIONS_PER_TICK && numberOfEntityPendingTransactionIndices)
-                    {
-                        const unsigned int index = random(numberOfEntityPendingTransactionIndices);
-
-                        const Transaction* pendingTransaction = ((Transaction*)&entityPendingTransactions[entityPendingTransactionIndices[index] * MAX_TRANSACTION_SIZE]);
-                        ASSERT(pendingTransaction->tick == system.tick + TICK_TRANSACTIONS_PUBLICATION_OFFSET);
-                        {
-                            ASSERT(pendingTransaction->checkValidity());
-                            const unsigned int transactionSize = pendingTransaction->totalSize();
-                            if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
-                            {
-                                ts.tickTransactions.acquireLock();
-                                if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
-                                {
-                                    ts.tickTransactionOffsets(pendingTransaction->tick, j) = ts.nextTickTransactionOffset;
-                                    copyMem(ts.tickTransactions(ts.nextTickTransactionOffset), (void*)pendingTransaction, transactionSize);
-                                    broadcastedFutureTickData.tickData.transactionDigests[j] = &entityPendingTransactionDigests[entityPendingTransactionIndices[index] * 32ULL];
-                                    j++;
-                                    ts.nextTickTransactionOffset += transactionSize;
-                                }
-                                ts.tickTransactions.releaseLock();
-                            }
-                        }
-
-                        entityPendingTransactionIndices[index] = entityPendingTransactionIndices[--numberOfEntityPendingTransactionIndices];
-                    }
-
-                    RELEASE(entityPendingTransactionsLock);
+                    pendingTxsPool.releaseLock();
 
                     {
                         // insert & broadcast vote counter tx
-                        makeAndBroadcastTickVotesTransaction(i, broadcastedFutureTickData, j++);
+                        makeAndBroadcastTickVotesTransaction(i, broadcastedFutureTickData, nextTxIndex++);
                     }
                     {
-                        // insert & broadcast custom mining share
-                        if (makeAndBroadcastCustomMiningTransaction(i, broadcastedFutureTickData, j)) // this type of tx is only broadcasted in mining phases
+                        // insert & broadcast external mining score packet (containing the score for each computor on the last external mining phase)
+                        // this type of tx is only broadcasted in internal mining phases
+                        if (makeAndBroadcastCustomMiningTransaction(i, broadcastedFutureTickData, nextTxIndex))
                         {
-                            j++;
+                            nextTxIndex++;
                         }
                     }
 
-                    for (; j < NUMBER_OF_TRANSACTIONS_PER_TICK; j++)
+                    for (; nextTxIndex < NUMBER_OF_TRANSACTIONS_PER_TICK; ++nextTxIndex)
                     {
-                        broadcastedFutureTickData.tickData.transactionDigests[j] = m256i::zero();
+                        broadcastedFutureTickData.tickData.transactionDigests[nextTxIndex] = m256i::zero();
                     }
 
                     setMem(broadcastedFutureTickData.tickData.contractFees, sizeof(broadcastedFutureTickData.tickData.contractFees), 0);
@@ -3555,11 +3360,6 @@ static void resetCustomMining()
     gCustomMiningSharesCounter.init();
     setMem(gCustomMiningSharesCount, sizeof(gCustomMiningSharesCount), 0);
 
-    for (int i = 0; i < NUMBER_OF_TASK_PARTITIONS; i++)
-    {
-        gSystemCustomMiningSolutionCache[i].reset();
-    }
-
     gSystemCustomMiningSolutionV2Cache.reset();
     for (int i = 0; i < NUMBER_OF_COMPUTORS; ++i)
     {
@@ -3587,24 +3387,18 @@ static void beginEpoch()
 
 #ifndef NDEBUG
     ts.checkStateConsistencyWithAssert();
+    pendingTxsPool.checkStateConsistencyWithAssert();
 #endif
     ts.beginEpoch(system.initialTick);
+    pendingTxsPool.beginEpoch(system.initialTick);
     voteCounter.init();
 #ifndef NDEBUG
     ts.checkStateConsistencyWithAssert();
+    pendingTxsPool.checkStateConsistencyWithAssert();
 #endif
 #if ADDON_TX_STATUS_REQUEST
     beginEpochTxStatusRequestAddOn(system.initialTick);
 #endif
-
-    for (unsigned int i = 0; i < NUMBER_OF_COMPUTORS * MAX_NUMBER_OF_PENDING_TRANSACTIONS_PER_COMPUTOR; i++)
-    {
-        ((Transaction*)&computorPendingTransactions[i * MAX_TRANSACTION_SIZE])->tick = 0;
-    }
-    for (unsigned int i = 0; i < SPECTRUM_CAPACITY; i++)
-    {
-        ((Transaction*)&entityPendingTransactions[i * MAX_TRANSACTION_SIZE])->tick = 0;
-    }
 
     setMem(solutionPublicationTicks, sizeof(solutionPublicationTicks), 0);
     setMem(faultyComputorFlags, sizeof(faultyComputorFlags), 0);
@@ -3791,7 +3585,12 @@ static void endEpoch()
     }
 
     assetsEndEpoch();
-
+    {
+        // this is the last logging event of the epoch
+        // a hint message for 3rd party services the end of the epoch
+        DummyCustomMessage dcm{ CUSTOM_MESSAGE_OP_END_EPOCH };
+        logger.logCustomMessage(dcm);
+    }
     logger.updateTick(system.tick);
 #if PAUSE_BEFORE_CLEAR_MEMORY
     // re-open request processors for other services to query
@@ -4455,90 +4254,56 @@ static void prepareNextTickTransactions()
 
     if (numberOfKnownNextTickTransactions != numberOfNextTickTransactions)
     {
-        // Checks if any of the missing transactions is available in the computorPendingTransaction and remove unknownTransaction flag if found
-        for (unsigned int i = 0; i < NUMBER_OF_COMPUTORS * MAX_NUMBER_OF_PENDING_TRANSACTIONS_PER_COMPUTOR; i++)
-        {
-            Transaction* pendingTransaction = (Transaction*)&computorPendingTransactions[i * MAX_TRANSACTION_SIZE];
-            if (pendingTransaction->tick == nextTick)
-            {
-                ACQUIRE(computorPendingTransactionsLock);
+        // Checks if any of the missing transactions is available in the pending transaction pool and remove unknownTransaction flag if found
 
+        unsigned int numPendingTickTxs = pendingTxsPool.getNumberOfPendingTickTxs(nextTick);
+        pendingTxsPool.acquireLock();
+        for (unsigned int i = 0; i < numPendingTickTxs; ++i)
+        {
+#if !defined(NDEBUG) && !defined(NO_UEFI)
+            addDebugMessage(L"pendingTxsPool.get() call in prepareNextTickTransactions()");
+#endif
+            Transaction* pendingTransaction = pendingTxsPool.getTx(nextTick, i);
+            if (pendingTransaction)
+            {
                 ASSERT(pendingTransaction->checkValidity());
                 auto* tsPendingTransactionOffsets = ts.tickTransactionOffsets.getByTickInCurrentEpoch(pendingTransaction->tick);
-                for (unsigned int j = 0; j < NUMBER_OF_TRANSACTIONS_PER_TICK; j++)
+
+                const m256i* digest = pendingTxsPool.getDigest(nextTick, i);
+                if (digest)
                 {
-                    if (unknownTransactions[j >> 6] & (1ULL << (j & 63)))
+                    for (unsigned int j = 0; j < NUMBER_OF_TRANSACTIONS_PER_TICK; j++)
                     {
-                        if (&computorPendingTransactionDigests[i * 32ULL] == nextTickData.transactionDigests[j])
+                        if (unknownTransactions[j >> 6] & (1ULL << (j & 63)))
                         {
-                            ts.tickTransactions.acquireLock();
-                            // write tx to tick tx storage, no matter if tsNextTickTransactionOffsets[i] is 0 (new tx)
-                            // or not (tx with digest that doesn't match tickData needs to be overwritten)
+                            if (*digest == nextTickData.transactionDigests[j])
                             {
-                                const unsigned int transactionSize = pendingTransaction->totalSize();
-                                if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
+                                ts.tickTransactions.acquireLock();
+                                // write tx to tick tx storage, no matter if tsNextTickTransactionOffsets[i] is 0 (new tx)
+                                // or not (tx with digest that doesn't match tickData needs to be overwritten)
                                 {
-                                    tsPendingTransactionOffsets[j] = ts.nextTickTransactionOffset;
-                                    copyMem(ts.tickTransactions(ts.nextTickTransactionOffset), pendingTransaction, transactionSize);
-                                    ts.nextTickTransactionOffset += transactionSize;
+                                    const unsigned int transactionSize = pendingTransaction->totalSize();
+                                    if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
+                                    {
+                                        tsPendingTransactionOffsets[j] = ts.nextTickTransactionOffset;
+                                        copyMem(ts.tickTransactions(ts.nextTickTransactionOffset), pendingTransaction, transactionSize);
+                                        ts.nextTickTransactionOffset += transactionSize;
 
-                                    numberOfKnownNextTickTransactions++;
+                                        numberOfKnownNextTickTransactions++;
+                                    }
                                 }
+                                ts.tickTransactions.releaseLock();
+
+                                unknownTransactions[j >> 6] &= ~(1ULL << (j & 63));
+
+                                break;         
                             }
-                            ts.tickTransactions.releaseLock();
-
-                            unknownTransactions[j >> 6] &= ~(1ULL << (j & 63));
-
-                            break;
                         }
                     }
                 }
-
-                RELEASE(computorPendingTransactionsLock);
             }
         }
-        // Checks if any of the missing transactions is available in the entityPendingTransaction and remove unknownTransaction flag if found
-        for (unsigned int i = 0; i < SPECTRUM_CAPACITY; i++)
-        {
-            Transaction* pendingTransaction = (Transaction*)&entityPendingTransactions[i * MAX_TRANSACTION_SIZE];
-            if (pendingTransaction->tick == nextTick)
-            {
-                ACQUIRE(entityPendingTransactionsLock);
-
-                ASSERT(pendingTransaction->checkValidity());
-                auto* tsPendingTransactionOffsets = ts.tickTransactionOffsets.getByTickInCurrentEpoch(pendingTransaction->tick);
-                for (unsigned int j = 0; j < NUMBER_OF_TRANSACTIONS_PER_TICK; j++)
-                {
-                    if (unknownTransactions[j >> 6] & (1ULL << (j & 63)))
-                    {
-                        if (&entityPendingTransactionDigests[i * 32ULL] == nextTickData.transactionDigests[j])
-                        {
-                            ts.tickTransactions.acquireLock();
-                            // write tx to tick tx storage, no matter if tsNextTickTransactionOffsets[i] is 0 (new tx)
-                            // or not (tx with digest that doesn't match tickData needs to be overwritten)
-                            {
-                                const unsigned int transactionSize = pendingTransaction->totalSize();
-                                if (ts.nextTickTransactionOffset + transactionSize <= ts.tickTransactions.storageSpaceCurrentEpoch)
-                                {
-                                    tsPendingTransactionOffsets[j] = ts.nextTickTransactionOffset;
-                                    copyMem(ts.tickTransactions(ts.nextTickTransactionOffset), pendingTransaction, transactionSize);
-                                    ts.nextTickTransactionOffset += transactionSize;
-
-                                    numberOfKnownNextTickTransactions++;
-                                }
-                            }
-                            ts.tickTransactions.releaseLock();
-
-                            unknownTransactions[j >> 6] &= ~(1ULL << (j & 63));
-
-                            break;
-                        }
-                    }
-                }
-
-                RELEASE(entityPendingTransactionsLock);
-            }
-        }
+        pendingTxsPool.releaseLock();
 
         // At this point unknownTransactions is set to 1 for all transactions that are unknown
         // Update requestedTickTransactions the list of txs that not exist in memory so the MAIN loop can try to fetch them from peers
@@ -4546,7 +4311,8 @@ static void prepareNextTickTransactions()
         // As processNextTickTransactions returns tx for which the flag ist set to 0 (tx with flag set to 1 are not returned)
 
         // We check if the last tickTransactionRequest it already sent
-        if(requestedTickTransactions.requestedTickTransactions.tick == 0){
+        if (requestedTickTransactions.requestedTickTransactions.tick == 0)
+        {
             // Initialize transactionFlags to one so that by default we do not request any transaction
             setMem(requestedTickTransactions.requestedTickTransactions.transactionFlags, sizeof(requestedTickTransactions.requestedTickTransactions.transactionFlags), 0xff);
             for (unsigned int i = 0; i < NUMBER_OF_TRANSACTIONS_PER_TICK; i++)
@@ -5221,6 +4987,7 @@ static void tickProcessor(void*)
                                 system.tick++;
 
                                 updateNumberOfTickTransactions();
+                                pendingTxsPool.incrementFirstStoredTick();
 
                                 bool isBeginEpoch = false;
                                 if (epochTransitionState == 1)
@@ -5504,21 +5271,11 @@ static bool initialize()
     {
         if (!ts.init())
             return false;
-        if (!allocPoolWithErrorLog(L"entityPendingTransaction buffer", SPECTRUM_CAPACITY * MAX_TRANSACTION_SIZE,(void**)&entityPendingTransactions, __LINE__) ||
-            !allocPoolWithErrorLog(L"entityPendingTransaction buffer", SPECTRUM_CAPACITY * 32ULL,(void**)&entityPendingTransactionDigests , __LINE__))
-        {
-            return false;
-        }
 
-        if (!allocPoolWithErrorLog(L"computorPendingTransactions buffer", NUMBER_OF_COMPUTORS * MAX_NUMBER_OF_PENDING_TRANSACTIONS_PER_COMPUTOR * MAX_TRANSACTION_SIZE, (void**)&computorPendingTransactions, __LINE__) ||
-            !allocPoolWithErrorLog(L"computorPendingTransactions buffer", NUMBER_OF_COMPUTORS * MAX_NUMBER_OF_PENDING_TRANSACTIONS_PER_COMPUTOR * 32ULL, (void**)&computorPendingTransactionDigests, __LINE__))
-        {
-            return false;
-        }
-        
+        if (!pendingTxsPool.init())
+            return false;        
 
         setMem(spectrumChangeFlags, sizeof(spectrumChangeFlags), 0);
-
 
         if (!initSpectrum())
             return false;
@@ -5591,7 +5348,7 @@ static bool initialize()
 
         lastExpectedTickTransactionDigest = m256i::zero();
 
-        //Init custom mining data. Reset function will be called in beginEpoch()
+        // Init custom mining data. Reset function will be called in beginEpoch()
         customMiningInitialize();
 
         beginEpoch();
@@ -5601,6 +5358,9 @@ static bool initialize()
 
 #if TICK_STORAGE_AUTOSAVE_MODE
         bool canLoadFromFile = loadAllNodeStates();
+
+        // loading might have changed system.tick, so restart pendingTxsPool 
+        pendingTxsPool.beginEpoch(system.tick);
 #else
         bool canLoadFromFile = false;
 #endif
@@ -5697,6 +5457,7 @@ static bool initialize()
         }
     }
 
+    initializeContractErrors();
     initializeContracts();
 
     if (loadMiningSeedFromFile)
@@ -5859,23 +5620,9 @@ static void deinitialize()
         }
     }
 
-    if (computorPendingTransactionDigests)
-    {
-        freePool(computorPendingTransactionDigests);
-    }
-    if (computorPendingTransactions)
-    {
-        freePool(computorPendingTransactions);
-    }
-    if (entityPendingTransactionDigests)
-    {
-        freePool(entityPendingTransactionDigests);
-    }
-    if (entityPendingTransactions)
-    {
-        freePool(entityPendingTransactions);
-    }
     ts.deinit();
+
+    pendingTxsPool.deinit();
 
     if (score)
     {
@@ -6069,21 +5816,6 @@ static void logInfo()
     }
     logToConsole(message);
 
-    unsigned int numberOfPendingTransactions = 0;
-    for (unsigned int i = 0; i < NUMBER_OF_COMPUTORS * MAX_NUMBER_OF_PENDING_TRANSACTIONS_PER_COMPUTOR; i++)
-    {
-        if (((Transaction*)&computorPendingTransactions[i * MAX_TRANSACTION_SIZE])->tick > system.tick)
-        {
-            numberOfPendingTransactions++;
-        }
-    }
-    for (unsigned int i = 0; i < SPECTRUM_CAPACITY; i++)
-    {
-        if (((Transaction*)&entityPendingTransactions[i * MAX_TRANSACTION_SIZE])->tick > system.tick)
-        {
-            numberOfPendingTransactions++;
-        }
-    }
     if (nextTickTransactionsSemaphore)
     {
         setText(message, L"?");
@@ -6129,7 +5861,7 @@ static void logInfo()
         appendNumber(message, td.millisecond % 10, FALSE);
         appendText(message, L".) ");
     }
-    appendNumber(message, numberOfPendingTransactions, TRUE);
+    appendNumber(message, pendingTxsPool.getTotalNumberOfPendingTxs(system.tick), TRUE);
     appendText(message, L" pending transactions.");
     logToConsole(message);
 
@@ -6661,7 +6393,11 @@ static void processKeyPresses()
         case 0x12:
         {
             logToConsole(L"Pressed F8 key");
-            requestPersistingNodeState = 1;
+#if TICK_STORAGE_AUTOSAVE_MODE
+            ATOMIC_STORE32(requestPersistingNodeState, 1);
+#else
+            logToConsole(L"Manual trigger saving snapshot is disabled.");
+#endif
         }
         break;
 
@@ -7232,7 +6968,7 @@ EFI_STATUS efi_main(EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE* systemTable)
                         // Start auto save if nextAutoSaveTick == system.tick (or if the main loop has missed nextAutoSaveTick)
                         if (system.tick >= nextPersistingNodeStateTick)
                         {
-                            requestPersistingNodeState = 1;
+                            ATOMIC_STORE32(requestPersistingNodeState, 1);
                             while (system.tick >= nextPersistingNodeStateTick)
                             {
                                 nextPersistingNodeStateTick += TICK_STORAGE_AUTOSAVE_TICK_PERIOD;
@@ -7256,7 +6992,7 @@ EFI_STATUS efi_main(EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE* systemTable)
 #ifdef ENABLE_PROFILING
                     gProfilingDataCollector.writeToFile();
 #endif
-                    requestPersistingNodeState = 0;
+                    ATOMIC_STORE32(requestPersistingNodeState, 0);
                     logToConsole(L"Complete saving all node states");
                 }
 #if TICK_STORAGE_AUTOSAVE_MODE == 1
