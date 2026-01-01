@@ -770,6 +770,7 @@ private:
     PRE_ACQUIRE_SHARES()
     {
         output.allowTransfer = true;
+        output.requestedFee = 100;
     }
 
     struct BEGIN_EPOCH_locals
