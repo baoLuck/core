@@ -728,6 +728,7 @@ private:
         {
             if (locals.usedIds.contains(state._dealIndexOwnerMap.value(locals.elementIndex)))
             {
+                locals.elementIndex = state._dealIndexOwnerMap.nextElementIndex(locals.elementIndex);
                 continue;
             }
             locals.usedIds.add(state._dealIndexOwnerMap.value(locals.elementIndex));
@@ -744,7 +745,7 @@ private:
                     }
                     else
                     {
-                        locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
+                        locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex2);
                         output.proposedDeals.set(locals.elementIndex3, locals.tempDeal);
                         locals.elementIndex3++;
                     }
@@ -752,7 +753,7 @@ private:
 
                 if (locals.tempDeal.acceptorId == SELF
                     && locals.elementIndex4 < 64
-                    && state._deals.pov(locals.elementIndex) != input.owner)
+                    && state._deals.pov(locals.elementIndex2) != input.owner)
                 {
                     if (input.publicDealsOffset > 0)
                     {
@@ -760,7 +761,7 @@ private:
                     }
                     else
                     {
-                        locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex);
+                        locals.tempDeal.acceptorId = state._deals.pov(locals.elementIndex2);
                         output.publicDeals.set(locals.elementIndex4, locals.tempDeal);
                         locals.elementIndex4++;
                     }   
