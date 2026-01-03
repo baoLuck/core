@@ -765,7 +765,9 @@ private:
                         locals.elementIndex4++;
                     }   
                 }
+                locals.elementIndex2 = state._deals.nextElementIndex(locals.elementIndex2);
             }
+            locals.elementIndex = state._dealIndexOwnerMap.nextElementIndex(locals.elementIndex);
         }
 
         output.proposedDealsAmount = locals.elementIndex3;
