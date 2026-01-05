@@ -1,5 +1,3 @@
-#include "qpi.h"
-
 using namespace QPI;
 
 constexpr uint64 ESCROW_INITIAL_MAX_DEALS = 262144ULL;
