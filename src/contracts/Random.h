@@ -818,7 +818,7 @@ private:
         sint64 reservedAssetIndex;
         AssetWithAmount tempAssetWithAmount;
         uint64 quForReturn;
-        HashSet<id, ESCROW_MAX_DEALS> usedIds;
+        HashSet<id, 131072> usedIds;
     };
 
     BEGIN_EPOCH_WITH_LOCALS()
