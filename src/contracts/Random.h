@@ -126,6 +126,7 @@ private:
     sint64 _currentDealIndex;
     Collection<Deal, ESCROW_MAX_DEALS> _deals;
     HashMap<sint64, id, ESCROW_MAX_DEALS> _dealIndexOwnerMap;
+    HashSet<id, ESCROW_MAX_DEALS> _ownersSet;
     Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
 
     id _devAddress;
@@ -263,6 +264,10 @@ private:
         locals.newDeal.requestedAssetsNumber = input.requestedAssetsNumber;
         locals.newDeal.creationEpoch = qpi.epoch();
 
+        if (state._deals.population(qpi.invocator()) == 0)
+        {
+            state._ownersSet.add(qpi.invocator());
+        }
         state._deals.add(qpi.invocator(), locals.newDeal, 0);
         state._dealIndexOwnerMap.set(locals.newDeal.index, qpi.invocator());
         state._earnedAmount += ESCROW_BASE_FEE;
@@ -525,6 +530,10 @@ private:
 
         state._deals.remove(locals.dealIndexInCollection);
         state._dealIndexOwnerMap.removeByKey(input.index);
+        if (state._deals.population(state._deals.pov(locals.dealIndexInCollection)) == 0)
+        {
+            state._ownersSet.remove(state._deals.pov(locals.dealIndexInCollection));
+        }
 
         state._earnedAmount += ESCROW_BASE_FEE;
         state._earnedAmount += QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
@@ -644,6 +653,10 @@ private:
 
         state._deals.remove(locals.dealIndexInCollection);
         state._dealIndexOwnerMap.removeByKey(input.index);
+        if (state._deals.population(qpi.invocator()) == 0)
+        {
+            state._ownersSet.remove(qpi.invocator());
+        }
     }
 
     struct TransferShareManagementRights_locals
@@ -699,7 +712,6 @@ private:
         sint64 elementIndex3;
         sint64 elementIndex4;
         Deal tempDeal;
-        HashSet<id, 64> usedIds;
     };
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
@@ -719,17 +731,10 @@ private:
 
         locals.elementIndex3 = 0;
         locals.elementIndex4 = 0;
-        locals.elementIndex = state._dealIndexOwnerMap.nextElementIndex(NULL_INDEX);
+        locals.elementIndex = state._ownersSet.nextElementIndex(NULL_INDEX);
         while (locals.elementIndex != NULL_INDEX)
         {
-            if (locals.usedIds.contains(state._dealIndexOwnerMap.value(locals.elementIndex)))
-            {
-                locals.elementIndex = state._dealIndexOwnerMap.nextElementIndex(locals.elementIndex);
-                continue;
-            }
-            locals.usedIds.add(state._dealIndexOwnerMap.value(locals.elementIndex));
-
-            locals.elementIndex2 = state._deals.headIndex(state._dealIndexOwnerMap.value(locals.elementIndex));
+            locals.elementIndex2 = state._deals.headIndex(state._ownersSet.key(locals.elementIndex));
             while (locals.elementIndex2 != NULL_INDEX)
             {
                 locals.tempDeal = state._deals.element(locals.elementIndex2);
@@ -764,7 +769,7 @@ private:
                 }
                 locals.elementIndex2 = state._deals.nextElementIndex(locals.elementIndex2);
             }
-            locals.elementIndex = state._dealIndexOwnerMap.nextElementIndex(locals.elementIndex);
+            locals.elementIndex = state._ownersSet.nextElementIndex(locals.elementIndex);
         }
 
         output.proposedDealsAmount = locals.elementIndex3;
@@ -818,24 +823,16 @@ private:
         sint64 reservedAssetIndex;
         AssetWithAmount tempAssetWithAmount;
         uint64 quForReturn;
-        HashSet<id, 131072> usedIds;
     };
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
         state._devAddress = ID(_E, _S, _C, _R, _O, _W, _F, _P, _Z, _M, _F, _P, _D, _F, _T, _M, _G, _K, _N, _N, _Z, _L, _N, _B, _U, _J, _L, _C, _W, _G, _B, _U, _L, _K, _S, _N, _W, _L, _S, _D, _R, _G, _T, _Y, _T, _B, _E, _M, _F, _O, _X, _B, _C, _A, _E, _H);
         
-        locals.ownerIndex = state._dealIndexOwnerMap.nextElementIndex(NULL_INDEX);
+        locals.ownerIndex = state._ownersSet.nextElementIndex(NULL_INDEX);
         while (locals.ownerIndex != NULL_INDEX)
         {
-            if (locals.usedIds.contains(state._dealIndexOwnerMap.value(locals.ownerIndex)))
-            {
-                locals.ownerIndex = state._dealIndexOwnerMap.nextElementIndex(locals.ownerIndex);
-                continue;
-            }
-            locals.usedIds.add(state._dealIndexOwnerMap.value(locals.ownerIndex));
-
-            locals.dealIndex = state._deals.headIndex(state._dealIndexOwnerMap.value(locals.ownerIndex));
+            locals.dealIndex = state._deals.headIndex(state._ownersSet.key(locals.ownerIndex));
             while (locals.dealIndex != NULL_INDEX)
             {
                 locals.tempDeal = state._deals.element(locals.dealIndex);
@@ -895,8 +892,12 @@ private:
 
                 state._dealIndexOwnerMap.removeByKey(locals.tempDeal.index);
                 locals.dealIndex = state._deals.remove(locals.dealIndex);
+                if (state._deals.population(state._deals.pov(locals.dealIndex)) == 0)
+                {
+                    state._ownersSet.remove(state._deals.pov(locals.dealIndex));
+                }
             }
-            locals.ownerIndex = state._dealIndexOwnerMap.nextElementIndex(locals.ownerIndex);
+            locals.ownerIndex = state._ownersSet.nextElementIndex(locals.ownerIndex);
         }
     }
 
