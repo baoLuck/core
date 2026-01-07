@@ -117,7 +117,7 @@ public:
         uint64 freeAmount;
     };
 
-private:
+protected:
     uint64 _earnedAmount;
     uint64 _distributedAmount;
     HashSet<Asset, ESCROW_MAX_RESERVED_ASSETS> _earnedTokens;
@@ -507,12 +507,12 @@ private:
         qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
         qpi.transfer(state._deals.pov(locals.dealIndexInCollection), locals.tempDeal.requestedQU - QPI::div(locals.tempDeal.requestedQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
 
-        state._deals.remove(locals.dealIndexInCollection);
-        state._dealIndexOwnerMap.removeByKey(input.index);
-        if (state._deals.population(state._deals.pov(locals.dealIndexInCollection)) == 0)
+        if (state._deals.population(state._deals.pov(locals.dealIndexInCollection)) == 1)
         {
             state._ownersSet.remove(state._deals.pov(locals.dealIndexInCollection));
         }
+        state._deals.remove(locals.dealIndexInCollection);
+        state._dealIndexOwnerMap.removeByKey(input.index);
 
         state._earnedAmount += ESCROW_BASE_FEE;
         state._earnedAmount += QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
@@ -870,11 +870,11 @@ private:
                 }
 
                 state._dealIndexOwnerMap.removeByKey(locals.tempDeal.index);
-                locals.dealIndex = state._deals.remove(locals.dealIndex);
-                if (state._deals.population(state._deals.pov(locals.dealIndex)) == 0)
+                if (state._deals.population(state._deals.pov(locals.dealIndex)) == 1)
                 {
                     state._ownersSet.remove(state._deals.pov(locals.dealIndex));
                 }
+                locals.dealIndex = state._deals.remove(locals.dealIndex);
             }
             locals.ownerIndex = state._ownersSet.nextElementIndex(locals.ownerIndex);
         }
@@ -952,5 +952,11 @@ private:
             locals.elementIndex = state._earnedTokens.nextElementIndex(locals.elementIndex);
             state._earnedTokens.remove(locals.tempAsset);
         }
+
+        state._deals.cleanupIfNeeded();
+        state._dealIndexOwnerMap.cleanupIfNeeded();
+        state._ownersSet.cleanupIfNeeded();
+        state._earnedTokens.cleanupIfNeeded();
+        state._reservedAssets.cleanupIfNeeded();
     }
 };
