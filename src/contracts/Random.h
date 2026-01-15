@@ -5,10 +5,10 @@ constexpr uint64 ESCROW_MAX_DEALS = ESCROW_INITIAL_MAX_DEALS * X_MULTIPLIER;
 constexpr uint64 ESCROW_MAX_DEALS_PER_USER = 8;
 constexpr uint64 ESCROW_MAX_ASSETS_IN_DEAL = 4;
 constexpr uint64 ESCROW_MAX_RESERVED_ASSETS = ESCROW_MAX_DEALS * ESCROW_MAX_ASSETS_IN_DEAL;
-constexpr uint64 ESCROW_DEAL_EXISTENCE_EPOCH_COUNT = 2;
+constexpr uint64 ESCROW_DEAL_EXISTENCE_EPOCH_COUNT = 4;
 
 constexpr uint64 ESCROW_BASE_FEE = 250000ULL;
-constexpr uint64 ESCROW_ADDITIONAL_FEE_PERCENT = 200; // 2%
+constexpr uint64 ESCROW_ADDITIONAL_FEE_PERCENT = 100; // 1%
 constexpr uint64 ESCROW_FEE_PER_SHARE = 1500000ULL;
 
 constexpr uint64 ESCROW_SHAREHOLDERS_TOKEN_DISTRIBUTION_PERCENT = 9500; // 95%
@@ -348,7 +348,7 @@ protected:
 
         if (!locals.error)
         {
-            locals.requestedQuAndFee = locals.tempDeal.requestedQU + ESCROW_BASE_FEE;
+            locals.requestedQuAndFee = locals.tempDeal.requestedQU;
 
             for (locals.counter = 0; locals.counter < locals.tempDeal.requestedAssetsNumber; locals.counter++)
             {
@@ -504,8 +504,15 @@ protected:
             }
         }
 
-        qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
-        qpi.transfer(state._deals.pov(locals.dealIndexInCollection), locals.tempDeal.requestedQU - QPI::div(locals.tempDeal.requestedQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
+        if (locals.tempDeal.offeredQU > 0)
+        {
+            qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
+        }
+        
+        if (locals.tempDeal.requestedQU > 0)
+        {
+            qpi.transfer(state._deals.pov(locals.dealIndexInCollection), locals.tempDeal.requestedQU - QPI::div(locals.tempDeal.requestedQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
+        }
 
         if (state._deals.population(state._deals.pov(locals.dealIndexInCollection)) == 1)
         {
@@ -514,10 +521,9 @@ protected:
         state._deals.remove(locals.dealIndexInCollection);
         state._dealIndexOwnerMap.removeByKey(input.index);
 
-        state._earnedAmount += ESCROW_BASE_FEE;
         state._earnedAmount += QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
         state._earnedAmount += QPI::div(locals.tempDeal.requestedQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
-        state._earnedAmount += ((locals.requestedQuAndFee - locals.tempDeal.requestedQU - ESCROW_BASE_FEE) * 2);
+        state._earnedAmount += ((locals.requestedQuAndFee - locals.tempDeal.requestedQU) * 2);
     }
 
     struct MakeDealPublic_locals
