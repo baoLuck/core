@@ -188,14 +188,16 @@ protected:
                 || state._deals.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER
                 || (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0)
                 || input.offeredQU >= MAX_AMOUNT
-                || input.requestedQU >= MAX_AMOUNT)
+                || input.requestedQU >= MAX_AMOUNT
+                || input.offeredAssetsNumber > ESCROW_MAX_ASSETS_IN_DEAL
+                || input.requestedAssetsNumber > ESCROW_MAX_ASSETS_IN_DEAL)
         {
             locals.error = true;
         }
 
         if (!locals.error)
         {
-            locals.offeredQuAndFee = input.offeredQU + ESCROW_BASE_FEE;
+            locals.offeredQuAndFee = sadd(input.offeredQU, ESCROW_BASE_FEE);
 
             for (locals.counter = 0; locals.counter < input.offeredAssetsNumber; locals.counter++)
             {
@@ -216,7 +218,7 @@ protected:
 
                 if (input.offeredAssets.get(locals.counter).issuer == NULL_ID)
                 {
-                    locals.offeredQuAndFee += input.offeredAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE;
+                    locals.offeredQuAndFee = sadd(smul(input.offeredAssets.get(locals.counter).amount, ESCROW_FEE_PER_SHARE), locals.offeredQuAndFee);
                 }
             }
         }
@@ -233,7 +235,7 @@ protected:
 
                 if (input.requestedAssets.get(locals.counter).issuer == NULL_ID)
                 {
-                    locals.offeredQuAndFee += input.requestedAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE;
+                    locals.offeredQuAndFee = sadd(smul(input.requestedAssets.get(locals.counter).amount, ESCROW_FEE_PER_SHARE), locals.offeredQuAndFee);
                 }
             }
         }
@@ -367,7 +369,7 @@ protected:
 
                 if (locals.tempDeal.requestedAssets.get(locals.counter).issuer == NULL_ID)
                 {
-                    locals.requestedQuAndFee += (locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
+                    locals.requestedQuAndFee = sadd(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_FEE_PER_SHARE), locals.requestedQuAndFee);
                 }
             }
 
@@ -375,7 +377,7 @@ protected:
             {
                 if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
                 {
-                    locals.requestedQuAndFee += (locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
+                    locals.requestedQuAndFee = sadd(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_FEE_PER_SHARE), locals.requestedQuAndFee);
                 }
             }
         }
@@ -410,7 +412,7 @@ protected:
             }
             else
             {
-                locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount - QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
+                locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount - QPI::div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
                 qpi.transferShareOwnershipAndPossession(
                         locals.tempDeal.offeredAssets.get(locals.counter).name,
                         locals.tempDeal.offeredAssets.get(locals.counter).issuer,
@@ -419,7 +421,7 @@ protected:
                         locals.transferredShares,
                         qpi.invocator());
 
-                locals.transferredFeeShares = QPI::div(locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
+                locals.transferredFeeShares = QPI::div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
                 qpi.transferShareOwnershipAndPossession(
                         locals.tempDeal.offeredAssets.get(locals.counter).name,
                         locals.tempDeal.offeredAssets.get(locals.counter).issuer,
@@ -483,7 +485,7 @@ protected:
                     locals.tempDeal.requestedAssets.get(locals.counter).issuer,
                     qpi.invocator(),
                     qpi.invocator(),
-                    locals.tempDeal.requestedAssets.get(locals.counter).amount - QPI::div(locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL),
+                    locals.tempDeal.requestedAssets.get(locals.counter).amount - smul(QPI::div(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL),
                     state._deals.pov(locals.dealIndexInCollection));
 
                 qpi.transferShareOwnershipAndPossession(
@@ -491,7 +493,7 @@ protected:
                     locals.tempDeal.requestedAssets.get(locals.counter).issuer,
                     qpi.invocator(),
                     qpi.invocator(),
-                    QPI::div(locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL),
+                    QPI::div(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL),
                     SELF);
             }
 
@@ -506,12 +508,12 @@ protected:
 
         if (locals.tempDeal.offeredQU > 0)
         {
-            qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
+            qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - smul(QPI::div(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
         }
         
         if (locals.tempDeal.requestedQU > 0)
         {
-            qpi.transfer(state._deals.pov(locals.dealIndexInCollection), locals.tempDeal.requestedQU - QPI::div(locals.tempDeal.requestedQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL));
+            qpi.transfer(state._deals.pov(locals.dealIndexInCollection), locals.tempDeal.requestedQU - smul(QPI::div(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
         }
 
         if (state._deals.population(state._deals.pov(locals.dealIndexInCollection)) == 1)
@@ -521,9 +523,9 @@ protected:
         state._deals.remove(locals.dealIndexInCollection);
         state._dealIndexOwnerMap.removeByKey(input.index);
 
-        state._earnedAmount += QPI::div(locals.tempDeal.offeredQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
-        state._earnedAmount += QPI::div(locals.tempDeal.requestedQU * ESCROW_ADDITIONAL_FEE_PERCENT, 10000ULL);
-        state._earnedAmount += ((locals.requestedQuAndFee - locals.tempDeal.requestedQU) * 2);
+        state._earnedAmount = sadd(QPI::div(smul(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL), state._earnedAmount);
+        state._earnedAmount = sadd(QPI::div(smul(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL), state._earnedAmount);
+        state._earnedAmount = sadd((locals.requestedQuAndFee - locals.tempDeal.requestedQU) * 2, state._earnedAmount);
     }
 
     struct MakeDealPublic_locals
@@ -622,7 +624,7 @@ protected:
 
             if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
             {
-                locals.quForReturn += (locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
+                locals.quForReturn = sadd(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_FEE_PER_SHARE), locals.quForReturn);
             }
         }
 
@@ -630,7 +632,7 @@ protected:
         {
             if (locals.tempDeal.requestedAssets.get(locals.counter).issuer == NULL_ID)
             {
-                locals.quForReturn += (locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
+                locals.quForReturn = sadd(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_FEE_PER_SHARE), locals.quForReturn);
             }
         }
 
@@ -656,7 +658,8 @@ protected:
         output.transferredShares = 0;
         CALL_OTHER_CONTRACT_FUNCTION(QX, Fees, locals.feesInput, locals.feesOutput);
 
-        if (qpi.invocationReward() < locals.feesOutput.transferFee
+        if (interContractCallError > 0
+                || qpi.invocationReward() < locals.feesOutput.transferFee
                 || input.amount >= MAX_AMOUNT)
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
@@ -856,7 +859,7 @@ protected:
 
                     if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
                     {
-                        locals.quForReturn += (locals.tempDeal.offeredAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
+                        locals.quForReturn = sadd(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_FEE_PER_SHARE), locals.quForReturn);
                     }
                 }
 
@@ -864,7 +867,7 @@ protected:
                 {
                     if (locals.tempDeal.requestedAssets.get(locals.counter).issuer == NULL_ID)
                     {
-                        locals.quForReturn += (locals.tempDeal.requestedAssets.get(locals.counter).amount * ESCROW_FEE_PER_SHARE);
+                        locals.quForReturn = sadd(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_FEE_PER_SHARE), locals.quForReturn);
                     }
                 }
 
