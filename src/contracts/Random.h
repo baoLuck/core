@@ -784,8 +784,11 @@ protected:
             {
                 input.proposedDealsOffset--;
             }
-            else if (state._deals.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.tempDeal) && locals.elementIndex3 < 32)
+            else if (state._deals.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.tempDeal)
+                        && state._dealIndexOwnerMap.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.dealOwner)
+                        && locals.elementIndex3 < 32)
             {
+                locals.tempDeal.acceptorId = locals.dealOwner;
                 output.proposedDeals.set(locals.elementIndex3, locals.tempDeal);
                 locals.elementIndex3++;
             }
@@ -805,6 +808,7 @@ protected:
                         && locals.elementIndex4 < 64
                         && locals.dealOwner != input.owner)
             {
+                locals.tempDeal.acceptorId = locals.dealOwner;
                 output.publicDeals.set(locals.elementIndex4, locals.tempDeal);
                 locals.elementIndex4++;
             }
