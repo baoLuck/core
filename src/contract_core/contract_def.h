@@ -258,6 +258,20 @@
 
 #endif
 
+#ifndef NO_ESCROW
+
+#undef CONTRACT_INDEX
+#undef CONTRACT_STATE_TYPE
+#undef CONTRACT_STATE2_TYPE
+
+#define ESCROW_CONTRACT_INDEX 25
+#define CONTRACT_INDEX ESCROW_CONTRACT_INDEX
+#define CONTRACT_STATE_TYPE ESCROW
+#define CONTRACT_STATE2_TYPE ESCROW2
+#include "contracts/Escrow.h"
+
+#endif
+
 // new contracts should be added above this line
 
 #ifdef INCLUDE_CONTRACT_TEST_EXAMPLES
@@ -371,6 +385,9 @@ constexpr struct ContractDescription
     {"QDUEL", 199, 10000, sizeof(QDUEL)}, // proposal in epoch 197, IPO in 198, construction and first use in 199
 #ifndef NO_PULSE
 	{"PULSE", 202, 10000, sizeof(PULSE)}, // proposal in epoch 200, IPO in 201, construction and first use in 202
+#endif
+#ifndef NO_ESCROW
+	{"ESCROW", 202, 10000, sizeof(ESCROW)},
 #endif
     // new contracts should be added above this line
 #ifdef INCLUDE_CONTRACT_TEST_EXAMPLES
@@ -493,6 +510,9 @@ static void initializeContracts()
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QDUEL);
 #ifndef NO_PULSE
 	REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(PULSE);
+#endif
+#ifndef NO_ESCROW
+	REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(ESCROW);
 #endif
     // new contracts should be added above this line
 #ifdef INCLUDE_CONTRACT_TEST_EXAMPLES

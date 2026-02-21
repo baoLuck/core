@@ -23,7 +23,7 @@ public:
 
     uint64_t getDealsAmount(const id& pov)
     {
-        return _deals.population(pov);
+        return _ownerDealIndexes.population(pov);
     }
 };
 
@@ -234,19 +234,19 @@ TEST(ContractEscrow, OperateDeal)
     escrow.operateDeal(testAddress2, 2, EscrowOperation::AcceptDeal, 1);
     EXPECT_EQ(escrow.getState()->getDealsAmount(), 0);
 
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString("TOKEN"), testAddress2, testAddress1, testAddress1, ESCROW_CONTRACT_INDEX, ESCROW_CONTRACT_INDEX), 490000);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString("TOKEN"), testAddress2, id(ESCROW_CONTRACT_INDEX, 0, 0, 0), id(ESCROW_CONTRACT_INDEX, 0, 0, 0), ESCROW_CONTRACT_INDEX, ESCROW_CONTRACT_INDEX), 10000);  // 2% commission
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString("TOKEN"), testAddress2, testAddress1, testAddress1, ESCROW_CONTRACT_INDEX, ESCROW_CONTRACT_INDEX), 495000);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString("TOKEN"), testAddress2, id(ESCROW_CONTRACT_INDEX, 0, 0, 0), id(ESCROW_CONTRACT_INDEX, 0, 0, 0), ESCROW_CONTRACT_INDEX, ESCROW_CONTRACT_INDEX), 5000);  // 1% commission
 
     // token distribution to shareholders
     escrow.endEpoch();
-    // shareHolder address has 10 ESCROW shares and should receive: 10000 TOKEN / 676 shares = 14 TOKEN per share, and 14 TOKEN per share * 10 shares = 140 TOKEN
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString("TOKEN"), testAddress2, shareHolder, shareHolder, ESCROW_CONTRACT_INDEX, ESCROW_CONTRACT_INDEX), 140);
+    // shareHolder address has 10 ESCROW shares and should receive: 5000 TOKEN / 676 shares = 7 TOKEN per share, and 7 TOKEN per share * 10 shares = 70 TOKEN
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString("TOKEN"), testAddress2, shareHolder, shareHolder, ESCROW_CONTRACT_INDEX, ESCROW_CONTRACT_INDEX), 70);
 
     escrow.beginEpoch();
     escrow.createDeal(testAddress2, input, 1250000);
     EXPECT_EQ(escrow.getState()->getDealsAmount(), 1);
     escrow.endEpoch();
-    system.epoch += 2;
+    system.epoch += 4;
     escrow.beginEpoch();
     EXPECT_EQ(escrow.getState()->getDealsAmount(), 0);
 }

@@ -1421,11 +1421,6 @@ namespace QPI
 	{
 		id issuer;
 		uint64 assetName;
-
-		bool operator==(const Asset& other) const
-		{
-			return (issuer == other.issuer) && (assetName == other.assetName);
-		}
 	};
 
 	struct AssetIssuanceSelect : public Asset
