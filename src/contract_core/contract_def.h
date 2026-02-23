@@ -38,10 +38,10 @@
 #undef CONTRACT_STATE_TYPE
 #undef CONTRACT_STATE2_TYPE
 
-#define ESCROW_CONTRACT_INDEX 3
-#define CONTRACT_INDEX ESCROW_CONTRACT_INDEX
-#define CONTRACT_STATE_TYPE ESCROW
-#define CONTRACT_STATE2_TYPE ESCROW2
+#define RANDOM_CONTRACT_INDEX 3
+#define CONTRACT_INDEX RANDOM_CONTRACT_INDEX
+#define CONTRACT_STATE_TYPE RANDOM
+#define CONTRACT_STATE2_TYPE RANDOM2
 #include "contracts/Random.h"
 
 #undef CONTRACT_INDEX
@@ -188,10 +188,10 @@
 #undef CONTRACT_STATE_TYPE
 #undef CONTRACT_STATE2_TYPE
 
-#define QLOAN_CONTRACT_INDEX 18
-#define CONTRACT_INDEX QLOAN_CONTRACT_INDEX
-#define CONTRACT_STATE_TYPE QLOAN
-#define CONTRACT_STATE2_TYPE QLOAN2
+#define QIP_CONTRACT_INDEX 18
+#define CONTRACT_INDEX QIP_CONTRACT_INDEX
+#define CONTRACT_STATE_TYPE QIP
+#define CONTRACT_STATE2_TYPE QIP2
 #include "contracts/QIP.h"
 
 #undef CONTRACT_INDEX
@@ -477,7 +477,7 @@ constexpr struct ContractDescription
     {"", 0, 0, sizeof(Contract0State)},
     {"QX", 66, 10000, sizeof(QX)},
     {"QTRY", 72, 10000, sizeof(QUOTTERY)},
-    {"ESCROW", 201, 10000, sizeof(IPO)},
+    {"RANDOM", 201, 10000, sizeof(IPO)},
     {"QUTIL", 99, 10000, sizeof(QUTIL)},
     {"MLM", 112, 10000, sizeof(IPO)},
     {"GQMPROP", 123, 10000, sizeof(GQMPROP)},
@@ -492,7 +492,7 @@ constexpr struct ContractDescription
     {"QDRAW", 179, 10000, sizeof(QDRAW)}, // proposal in epoch 177, IPO in 178, construction and first use in 179
     {"RL", 182, 10000, sizeof(RL)}, // proposal in epoch 180, IPO in 181, construction and first use in 182
     {"QBOND", 182, 10000, sizeof(QBOND)}, // proposal in epoch 180, IPO in 181, construction and first use in 182
-    {"QLOAN", 201, 10000, sizeof(QLOAN)}, // proposal in epoch 187, IPO in 188, construction and first use in 189
+    {"QIP", 201, 10000, sizeof(QIP)}, // proposal in epoch 187, IPO in 188, construction and first use in 189
     {"QRAFFLE", 192, 10000, sizeof(QRAFFLE)}, // proposal in epoch 190, IPO in 191, construction and first use in 192
     {"QRWA", 197, 10000, sizeof(QRWA)}, // proposal in epoch 195, IPO in 196, construction and first use in 197
 	{"QRP", 199, 10000, sizeof(IPO)}, // proposal in epoch 197, IPO in 198, construction and first use in 199
@@ -613,7 +613,7 @@ static void initializeContracts()
 {
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QX);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QUOTTERY);
-    REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(ESCROW);
+    REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(RANDOM);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QUTIL);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(MLM);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(GQMPROP);
@@ -628,7 +628,7 @@ static void initializeContracts()
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QDRAW);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(RL);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QBOND);
-    REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QLOAN);
+    REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QIP);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QRAFFLE);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QRWA);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QRP);

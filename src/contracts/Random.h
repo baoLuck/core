@@ -15,11 +15,11 @@ constexpr uint64 ESCROW_SHAREHOLDERS_TOKEN_DISTRIBUTION_PERCENT = 9500; // 95%
 constexpr uint64 ESCROW_SHAREHOLDERS_QU_DISTRIBUTION_PERCENT = 9300; // 93%
 constexpr uint64 ESCROW_BURN_QU_PERCENT = 200; // 2%
 
-struct ESCROW2
+struct RANDOM2
 {
 };
 
-struct ESCROW : public ContractBase
+struct RANDOM : public ContractBase
 {
 public:
     struct AssetWithAmount
@@ -209,12 +209,12 @@ protected:
         locals.offeredQuAndFee = 0;
 
         if (state._ownerDealIndexes.population() >= ESCROW_MAX_DEALS
-            || state._ownerDealIndexes.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER
-            || (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0)
-            || input.offeredQU >= MAX_AMOUNT
-            || input.requestedQU >= MAX_AMOUNT
-            || input.offeredAssetsNumber > ESCROW_MAX_ASSETS_IN_DEAL
-            || input.requestedAssetsNumber > ESCROW_MAX_ASSETS_IN_DEAL)
+                || state._ownerDealIndexes.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER
+                || (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0)
+                || input.offeredQU >= MAX_AMOUNT
+                || input.requestedQU >= MAX_AMOUNT
+                || input.offeredAssetsNumber > ESCROW_MAX_ASSETS_IN_DEAL
+                || input.requestedAssetsNumber > ESCROW_MAX_ASSETS_IN_DEAL)
         {
             locals.error = true;
         }
@@ -232,9 +232,9 @@ protected:
                 locals.tempAsset.assetName = input.offeredAssets.get(locals.counter).name;
                 locals.tempAsset.issuer = input.offeredAssets.get(locals.counter).issuer;
                 if (input.offeredAssets.get(locals.counter).amount >= MAX_AMOUNT
-                    || input.offeredAssets.get(locals.counter).amount < 0
-                    || uint64(qpi.numberOfShares(locals.tempAsset, { qpi.invocator(), SELF_INDEX, false, false }, { qpi.invocator(), SELF_INDEX, false, false }) - state._numberOfReservedShares_output.amount)
-                    < input.offeredAssets.get(locals.counter).amount)
+                        || input.offeredAssets.get(locals.counter).amount < 0
+                        || uint64(qpi.numberOfShares(locals.tempAsset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount)
+                                < input.offeredAssets.get(locals.counter).amount)
                 {
                     locals.error = true;
                     break;
@@ -327,7 +327,7 @@ protected:
                     locals.elementIndex = state._reservedAssets.nextElementIndex(locals.elementIndex);
                 }
             }
-        }
+        } 
     }
 
     struct AcceptDeal_locals
@@ -354,9 +354,9 @@ protected:
         locals.requestedQuAndFee = 0;
 
         if (!state._deals.get(input.index, locals.tempDeal)
-            || !state._dealIndexOwnerMap.get(input.index, locals.dealOwner)
-            || locals.tempDeal.index != input.index
-            || (locals.tempDeal.acceptorId != SELF && locals.tempDeal.acceptorId != qpi.invocator()))
+                || !state._dealIndexOwnerMap.get(input.index, locals.dealOwner)
+                || locals.tempDeal.index != input.index
+                || (locals.tempDeal.acceptorId != SELF && locals.tempDeal.acceptorId != qpi.invocator()))
         {
             locals.error = true;
         }
@@ -373,8 +373,8 @@ protected:
                 CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
                 locals.tempAsset.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
                 locals.tempAsset.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
-                if (uint64(qpi.numberOfShares(locals.tempAsset, { qpi.invocator(), SELF_INDEX, false, false }, { qpi.invocator(), SELF_INDEX, false, false }) - state._numberOfReservedShares_output.amount)
-                    < locals.tempDeal.requestedAssets.get(locals.counter).amount)
+                if (uint64(qpi.numberOfShares(locals.tempAsset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount)
+                        < locals.tempDeal.requestedAssets.get(locals.counter).amount)
                 {
                     locals.error = true;
                     break;
@@ -416,32 +416,32 @@ protected:
                 locals.transferredFeeShares = 0;
                 locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount;
                 qpi.transferShareOwnershipAndPossession(
-                    locals.tempDeal.offeredAssets.get(locals.counter).name,
-                    locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                    locals.dealOwner,
-                    locals.dealOwner,
-                    locals.tempDeal.offeredAssets.get(locals.counter).amount,
-                    qpi.invocator());
+                        locals.tempDeal.offeredAssets.get(locals.counter).name,
+                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                        locals.dealOwner,
+                        locals.dealOwner,
+                        locals.tempDeal.offeredAssets.get(locals.counter).amount,
+                        qpi.invocator());
             }
             else
             {
                 locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount - div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
                 qpi.transferShareOwnershipAndPossession(
-                    locals.tempDeal.offeredAssets.get(locals.counter).name,
-                    locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                    locals.dealOwner,
-                    locals.dealOwner,
-                    locals.transferredShares,
-                    qpi.invocator());
+                        locals.tempDeal.offeredAssets.get(locals.counter).name,
+                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                        locals.dealOwner,
+                        locals.dealOwner,
+                        locals.transferredShares,
+                        qpi.invocator());
 
                 locals.transferredFeeShares = div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
                 qpi.transferShareOwnershipAndPossession(
-                    locals.tempDeal.offeredAssets.get(locals.counter).name,
-                    locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                    locals.dealOwner,
-                    locals.dealOwner,
-                    locals.transferredFeeShares,
-                    SELF);
+                        locals.tempDeal.offeredAssets.get(locals.counter).name,
+                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                        locals.dealOwner,
+                        locals.dealOwner,
+                        locals.transferredFeeShares,
+                        SELF);
             }
 
             locals.tempAsset.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
@@ -525,7 +525,7 @@ protected:
         {
             qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - div(smul(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
         }
-
+        
         if (locals.tempDeal.requestedQU > 0)
         {
             qpi.transfer(locals.dealOwner, locals.tempDeal.requestedQU - div(smul(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
@@ -582,9 +582,9 @@ protected:
         }
 
         if (!state._deals.get(input.index, locals.tempDeal)
-            || !state._dealIndexOwnerMap.get(input.index, locals.dealOwner)
-            || locals.dealOwner != qpi.invocator()
-            || locals.tempDeal.acceptorId == SELF)
+                || !state._dealIndexOwnerMap.get(input.index, locals.dealOwner)
+                || locals.dealOwner != qpi.invocator()
+                || locals.tempDeal.acceptorId == SELF)
         {
             return;
         }
@@ -625,8 +625,8 @@ protected:
         }
 
         if (!state._deals.get(input.index, locals.tempDeal)
-            || !state._dealIndexOwnerMap.get(input.index, locals.dealOwner)
-            || locals.dealOwner != qpi.invocator())
+                || !state._dealIndexOwnerMap.get(input.index, locals.dealOwner)
+                || locals.dealOwner != qpi.invocator())
         {
             return;
         }
@@ -723,7 +723,7 @@ protected:
         state._numberOfReservedShares_input.assetName = input.asset.assetName;
         state._numberOfReservedShares_input.owner = qpi.invocator();
         CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-        if (qpi.numberOfShares(input.asset, { qpi.invocator(), SELF_INDEX, false, false }, { qpi.invocator(), SELF_INDEX, false, false }) - state._numberOfReservedShares_output.amount < input.amount)
+        if (qpi.numberOfShares(input.asset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount < input.amount)
         {
             output.transferredShares = 0;
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
@@ -740,9 +740,9 @@ protected:
             {
                 output.transferredShares = input.amount;
                 if (qpi.invocationReward() > locals.result)
-                {
-                    qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.result);
-                }
+				{
+					qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.result);
+				}
             }
         }
     }
@@ -785,8 +785,8 @@ protected:
                 input.proposedDealsOffset--;
             }
             else if (state._deals.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.tempDeal)
-                && state._dealIndexOwnerMap.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.dealOwner)
-                && locals.elementIndex3 < 32)
+                        && state._dealIndexOwnerMap.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.dealOwner)
+                        && locals.elementIndex3 < 32)
             {
                 locals.tempDeal.acceptorId = locals.dealOwner;
                 output.proposedDeals.set(locals.elementIndex3, locals.tempDeal);
@@ -804,15 +804,15 @@ protected:
                 input.publicDealsOffset--;
             }
             else if (state._deals.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.tempDeal)
-                && state._dealIndexOwnerMap.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.dealOwner)
-                && locals.elementIndex4 < 64
-                && locals.dealOwner != input.owner)
+                        && state._dealIndexOwnerMap.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.dealOwner)
+                        && locals.elementIndex4 < 64
+                        && locals.dealOwner != input.owner)
             {
                 locals.tempDeal.acceptorId = locals.dealOwner;
                 output.publicDeals.set(locals.elementIndex4, locals.tempDeal);
                 locals.elementIndex4++;
             }
-
+            
             locals.elementIndex = state._acceptorDealIndexes.nextElementIndex(locals.elementIndex);
         }
 
@@ -832,7 +832,7 @@ protected:
         locals.reservedInput.assetName = input.asset.assetName;
         locals.reservedInput.owner = input.owner;
         CALL(_NumberOfReservedShares, locals.reservedInput, locals.reservedOutput);
-        output.freeAmount = qpi.numberOfShares(input.asset, { input.owner, SELF_INDEX, false, false }, { input.owner, SELF_INDEX, false, false }) - locals.reservedOutput.amount;
+        output.freeAmount = qpi.numberOfShares(input.asset, {input.owner, SELF_INDEX, false, false}, {input.owner, SELF_INDEX, false, false}) - locals.reservedOutput.amount;
     }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
@@ -881,7 +881,7 @@ protected:
             while (locals.dealIndex != NULL_INDEX)
             {
                 if (state._deals.get(state._ownerDealIndexes.element(locals.dealIndex), locals.tempDeal)
-                    && locals.tempDeal.creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT > qpi.epoch())
+                        && locals.tempDeal.creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT > qpi.epoch())
                 {
                     locals.dealIndex = state._ownerDealIndexes.nextElementIndex(locals.dealIndex);
                     continue;
@@ -999,7 +999,7 @@ protected:
         {
             locals.tempAsset = state._earnedTokens.key(locals.elementIndex);
 
-            locals.tempEarnedAmount = qpi.numberOfShares({ locals.tempAsset.issuer, locals.tempAsset.assetName }, { SELF, SELF_INDEX, false, false }, { SELF, SELF_INDEX, false, false });
+            locals.tempEarnedAmount = qpi.numberOfShares({ locals.tempAsset.issuer, locals.tempAsset.assetName }, {SELF, SELF_INDEX, false, false}, {SELF, SELF_INDEX, false, false});
             locals.tokenAmountToDistribute = div(smul(locals.tempEarnedAmount, ESCROW_SHAREHOLDERS_TOKEN_DISTRIBUTION_PERCENT), 10000ULL);
 
             if (locals.tokenAmountToDistribute < 676ULL)
@@ -1012,22 +1012,22 @@ protected:
             while (!locals.assetIt.reachedEnd())
             {
                 qpi.transferShareOwnershipAndPossession(
-                    locals.tempAsset.assetName,
-                    locals.tempAsset.issuer,
-                    SELF,
-                    SELF,
-                    div(locals.tokenAmountToDistribute, 676ULL) * locals.assetIt.numberOfOwnedShares(),
-                    locals.assetIt.owner());
+                        locals.tempAsset.assetName,
+                        locals.tempAsset.issuer,
+                        SELF,
+                        SELF,
+                        div(locals.tokenAmountToDistribute, 676ULL) * locals.assetIt.numberOfOwnedShares(),
+                        locals.assetIt.owner());
                 locals.assetIt.next();
             }
 
             qpi.transferShareOwnershipAndPossession(
-                locals.tempAsset.assetName,
-                locals.tempAsset.issuer,
-                SELF,
-                SELF,
-                qpi.numberOfShares({ locals.tempAsset.issuer, locals.tempAsset.assetName }, { SELF, SELF_INDEX, false, false }, { SELF, SELF_INDEX, false, false }),
-                state._devAddress);
+                        locals.tempAsset.assetName,
+                        locals.tempAsset.issuer,
+                        SELF,
+                        SELF,
+                        qpi.numberOfShares({ locals.tempAsset.issuer, locals.tempAsset.assetName }, {SELF, SELF_INDEX, false, false}, {SELF, SELF_INDEX, false, false}),
+                        state._devAddress);
 
             locals.elementIndex = state._earnedTokens.nextElementIndex(locals.elementIndex);
             state._earnedTokens.remove(locals.tempAsset);
