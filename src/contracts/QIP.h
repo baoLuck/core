@@ -1,565 +1,964 @@
+#include "qpi.h"
+
 using namespace QPI;
 
-constexpr uint32 QIP_MAX_NUMBER_OF_ICO = 1024;
+constexpr uint64 QLOAN_ACCEPTANCE_FEE_PERCENT = 15;
+constexpr uint64 QLOAN_DISTRIBUTE_PERCENT = 1500; // 15%
+constexpr uint64 QLOAN_BURN_PERCENT = 1500; // 15%
+constexpr uint64 QLOAN_QVAULT_PERCENT = 1500; // 15%
 
+constexpr uint64 QLOAN_MAX_LOAN_PERIOD_IN_EPOCHS = 52;
+constexpr uint64 QLOAN_MAX_INTEREST_RATE = 100;
+constexpr uint64 QLOAN_MAX_ASSETS_NUM = 2;
+constexpr uint64 QLOAN_MAX_OUTPUT_NUM = 128;
 
-enum QIPLogInfo {
-    QIP_success = 0,
-    QIP_invalidStartEpoch = 1,
-    QIP_invalidSaleAmount = 2,
-    QIP_invalidPrice = 3,
-    QIP_invalidPercent = 4,
-    QIP_invalidTransfer = 5,
-    QIP_overflowICO = 6,
-    QIP_ICONotFound = 7,
-    QIP_invalidAmount = 8,
-    QIP_invalidEpoch = 9,
-    QIP_insufficientInvocationReward = 10,
-};
+constexpr uint64 QLOAN_MAX_LOAN_REQS_NUM = 1024;
 
-struct QIPLogger
-{
-    uint32 _contractIndex;
-    uint32 _type; 
-    id dst;
-    sint64 amt;
-	sint8 _terminator;
-};
-
-struct QIP2 
+struct QLOAN2
 {
 };
 
-struct QIP : public ContractBase
+struct QLOAN : public ContractBase
 {
-public:
-    struct createICO_input
+    enum class LoanReqState : uint8
     {
-        id issuer;
-        id address1, address2, address3, address4, address5, address6, address7, address8, address9, address10;
-		uint64 assetName;
-        uint64 price1;
-        uint64 price2;
-        uint64 price3;
-        uint64 saleAmountForPhase1;
-        uint64 saleAmountForPhase2;
-        uint64 saleAmountForPhase3;
-        uint32 percent1, percent2, percent3, percent4, percent5, percent6, percent7, percent8, percent9, percent10;
-        uint32 startEpoch;
-    };
-    struct createICO_output
-    {
-        sint32 returnCode;
+        IDLE = 1,
+        ACTIVE,
+        PAYED,
+        EXPIRED,
     };
 
-    struct buyToken_input
+    struct LoanOutputInfo
     {
-        uint32 indexOfICO;
-        uint64 amount;
-    };
-    struct buyToken_output
-    {
-        sint32 returnCode;
+        id borrower;
+        id creditor;
+        id acceptedBy;
+
+        uint64 reqId;
+
+        Array<Asset, QLOAN_MAX_ASSETS_NUM> assets;
+        Array<sint64, QLOAN_MAX_ASSETS_NUM> assetAmount;
+        uint8 assetsNum;
+
+        uint64 priceAmount;
+        uint64 interestRate;
+        uint64 debtAmount;
+
+        uint64 returnPeriodInEpochs;
+        uint64 epochsLeft;
+
+        enum LoanReqState state;
     };
 
-    struct TransferShareManagementRights_input
-	{
-		Asset asset;
-		sint64 numberOfShares;
-		uint32 newManagingContractIndex;
-	};
-	struct TransferShareManagementRights_output
-	{
-		sint64 transferredNumberOfShares;
-	};
+    struct LoanReqInfo
+    {
+        id borrower;
+        id creditor;
+        // Using these field to know which request user is accepted and which is created by him
+        id acceptedBy;
 
-    struct getICOInfo_input
-    {
-        uint32 indexOfICO;
-    };
-    struct getICOInfo_output
-    {
-        id creatorOfICO;
-        id issuer;
-        id address1, address2, address3, address4, address5, address6, address7, address8, address9, address10;
-		uint64 assetName;
-        uint64 price1;
-        uint64 price2;
-        uint64 price3;
-        uint64 saleAmountForPhase1;
-        uint64 saleAmountForPhase2;
-        uint64 saleAmountForPhase3;
-        uint64 remainingAmountForPhase1;
-        uint64 remainingAmountForPhase2;
-        uint64 remainingAmountForPhase3;
-        uint32 percent1, percent2, percent3, percent4, percent5, percent6, percent7, percent8, percent9, percent10;
-        uint32 startEpoch;
+        Array<Asset, QLOAN_MAX_ASSETS_NUM> assets;
+        Array<sint64, QLOAN_MAX_ASSETS_NUM> assetAmount;
+        uint8 assetsNum;
+
+        uint64 priceAmount;
+        uint64 interestRate;
+        uint64 returnPeriodInEpochs;
+
+        uint64 debtAmount;
+        uint64 epochsLeft;
+
+        bool isPrivate;
+        bool assetsToCreditor;
+
+        enum LoanReqState state;
     };
 
 protected:
+    HashMap<uint64, struct LoanReqInfo, QLOAN_MAX_LOAN_REQS_NUM> _loanReqs;
+    Collection<uint64, QLOAN_MAX_LOAN_REQS_NUM> _loanReqsIdsPool;
+    uint64 _totalReqs;
 
-    struct ICOInfo
-    {
-        id creatorOfICO;
-        id issuer;
-        id address1, address2, address3, address4, address5, address6, address7, address8, address9, address10;
-		uint64 assetName;
-        uint64 price1;
-        uint64 price2;
-        uint64 price3;
-        uint64 saleAmountForPhase1;
-        uint64 saleAmountForPhase2;
-        uint64 saleAmountForPhase3;
-        uint64 remainingAmountForPhase1;
-        uint64 remainingAmountForPhase2;
-        uint64 remainingAmountForPhase3;
-        uint32 percent1, percent2, percent3, percent4, percent5, percent6, percent7, percent8, percent9, percent10;
-        uint32 startEpoch;
-    };
-    Array<ICOInfo, QIP_MAX_NUMBER_OF_ICO> icos;
+    uint64 _earnedAmount;
+    uint64 _distributedAmount;
 
-    uint32 numberOfICO;
-	uint32 transferRightsFee;
+    // These two mostly for debug purposes
+    uint64 _burnedAmount;
+    uint64 _toDevsAmount;
+
+    id _devAddress;
+
 public:
 
-    struct getICOInfo_locals
+    struct _transferAssetsFromTo_input
     {
-        ICOInfo ico;
+        LoanReqInfo loanReq;
+        id from;
+        id to;
     };
 
-    PUBLIC_FUNCTION_WITH_LOCALS(getICOInfo)
+    struct _transferAssetsFromTo_output
     {
-        locals.ico = state.icos.get(input.indexOfICO);
-        output.creatorOfICO = locals.ico.creatorOfICO;
-        output.issuer = locals.ico.issuer;
-        output.address1 = locals.ico.address1;
-        output.address2 = locals.ico.address2;
-        output.address3 = locals.ico.address3;
-        output.address4 = locals.ico.address4;
-        output.address5 = locals.ico.address5;
-        output.address6 = locals.ico.address6;
-        output.address7 = locals.ico.address7;
-        output.address8 = locals.ico.address8;
-        output.address9 = locals.ico.address9;
-        output.address10 = locals.ico.address10;
-        output.assetName = locals.ico.assetName;
-        output.price1 = locals.ico.price1;
-        output.price2 = locals.ico.price2;
-        output.price3 = locals.ico.price3;
-        output.saleAmountForPhase1 = locals.ico.saleAmountForPhase1;
-        output.saleAmountForPhase2 = locals.ico.saleAmountForPhase2;
-        output.saleAmountForPhase3 = locals.ico.saleAmountForPhase3;
-        output.remainingAmountForPhase1 = locals.ico.remainingAmountForPhase1;
-        output.remainingAmountForPhase2 = locals.ico.remainingAmountForPhase2;
-        output.remainingAmountForPhase3 = locals.ico.remainingAmountForPhase3;
-        output.percent1 = locals.ico.percent1;
-        output.percent2 = locals.ico.percent2;
-        output.percent3 = locals.ico.percent3;
-        output.percent4 = locals.ico.percent4;
-        output.percent5 = locals.ico.percent5;
-        output.percent6 = locals.ico.percent6;
-        output.percent7 = locals.ico.percent7;
-        output.percent8 = locals.ico.percent8;
-        output.percent9 = locals.ico.percent9;
-        output.percent10 = locals.ico.percent10;
-        output.startEpoch = locals.ico.startEpoch;
+    };
+
+    struct _transferAssetsFromTo_locals
+    {
+        Asset userReqAsset;
+        uint8 userReqAssetIdx;
+    };
+
+    PRIVATE_PROCEDURE_WITH_LOCALS(_transferAssetsFromTo)
+    {
+        locals.userReqAssetIdx = 0;
+        locals.userReqAsset = input.loanReq.assets.get(locals.userReqAssetIdx);
+        while (locals.userReqAssetIdx < input.loanReq.assetsNum)
+        {
+            qpi.transferShareOwnershipAndPossession(locals.userReqAsset.assetName, locals.userReqAsset.issuer,
+                input.from, input.from,
+                input.loanReq.assetAmount.get(locals.userReqAssetIdx),
+                input.to);
+            locals.userReqAssetIdx++;
+            locals.userReqAsset = input.loanReq.assets.get(locals.userReqAssetIdx);
+        }
     }
 
-    struct createICO_locals
+    struct _checkAssetsPresence_input
     {
-        ICOInfo newICO;
-        QIPLogger log;
+        Array<Asset, QLOAN_MAX_ASSETS_NUM> assets;
+        Array<sint64, QLOAN_MAX_ASSETS_NUM> assetAmount;
+        uint8 assetsNum;
     };
 
-    PUBLIC_PROCEDURE_WITH_LOCALS(createICO)
+    struct _checkAssetsPresence_output
     {
-        if (input.startEpoch <= (uint32)qpi.epoch() + 1)
-        {
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_invalidStartEpoch;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_invalidStartEpoch;
-            return;
-        }
-        if (input.saleAmountForPhase1 + input.saleAmountForPhase2 + input.saleAmountForPhase3 != qpi.numberOfPossessedShares(input.assetName, input.issuer, qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX))
-        {
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_invalidSaleAmount;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_invalidSaleAmount;
-            return;
-        }
-        if (input.price1 <= 0 || input.price2 <= 0 || input.price3 <= 0)
-        {
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_invalidPrice;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_invalidPrice;
-            return;
-        }
-        if (input.percent1 + input.percent2 + input.percent3 + input.percent4 + input.percent5 + input.percent6 + input.percent7 + input.percent8 + input.percent9 + input.percent10 != 95)
-        {
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_invalidPercent;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_invalidPercent;
-            return;
-        }
-        if (qpi.transferShareOwnershipAndPossession(input.assetName, input.issuer, qpi.invocator(), qpi.invocator(), input.saleAmountForPhase1 + input.saleAmountForPhase2 + input.saleAmountForPhase3, SELF) < 0)
-        {
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_invalidTransfer;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_invalidTransfer;
-            return;
-        }
-        if (state.numberOfICO >= QIP_MAX_NUMBER_OF_ICO)
-        {
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_overflowICO;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_overflowICO;
-            return;
-        }
-        locals.newICO.creatorOfICO = qpi.invocator();
-        locals.newICO.issuer = input.issuer;
-        locals.newICO.address1 = input.address1;
-        locals.newICO.address2 = input.address2;
-        locals.newICO.address3 = input.address3;
-        locals.newICO.address4 = input.address4;
-        locals.newICO.address5 = input.address5;
-        locals.newICO.address6 = input.address6;
-        locals.newICO.address7 = input.address7;
-        locals.newICO.address8 = input.address8;
-        locals.newICO.address9 = input.address9;
-        locals.newICO.address10 = input.address10;
-        locals.newICO.assetName = input.assetName;
-        locals.newICO.price1 = input.price1;
-        locals.newICO.price2 = input.price2;
-        locals.newICO.price3 = input.price3;
-        locals.newICO.saleAmountForPhase1 = input.saleAmountForPhase1;
-        locals.newICO.saleAmountForPhase2 = input.saleAmountForPhase2;
-        locals.newICO.saleAmountForPhase3 = input.saleAmountForPhase3;
-        locals.newICO.remainingAmountForPhase1 = input.saleAmountForPhase1;
-        locals.newICO.remainingAmountForPhase2 = input.saleAmountForPhase2;
-        locals.newICO.remainingAmountForPhase3 = input.saleAmountForPhase3;
-        locals.newICO.percent1 = input.percent1;
-        locals.newICO.percent2 = input.percent2;
-        locals.newICO.percent3 = input.percent3;
-        locals.newICO.percent4 = input.percent4;
-        locals.newICO.percent5 = input.percent5;
-        locals.newICO.percent6 = input.percent6;
-        locals.newICO.percent7 = input.percent7;
-        locals.newICO.percent8 = input.percent8;
-        locals.newICO.percent9 = input.percent9;
-        locals.newICO.percent10 = input.percent10;
-        locals.newICO.startEpoch = input.startEpoch;
-        state.icos.set(state.numberOfICO, locals.newICO);
-        state.numberOfICO++;
-        output.returnCode = QIPLogInfo::QIP_success;
-        locals.log._contractIndex = SELF_INDEX;
-        locals.log._type = QIPLogInfo::QIP_success;
-        locals.log.dst = qpi.invocator();
-        locals.log.amt = 0;
-        LOG_INFO(locals.log);
-    }
-
-    struct buyToken_locals
-    {
-        ICOInfo ico;
-        uint64 distributedAmount, price;
-        uint32 idx, percent;
-        QIPLogger log;
+        bool allGood;
     };
 
-    PUBLIC_PROCEDURE_WITH_LOCALS(buyToken)
+    struct _checkAssetsPresence_locals
     {
-        if (input.indexOfICO >= state.numberOfICO)
+        Asset userReqAsset;
+        uint8 userReqAssetIdx;
+    };
+
+    PRIVATE_FUNCTION_WITH_LOCALS(_checkAssetsPresence)
+    {
+        output.allGood = true;
+
+        locals.userReqAssetIdx = 0;
+        locals.userReqAsset = input.assets.get(locals.userReqAssetIdx);
+        while (locals.userReqAssetIdx < input.assetsNum)
         {
-            if (qpi.invocationReward() > 0)
+            // Currently we have user asset, let's check user have enought of it
+            if (qpi.numberOfPossessedShares(locals.userReqAsset.assetName, locals.userReqAsset.issuer,
+                qpi.invocator(), qpi.invocator(),
+                SELF_INDEX, SELF_INDEX) < input.assetAmount.get(locals.userReqAssetIdx))
             {
-                qpi.transfer(qpi.invocator(), qpi.invocationReward());
-            }
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_ICONotFound;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_ICONotFound;
-            return;
-        }
-        locals.ico = state.icos.get(input.indexOfICO);
-        if (qpi.epoch() == locals.ico.startEpoch)
-        {
-            if (input.amount <= locals.ico.remainingAmountForPhase1)
-            {
-                locals.price = locals.ico.price1;
-                locals.percent = locals.ico.percent1;
-            }
-            else
-            {
-                if (qpi.invocationReward() > 0)
-                {
-                    qpi.transfer(qpi.invocator(), qpi.invocationReward());
-                }
-                locals.log._contractIndex = SELF_INDEX;
-                locals.log._type = QIPLogInfo::QIP_invalidAmount;
-                locals.log.dst = qpi.invocator();
-                locals.log.amt = 0;
-                LOG_INFO(locals.log);
-                output.returnCode = QIPLogInfo::QIP_invalidAmount;
+                output.allGood = false;
                 return;
             }
+            locals.userReqAssetIdx++;
+            locals.userReqAsset = input.assets.get(locals.userReqAssetIdx);
         }
-        else if (qpi.epoch() == locals.ico.startEpoch + 1)
+    }
+
+    struct placeLoanReq_input
+    {
+        Array<Asset, QLOAN_MAX_ASSETS_NUM> assets;
+        Array<sint64, QLOAN_MAX_ASSETS_NUM> assetAmount;
+        uint8 assetsNum;
+
+        uint64 price;
+        uint64 interestRate;
+        uint64 returnPeriodInEpochs;
+
+        bool isPrivate;
+        bool isLoanReq;
+        bool assetsToCreditor;
+    };
+
+    struct placeLoanReq_output
+    {
+    };
+
+    struct placeLoanReq_locals
+    {
+        struct LoanReqInfo loanReqInfo;
+        uint64 loanReqIdIdx;
+        Asset userReqAsset;
+        uint8 userReqAssetIdx;
+
+        _checkAssetsPresence_input checkAssetsPresenceInput;
+        _checkAssetsPresence_output checkAssetsPresenceOutput;
+    };
+
+    PUBLIC_PROCEDURE_WITH_LOCALS(placeLoanReq)
+    {
+        // Check if we have space for new request
+        locals.loanReqIdIdx = state._loanReqsIdsPool.headIndex(SELF);
+        if (locals.loanReqIdIdx == NULL_INDEX)
         {
-            if (input.amount <= locals.ico.remainingAmountForPhase2)
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        // TODO(oleg): double proof it, check that no such key exist in the hash map
+        // Of course, it shouldnt be, because Ids pool always should be aligned with hash map of requests,
+        // but still, it would be better we didn't create request at all than rewrite the old one
+        if (state._loanReqs.getElementIndex(state._loanReqsIdsPool.element(locals.loanReqIdIdx)) != NULL_INDEX)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        // Check all inputs are valid
+        if (input.returnPeriodInEpochs > QLOAN_MAX_LOAN_PERIOD_IN_EPOCHS
+            || input.interestRate == 0
+            || input.interestRate > QLOAN_MAX_INTEREST_RATE
+            || input.assetsNum == 0
+            || input.assetsNum > QLOAN_MAX_ASSETS_NUM)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        if (input.isLoanReq)
+        {
+            locals.checkAssetsPresenceInput.assets = input.assets;
+            locals.checkAssetsPresenceInput.assetAmount = input.assetAmount;
+            locals.checkAssetsPresenceInput.assetsNum = input.assetsNum;
+            CALL(_checkAssetsPresence, locals.checkAssetsPresenceInput, locals.checkAssetsPresenceOutput);
+            if (locals.checkAssetsPresenceOutput.allGood == false)
             {
-                locals.price = locals.ico.price2;
-                locals.percent = locals.ico.percent2;
+                qpi.transfer(qpi.invocator(), qpi.invocationReward());
+                return;
+            }
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+        }
+        // User want to create creditor request, he wants assets, we need to check he have enough QUs
+        else
+        {
+            if (qpi.invocationReward() < input.price)
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward());
+                return;
+            }
+            else if (qpi.invocationReward() > input.price)
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.price);
+            }
+        }
+
+        // TODO(oleg): remove id from request struct
+        locals.loanReqInfo.borrower = input.isLoanReq ? qpi.invocator() : NULL_ID;
+        locals.loanReqInfo.creditor = input.isLoanReq ? NULL_ID : qpi.invocator();
+        locals.loanReqInfo.acceptedBy = NULL_ID;
+        locals.loanReqInfo.assets = input.assets;
+        locals.loanReqInfo.assetAmount = input.assetAmount;
+        locals.loanReqInfo.assetsNum = input.assetsNum;
+        locals.loanReqInfo.priceAmount = input.price;
+        locals.loanReqInfo.interestRate = input.interestRate;
+        locals.loanReqInfo.debtAmount = input.price;
+        locals.loanReqInfo.returnPeriodInEpochs = input.returnPeriodInEpochs;
+        locals.loanReqInfo.epochsLeft = input.returnPeriodInEpochs;
+        locals.loanReqInfo.isPrivate = input.isPrivate;
+        locals.loanReqInfo.assetsToCreditor = input.assetsToCreditor;
+        locals.loanReqInfo.state = LoanReqState::IDLE;
+
+        //state._loanReqs.add(SELF, locals.loanReqInfo, input.price);
+        state._loanReqs.set(state._loanReqsIdsPool.element(locals.loanReqIdIdx), locals.loanReqInfo);
+        state._totalReqs++;
+
+        // Remove ID from the pool
+        state._loanReqsIdsPool.remove(locals.loanReqIdIdx);
+    }
+
+    struct acceptLoanReq_input
+    {
+        uint64 reqId;
+    };
+
+    struct acceptLoanReq_output
+    {
+    };
+
+    struct acceptLoanReq_locals
+    {
+        LoanReqInfo tmpLoanReq;
+
+        // To be able to iterate over user's assets
+        Asset userReqAsset;
+        uint8 userReqAssetIdx;
+
+        _checkAssetsPresence_input checkAssetsPresenceInput;
+        _checkAssetsPresence_output checkAssetsPresenceOutput;
+
+        _transferAssetsFromTo_input transferAssetsFromToInput;
+        _transferAssetsFromTo_output transferAssetsFromToOutput;
+
+        sint64 requestedFee;
+    };
+
+    PUBLIC_PROCEDURE_WITH_LOCALS(acceptLoanReq)
+    {
+        if (state._loanReqs.get(input.reqId, locals.tmpLoanReq) == false)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        // We need to figure out which request we want to accept(loan or credit)
+        // We could do that by checking ID's of the borrower and creditor
+        // If borrower is not empty -> loan(need to check that acceptor have enought QU's money)
+        // Else creditor is not empty -> credit(need to check that acceptor have enough assets listed in request)
+
+        // Check that request was not created by the qpi.invocator()
+        if (locals.tmpLoanReq.borrower == qpi.invocator() || locals.tmpLoanReq.creditor == qpi.invocator())
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+        // Check that request in IDLE state
+        if (locals.tmpLoanReq.state != LoanReqState::IDLE)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        locals.requestedFee = div(smul(smul(locals.tmpLoanReq.priceAmount, locals.tmpLoanReq.interestRate),
+            QLOAN_ACCEPTANCE_FEE_PERCENT), 10000ULL);
+
+        // If request was created by the borrower(he wants money for the assets)
+        if (locals.tmpLoanReq.borrower != NULL_ID)
+        {
+            // Check that creditor send us right amount of money for contract
+            if (qpi.invocationReward() < locals.tmpLoanReq.priceAmount)
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward());
+                return;
+            }
+            locals.tmpLoanReq.creditor = qpi.invocator();
+            locals.tmpLoanReq.acceptedBy = qpi.invocator();
+            locals.tmpLoanReq.state = LoanReqState::ACTIVE;
+
+            state._loanReqs.replace(input.reqId, locals.tmpLoanReq);
+            //state._loanReqs.replace(locals.activeLoanReqsIdx, locals.tmpLoanReq);
+
+            state._earnedAmount += locals.requestedFee;
+            // Send coins to the borrower
+            qpi.transfer(locals.tmpLoanReq.borrower,
+                locals.tmpLoanReq.priceAmount - locals.requestedFee);
+            // Send left coins to the creditor
+            if (qpi.invocationReward() > locals.tmpLoanReq.priceAmount)
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.tmpLoanReq.priceAmount);
+            }
+
+            // Transfer all assets from request to creditor if request was created like that
+            if (locals.tmpLoanReq.assetsToCreditor)
+            {
+                locals.transferAssetsFromToInput.loanReq = locals.tmpLoanReq;
+                locals.transferAssetsFromToInput.from = locals.tmpLoanReq.borrower;
+                locals.transferAssetsFromToInput.to = qpi.invocator();
+                CALL(_transferAssetsFromTo, locals.transferAssetsFromToInput, locals.transferAssetsFromToOutput);
+            }
+        }
+        // If request was created by the creditor(he wants asssets for the money)
+        else
+        {
+            locals.checkAssetsPresenceInput.assets = locals.tmpLoanReq.assets;
+            locals.checkAssetsPresenceInput.assetAmount = locals.tmpLoanReq.assetAmount;
+            locals.checkAssetsPresenceInput.assetsNum = locals.tmpLoanReq.assetsNum;
+            CALL(_checkAssetsPresence, locals.checkAssetsPresenceInput, locals.checkAssetsPresenceOutput);
+            if (locals.checkAssetsPresenceOutput.allGood == false)
+            {
+                qpi.transfer(qpi.invocator(), qpi.invocationReward());
+                return;
+            }
+
+            // Transfer all assets from request to creditor if request was created like that
+            if (locals.tmpLoanReq.assetsToCreditor)
+            {
+                locals.transferAssetsFromToInput.loanReq = locals.tmpLoanReq;
+                locals.transferAssetsFromToInput.from = qpi.invocator();
+                locals.transferAssetsFromToInput.to = locals.tmpLoanReq.creditor;
+                CALL(_transferAssetsFromTo, locals.transferAssetsFromToInput, locals.transferAssetsFromToOutput);
+            }
+
+            locals.tmpLoanReq.borrower = qpi.invocator();
+            locals.tmpLoanReq.acceptedBy = qpi.invocator();
+            locals.tmpLoanReq.state = LoanReqState::ACTIVE;
+            //state._loanReqs.replace(locals.activeLoanReqsIdx, locals.tmpLoanReq);
+            state._loanReqs.replace(input.reqId, locals.tmpLoanReq);
+
+            state._earnedAmount += locals.requestedFee;
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() + locals.tmpLoanReq.priceAmount - locals.requestedFee);
+        }
+    }
+
+    struct removeLoanReq_input
+    {
+        uint64 reqId;
+    };
+
+    struct removeLoanReq_output
+    {
+    };
+
+    struct removeLoanReq_locals
+    {
+        sint64 activeLoanReqIdx;
+        LoanReqInfo tmpLoanReq;
+        Asset userReqAsset;
+        uint8 userReqAssetIdx;
+    };
+
+    PUBLIC_PROCEDURE_WITH_LOCALS(removeLoanReq)
+    {
+        if (state._loanReqs.get(input.reqId, locals.tmpLoanReq) == false)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        if ((locals.tmpLoanReq.borrower != qpi.invocator() && locals.tmpLoanReq.creditor != qpi.invocator())
+            || locals.tmpLoanReq.state != LoanReqState::IDLE)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        // Need to figure out who is user in this request.
+        // He might be a borrower and creditor. If he is a borrower, we need to send all his tokens back.
+        // If he is a creditor, we need to send we need to send him back his QUs.
+        if (locals.tmpLoanReq.creditor == qpi.invocator())
+        {
+            // Send him back all his QUs
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() + locals.tmpLoanReq.priceAmount);
+        }
+
+        // Put id back to the pool
+        state._loanReqsIdsPool.add(SELF, input.reqId, -locals.activeLoanReqIdx);
+
+        // Remove loan req req from the state
+        state._loanReqs.removeByKey(input.reqId);
+        state._totalReqs--;
+    }
+
+    struct releaseAsset_input
+    {
+        Asset assetToRelease;
+        uint64 toReleaseAmount;
+        uint16 dstManagingContractIndex;
+    };
+
+    struct releaseAsset_output
+    {
+    };
+
+    struct releaseAsset_locals
+    {
+        sint64 loanReqsIdx;
+        LoanReqInfo tmpLoanReq;
+
+        sint64 releaseReturnedFee;
+        uint64 userAssetsAmountInHold;
+
+        Asset userReqAsset;
+        uint8 userReqAssetIdx;
+    };
+
+    PUBLIC_PROCEDURE_WITH_LOCALS(releaseAsset)
+    {
+        if (qpi.invocationReward() == 0)
+        {
+            return;
+        }
+
+        // TODO(oleg): when request accepted, tokens might stay at the borrower side, so borrower still have it,
+        // but if he want to release it, he can easily do it.
+        // That's why before releasing it we need to check if borrower really have free assets.
+        // So, we need to loop around requests and make sure TOTAL_USER_ASSETS_IN_OUR_MANAGED - ASSETS_
+        locals.userAssetsAmountInHold = 0;
+        locals.loanReqsIdx = state._loanReqs.nextElementIndex(NULL_INDEX);
+        while (locals.loanReqsIdx != NULL_INDEX)
+        {
+            locals.tmpLoanReq = state._loanReqs.value(locals.loanReqsIdx);
+            if (locals.tmpLoanReq.borrower == qpi.invocator()
+                && ((locals.tmpLoanReq.state == LoanReqState::ACTIVE && locals.tmpLoanReq.assetsToCreditor == false)
+                    || locals.tmpLoanReq.state == LoanReqState::IDLE))
+            {
+                // Need to scan all assets in loan request to make sure it's have an assets user want to release
+                locals.userReqAssetIdx = 0;
+                locals.userReqAsset = locals.tmpLoanReq.assets.get(locals.userReqAssetIdx);
+                while (locals.userReqAssetIdx < locals.tmpLoanReq.assetsNum)
+                {
+                    if (locals.userReqAsset.assetName == input.assetToRelease.assetName)
+                    {
+                        locals.userAssetsAmountInHold += locals.tmpLoanReq.assetAmount.get(locals.userReqAssetIdx);
+                    }
+                    locals.userReqAssetIdx++;
+                    locals.userReqAsset = locals.tmpLoanReq.assets.get(locals.userReqAssetIdx);
+                }
+            }
+            locals.loanReqsIdx = state._loanReqs.nextElementIndex(locals.loanReqsIdx);
+        }
+        // TODO(oleg): Code above looks pretty big just for collectin how many users assets are in hold
+        // We actually can make some kind of hash map for collecting user's assets data about how much in hold
+        // it would be more prune to bug because of few sources of truth, but it would speed up this stuff significantly
+
+        if (qpi.numberOfPossessedShares(input.assetToRelease.assetName,
+            input.assetToRelease.issuer,
+            qpi.invocator(), qpi.invocator(),
+            SELF_INDEX, SELF_INDEX) - locals.userAssetsAmountInHold >= input.toReleaseAmount)
+        {
+            locals.releaseReturnedFee = qpi.releaseShares(input.assetToRelease, qpi.invocator(), qpi.invocator(),
+                input.toReleaseAmount, input.dstManagingContractIndex,
+                input.dstManagingContractIndex, qpi.invocationReward());
+            // Check for success
+            if (locals.releaseReturnedFee >= 0)
+            {
+                qpi.transfer(qpi.invocator(), locals.releaseReturnedFee);
             }
             else
             {
-                if (qpi.invocationReward() > 0)
-                {
-                    qpi.transfer(qpi.invocator(), qpi.invocationReward());
-                }
-                locals.log._contractIndex = SELF_INDEX;
-                locals.log._type = QIPLogInfo::QIP_invalidAmount;
-                locals.log.dst = qpi.invocator();
-                locals.log.amt = 0;
-                LOG_INFO(locals.log);
-                output.returnCode = QIPLogInfo::QIP_invalidAmount;
-                return ;
-            }
-        }
-        else if (qpi.epoch() == locals.ico.startEpoch + 2)
-        {
-            if (input.amount <= locals.ico.remainingAmountForPhase3)
-            {
-                locals.price = locals.ico.price3;
-                locals.percent = locals.ico.percent3;
-            }
-            else
-            {
-                if (qpi.invocationReward() > 0)
-                {
-                    qpi.transfer(qpi.invocator(), qpi.invocationReward());
-                }
-                locals.log._contractIndex = SELF_INDEX;
-                locals.log._type = QIPLogInfo::QIP_invalidAmount;
-                locals.log.dst = qpi.invocator();
-                locals.log.amt = 0;
-                LOG_INFO(locals.log);
-                output.returnCode = QIPLogInfo::QIP_invalidAmount;
-                return ;
+                qpi.transfer(qpi.invocator(), qpi.invocationReward());
             }
         }
         else
         {
-            if (qpi.invocationReward() > 0)
-            {
-                qpi.transfer(qpi.invocator(), qpi.invocationReward());
-            }
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_invalidEpoch;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_invalidEpoch;
-            return;
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
-        if (input.amount * locals.price > (uint64)qpi.invocationReward())
-        {
-            if (qpi.invocationReward() > 0)
-            {
-                qpi.transfer(qpi.invocator(), qpi.invocationReward());
-            }
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_insufficientInvocationReward;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_insufficientInvocationReward;
-            return;
-        }
-        if (input.amount * locals.price <= (uint64)qpi.invocationReward())
-        {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.amount * locals.price);
-        }
-        qpi.transferShareOwnershipAndPossession(locals.ico.assetName, locals.ico.issuer, SELF, SELF, input.amount, qpi.invocator());
-        locals.distributedAmount = div(input.amount * locals.price * locals.ico.percent1 * 1ULL, 100ULL) + div(input.amount * locals.price * locals.ico.percent2 * 1ULL, 100ULL) + div(input.amount * locals.price * locals.ico.percent3 * 1ULL, 100ULL) + div(input.amount * locals.price * locals.ico.percent4 * 1ULL, 100ULL) + div(input.amount * locals.price * locals.ico.percent5 * 1ULL, 100ULL) + div(input.amount * locals.price * locals.ico.percent6 * 1ULL, 100ULL) + div(input.amount * locals.price * locals.ico.percent7 * 1ULL, 100ULL) + div(input.amount * locals.price * locals.ico.percent8 * 1ULL, 100ULL) + div(input.amount * locals.price * locals.ico.percent9 * 1ULL, 100ULL) + div(input.amount * locals.price * locals.ico.percent10 * 1ULL, 100ULL);
-        qpi.transfer(locals.ico.address1, div(input.amount * locals.price * locals.ico.percent1 * 1ULL, 100ULL));
-        qpi.transfer(locals.ico.address2, div(input.amount * locals.price * locals.ico.percent2 * 1ULL, 100ULL));
-        qpi.transfer(locals.ico.address3, div(input.amount * locals.price * locals.ico.percent3 * 1ULL, 100ULL));
-        qpi.transfer(locals.ico.address4, div(input.amount * locals.price * locals.ico.percent4 * 1ULL, 100ULL));
-        qpi.transfer(locals.ico.address5, div(input.amount * locals.price * locals.ico.percent5 * 1ULL, 100ULL));
-        qpi.transfer(locals.ico.address6, div(input.amount * locals.price * locals.ico.percent6 * 1ULL, 100ULL));
-        qpi.transfer(locals.ico.address7, div(input.amount * locals.price * locals.ico.percent7 * 1ULL, 100ULL));
-        qpi.transfer(locals.ico.address8, div(input.amount * locals.price * locals.ico.percent8 * 1ULL, 100ULL));
-        qpi.transfer(locals.ico.address9, div(input.amount * locals.price * locals.ico.percent9 * 1ULL, 100ULL));
-        qpi.transfer(locals.ico.address10, div(input.amount * locals.price * locals.ico.percent10 * 1ULL, 100ULL));
-        qpi.distributeDividends(div((input.amount * locals.price - locals.distributedAmount), 676ULL));
-
-        if (qpi.epoch() == locals.ico.startEpoch)
-        {
-            locals.ico.remainingAmountForPhase1 -= input.amount;
-        }
-        else if (qpi.epoch() == locals.ico.startEpoch + 1)
-        {
-            locals.ico.remainingAmountForPhase2 -= input.amount;
-        }
-        else if (qpi.epoch() == locals.ico.startEpoch + 2)
-        {
-            locals.ico.remainingAmountForPhase3 -= input.amount;
-        }
-        state.icos.set(input.indexOfICO, locals.ico);
-        output.returnCode = QIPLogInfo::QIP_success;
-        locals.log._contractIndex = SELF_INDEX;
-        locals.log._type = QIPLogInfo::QIP_success;
-        locals.log.dst = qpi.invocator();
-        locals.log.amt = 0;
-        LOG_INFO(locals.log);
     }
 
-    struct TransferShareManagementRights_locals
+    struct payLoanDebt_input
     {
-        ICOInfo ico;
-        uint32 i;
+        uint64 reqId;
     };
 
-    PUBLIC_PROCEDURE_WITH_LOCALS(TransferShareManagementRights)
-	{
-		if (qpi.invocationReward() < state.transferRightsFee)
-		{
-			return ;
-		}
+    struct payLoanDebt_output
+    {
+    };
 
-        for (locals.i = 0 ; locals.i < state.numberOfICO; locals.i++)
+    struct payLoanDebt_locals
+    {
+        sint64 loanReqsIdx;
+        LoanReqInfo tmpLoanReq;
+        bool debtPayed;
+
+        uint64 debtAmount;
+
+        _transferAssetsFromTo_input transferAssetsFromToInput;
+        _transferAssetsFromTo_output transferAssetsFromToOutput;
+    };
+
+    PUBLIC_PROCEDURE_WITH_LOCALS(payLoanDebt)
+    {
+        if (state._loanReqs.get(input.reqId, locals.tmpLoanReq) == false)
         {
-            locals.ico = state.icos.get(locals.i);
-            if (locals.ico.issuer == input.asset.issuer && locals.ico.assetName == input.asset.assetName) 
-            {
-                return ;
-            }
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
         }
 
-		if (qpi.numberOfPossessedShares(input.asset.assetName, input.asset.issuer,qpi.invocator(), qpi.invocator(), SELF_INDEX, SELF_INDEX) < input.numberOfShares)
-		{
-			// not enough shares available
-			output.transferredNumberOfShares = 0;
-			if (qpi.invocationReward() > 0)
-			{
-				qpi.transfer(qpi.invocator(), qpi.invocationReward());
-			}
-		}
-		else
-		{
-			if (qpi.releaseShares(input.asset, qpi.invocator(), qpi.invocator(), input.numberOfShares,
-				input.newManagingContractIndex, input.newManagingContractIndex, state.transferRightsFee) < 0)
-			{
-				// error
-				output.transferredNumberOfShares = 0;
-				if (qpi.invocationReward() > 0)
-				{
-					qpi.transfer(qpi.invocator(), qpi.invocationReward());
-				}
-			}
-			else
-			{
-				// success
-				output.transferredNumberOfShares = input.numberOfShares;
-				if (qpi.invocationReward() > state.transferRightsFee)
-				{
-					qpi.transfer(qpi.invocator(), qpi.invocationReward() -  state.transferRightsFee);
-				}
-			}
-		}
-	}
+        // Make sure we check all conditions before moving forward
+        if (locals.tmpLoanReq.borrower != qpi.invocator()
+            || locals.tmpLoanReq.state != LoanReqState::ACTIVE
+            || locals.tmpLoanReq.debtAmount > qpi.invocationReward()
+            || (locals.tmpLoanReq.returnPeriodInEpochs - locals.tmpLoanReq.epochsLeft) < locals.tmpLoanReq.returnPeriodInEpochs / 3)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward());
+            return;
+        }
+
+        // Send all money with percentage to the creditor from borrower
+        qpi.transfer(locals.tmpLoanReq.creditor, locals.tmpLoanReq.debtAmount);
+
+        if (qpi.invocationReward() > locals.tmpLoanReq.debtAmount)
+        {
+            qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.tmpLoanReq.debtAmount);
+        }
+
+        // Transfer all assets back to the borrower if it was transfered to the creditor
+        if (locals.tmpLoanReq.assetsToCreditor)
+        {
+            locals.transferAssetsFromToInput.loanReq = locals.tmpLoanReq;
+            locals.transferAssetsFromToInput.from = locals.tmpLoanReq.creditor;
+            locals.transferAssetsFromToInput.to = locals.tmpLoanReq.borrower;
+            CALL(_transferAssetsFromTo, locals.transferAssetsFromToInput, locals.transferAssetsFromToOutput);
+        }
+
+        // TODO(oleg): actually, we should just remove request, but for debug purposes it would be nice to see updates
+        locals.tmpLoanReq.state = LoanReqState::PAYED;
+        locals.tmpLoanReq.debtAmount = 0;
+
+        // In production we should just remove this loan request
+        // Replace it for now to be able to see and debug
+        state._loanReqs.replace(input.reqId, locals.tmpLoanReq);
+    }
+
+    struct _fillLoanReqForOutput_input
+    {
+        uint64 loanReqId;
+        struct LoanReqInfo loanReqInfo;
+        //sint64 loanReqsIdx;
+    };
+
+    struct _fillLoanReqForOutput_output
+    {
+        LoanOutputInfo loanOutputInfo;
+    };
+
+    PRIVATE_FUNCTION(_fillLoanReqForOutput)
+    {
+        // TODO(oleg): we use the same code on multiple FUNCTIONS, i can create one or multiple but i can
+        // create another ONLY ONE function only for assignment
+        output.loanOutputInfo.borrower = input.loanReqInfo.borrower;
+        output.loanOutputInfo.creditor = input.loanReqInfo.creditor;
+        output.loanOutputInfo.acceptedBy = input.loanReqInfo.acceptedBy;
+        output.loanOutputInfo.reqId = input.loanReqId;
+        output.loanOutputInfo.assets = input.loanReqInfo.assets;
+        output.loanOutputInfo.assetAmount = input.loanReqInfo.assetAmount;
+        output.loanOutputInfo.assetsNum = input.loanReqInfo.assetsNum;
+        output.loanOutputInfo.priceAmount = input.loanReqInfo.priceAmount;
+        output.loanOutputInfo.interestRate = input.loanReqInfo.interestRate;
+        output.loanOutputInfo.debtAmount = input.loanReqInfo.debtAmount;
+        output.loanOutputInfo.returnPeriodInEpochs = input.loanReqInfo.returnPeriodInEpochs;
+        output.loanOutputInfo.epochsLeft = input.loanReqInfo.epochsLeft;
+        output.loanOutputInfo.state = input.loanReqInfo.state;
+    }
+
+    struct getAllLoanReqs_input
+    {
+    };
+
+    struct getAllLoanReqs_output
+    {
+        Array<LoanOutputInfo, QLOAN_MAX_OUTPUT_NUM> reqs;
+        uint64 reqsAmount;
+    };
+
+    struct getAllLoanReqs_locals
+    {
+        struct LoanReqInfo tmpLoanReqInfo;
+
+        sint64 outputLoanReqsIdx;
+        sint64 activeLoanReqsIdx;
+
+        _fillLoanReqForOutput_input fillLoanReqForOutputInput;
+        _fillLoanReqForOutput_output fillLoanReqForOutputOutput;
+    };
+
+    PUBLIC_FUNCTION_WITH_LOCALS(getAllLoanReqs)
+    {
+        output.reqsAmount = 0;
+        locals.outputLoanReqsIdx = 0;
+
+        locals.activeLoanReqsIdx = state._loanReqs.nextElementIndex(NULL_INDEX);
+
+        while (locals.activeLoanReqsIdx != NULL_INDEX && locals.outputLoanReqsIdx < 256)
+        {
+            locals.tmpLoanReqInfo = state._loanReqs.value(locals.activeLoanReqsIdx);
+            if (locals.tmpLoanReqInfo.isPrivate == false)
+            {
+                locals.fillLoanReqForOutputInput.loanReqId = state._loanReqs.key(locals.activeLoanReqsIdx);
+                locals.fillLoanReqForOutputInput.loanReqInfo = locals.tmpLoanReqInfo;
+                CALL(_fillLoanReqForOutput, locals.fillLoanReqForOutputInput, locals.fillLoanReqForOutputOutput);
+
+                output.reqs.set(locals.outputLoanReqsIdx, locals.fillLoanReqForOutputOutput.loanOutputInfo);
+                locals.outputLoanReqsIdx++;
+                output.reqsAmount++;
+            }
+
+            locals.activeLoanReqsIdx = state._loanReqs.nextElementIndex(locals.activeLoanReqsIdx);
+        }
+    }
+
+    struct getUserActiveLoanReqs_input
+    {
+        id userId;
+    };
+
+    struct getUserActiveLoanReqs_output
+    {
+        Array<LoanOutputInfo, QLOAN_MAX_OUTPUT_NUM> reqs;
+        uint64 reqsAmount;
+    };
+
+    struct getUserActiveLoanReqs_locals
+    {
+        struct LoanReqInfo tmpLoanReqInfo;
+
+        sint64 outputLoanReqsIdx;
+        sint64 activeLoanReqsIdx;
+
+        _fillLoanReqForOutput_input fillLoanReqForOutputInput;
+        _fillLoanReqForOutput_output fillLoanReqForOutputOutput;
+    };
+
+    PUBLIC_FUNCTION_WITH_LOCALS(getUserActiveLoanReqs)
+    {
+        output.reqsAmount = 0;
+        locals.outputLoanReqsIdx = 0;
+
+        locals.activeLoanReqsIdx = state._loanReqs.nextElementIndex(NULL_INDEX);
+
+        while (locals.activeLoanReqsIdx != NULL_INDEX && locals.outputLoanReqsIdx < 256)
+        {
+            locals.tmpLoanReqInfo = state._loanReqs.value(locals.activeLoanReqsIdx);
+            if ((locals.tmpLoanReqInfo.borrower == input.userId || locals.tmpLoanReqInfo.creditor == input.userId)
+                && locals.tmpLoanReqInfo.state == LoanReqState::ACTIVE)
+            {
+                locals.fillLoanReqForOutputInput.loanReqId = state._loanReqs.key(locals.activeLoanReqsIdx);
+                locals.fillLoanReqForOutputInput.loanReqInfo = locals.tmpLoanReqInfo;
+                CALL(_fillLoanReqForOutput, locals.fillLoanReqForOutputInput, locals.fillLoanReqForOutputOutput);
+
+                output.reqs.set(locals.outputLoanReqsIdx, locals.fillLoanReqForOutputOutput.loanOutputInfo);
+                locals.outputLoanReqsIdx++;
+                output.reqsAmount++;
+            }
+
+            locals.activeLoanReqsIdx = state._loanReqs.nextElementIndex(locals.activeLoanReqsIdx);
+        }
+    }
+
+    struct getUserAcceptedLoanReqs_input
+    {
+        id userId;
+    };
+
+    struct getUserAcceptedLoanReqs_output
+    {
+        Array<LoanOutputInfo, QLOAN_MAX_OUTPUT_NUM> reqs;
+        uint64 reqsAmount;
+    };
+
+    struct getUserAcceptedLoanReqs_locals
+    {
+        struct LoanReqInfo tmpLoanReqInfo;
+
+        sint64 outputLoanReqsIdx;
+        sint64 activeLoanReqsIdx;
+
+        _fillLoanReqForOutput_input fillLoanReqForOutputInput;
+        _fillLoanReqForOutput_output fillLoanReqForOutputOutput;
+    };
+
+    PUBLIC_FUNCTION_WITH_LOCALS(getUserAcceptedLoanReqs)
+    {
+        output.reqsAmount = 0;
+        locals.outputLoanReqsIdx = 0;
+
+        locals.activeLoanReqsIdx = state._loanReqs.nextElementIndex(NULL_INDEX);
+
+        while (locals.activeLoanReqsIdx != NULL_INDEX && locals.outputLoanReqsIdx < 256)
+        {
+            locals.tmpLoanReqInfo = state._loanReqs.value(locals.activeLoanReqsIdx);
+            if (locals.tmpLoanReqInfo.acceptedBy == input.userId && locals.tmpLoanReqInfo.state == LoanReqState::ACTIVE)
+            {
+                locals.fillLoanReqForOutputInput.loanReqId = state._loanReqs.key(locals.activeLoanReqsIdx);
+                locals.fillLoanReqForOutputInput.loanReqInfo = locals.tmpLoanReqInfo;
+                CALL(_fillLoanReqForOutput, locals.fillLoanReqForOutputInput, locals.fillLoanReqForOutputOutput);
+
+                output.reqs.set(locals.outputLoanReqsIdx, locals.fillLoanReqForOutputOutput.loanOutputInfo);
+                locals.outputLoanReqsIdx++;
+                output.reqsAmount++;
+            }
+
+            locals.activeLoanReqsIdx = state._loanReqs.nextElementIndex(locals.activeLoanReqsIdx);
+        }
+    }
+
+    struct getFeesInfo_input
+    {
+    };
+
+    struct getFeesInfo_output
+    {
+        uint64 acceptanceFeePercent;
+        uint64 distributeFeePercent;
+        uint64 burnFeePercent;
+
+        uint64 earnedAmount;
+        uint64 distributedAmount;
+        uint64 burnedAmount;
+        uint64 toDevsAmount;
+    };
+
+
+    PUBLIC_FUNCTION(getFeesInfo)
+    {
+        output.acceptanceFeePercent = QLOAN_ACCEPTANCE_FEE_PERCENT;
+        output.distributeFeePercent = QLOAN_DISTRIBUTE_PERCENT;
+        output.burnFeePercent = QLOAN_BURN_PERCENT;
+
+        output.earnedAmount = state._earnedAmount;
+        output.distributedAmount = state._distributedAmount;
+        output.burnedAmount = state._burnedAmount;
+        output.toDevsAmount = state._toDevsAmount;
+    }
+
+    struct getUserDebt_input
+    {
+        id userId;
+    };
+
+    struct getUserDebt_output
+    {
+        uint64 totalUserDebt;
+    };
+
+    struct getUserDebt_locals
+    {
+        struct LoanReqInfo tmpLoanReqInfo;
+
+        sint64 activeLoanReqsIdx;
+    };
+
+    PUBLIC_FUNCTION_WITH_LOCALS(getUserDebt)
+    {
+        locals.activeLoanReqsIdx = 0;
+        locals.activeLoanReqsIdx = state._loanReqs.nextElementIndex(NULL_INDEX);
+
+        while (locals.activeLoanReqsIdx != NULL_INDEX)
+        {
+            locals.tmpLoanReqInfo = state._loanReqs.value(locals.activeLoanReqsIdx);
+            if (locals.tmpLoanReqInfo.borrower == input.userId && locals.tmpLoanReqInfo.state == LoanReqState::ACTIVE)
+            {
+                output.totalUserDebt += locals.tmpLoanReqInfo.debtAmount;
+            }
+            locals.activeLoanReqsIdx = state._loanReqs.nextElementIndex(locals.activeLoanReqsIdx);
+        }
+    }
 
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES()
     {
-        REGISTER_USER_FUNCTION(getICOInfo, 1);
+        REGISTER_USER_PROCEDURE(placeLoanReq, 1);
+        REGISTER_USER_PROCEDURE(removeLoanReq, 2);
+        REGISTER_USER_PROCEDURE(acceptLoanReq, 3);
+        REGISTER_USER_PROCEDURE(releaseAsset, 4);
+        REGISTER_USER_PROCEDURE(payLoanDebt, 5);
 
-        REGISTER_USER_PROCEDURE(createICO, 1);
-        REGISTER_USER_PROCEDURE(buyToken, 2);
-        REGISTER_USER_PROCEDURE(TransferShareManagementRights, 3);
+        REGISTER_USER_FUNCTION(getAllLoanReqs, 1);
+        REGISTER_USER_FUNCTION(getUserActiveLoanReqs, 2);
+        REGISTER_USER_FUNCTION(getUserAcceptedLoanReqs, 3);
+        REGISTER_USER_FUNCTION(getFeesInfo, 4);
+        REGISTER_USER_FUNCTION(getUserDebt, 5);
     }
-
-    INITIALIZE()
-	{
-        state.transferRightsFee = 100;
-	}
 
     struct BEGIN_EPOCH_locals
     {
-        id address1;
-        id address2;
+        sint64 activeLoanReqsIdx;
+        LoanReqInfo tmpLoanReqInfo;
+        Asset userReqAsset;
+        uint8 userReqAssetIdx;
+
+        _transferAssetsFromTo_input transferAssetsFromToInput;
+        _transferAssetsFromTo_output transferAssetsFromToOutput;
     };
+
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        locals.address1 = ID(_K, _D, _F, _D, _H, _J, _F, _E, _B, _J, _W, _E, _Z, _D, _F, _I, _C, _T, _P, _Z, _N, _N, _D, _T, _A, _Z, _S, _A, _H, _F, _G, _Q, _H, _D, _O, _C, _X, _R, _P, _G, _D, _D, _I, _B, _F, _P, _D, _D, _Q, _Z, _H, _O, _V, _H, _V, _D);
-        locals.address2 = ID(_Z, _V, _V, _C, _R, _T, _G, _Y, _W, _B, _K, _H, _X, _D, _F, _M, _Q, _D, _X, _F, _V, _B, _D, _N, _N, _L, _I, _D, _K, _Q, _F, _N, _B, _Q, _K, _V, _U, _L, _R, _N, _H, _F, _E, _Z, _K, _C, _K, _B, _H, _X, _I, _B, _E, _N, _S, _E);
-
-        if (qpi.epoch() == 199)
+        locals.activeLoanReqsIdx = state._loanReqs.nextElementIndex(NULL_INDEX);
+        while (locals.activeLoanReqsIdx != NULL_INDEX)
         {
-            qpi.transfer(locals.address1, 30000000);
-            qpi.transfer(locals.address2, 100000000);
+            locals.tmpLoanReqInfo = state._loanReqs.value(locals.activeLoanReqsIdx);
+
+            // Check if contract already ends
+            if (locals.tmpLoanReqInfo.epochsLeft == 0
+                && locals.tmpLoanReqInfo.state == LoanReqState::ACTIVE)
+            {
+                locals.transferAssetsFromToInput.loanReq = locals.tmpLoanReqInfo;
+
+                // Check if assets were NOT transfered to the creditor, if not - transfer assets from borrower to the creditor
+                if (locals.tmpLoanReqInfo.assetsToCreditor == false)
+                {
+                    locals.transferAssetsFromToInput.from = locals.tmpLoanReqInfo.borrower;
+                    locals.transferAssetsFromToInput.to = locals.tmpLoanReqInfo.creditor;
+                    CALL(_transferAssetsFromTo, locals.transferAssetsFromToInput, locals.transferAssetsFromToOutput);
+                }
+
+                locals.tmpLoanReqInfo.state = LoanReqState::EXPIRED;
+                // TODO(oleg): in production we should remove these entries, for now it would be easier to debug
+                state._loanReqs.replace(state._loanReqs.key(locals.activeLoanReqsIdx), locals.tmpLoanReqInfo);
+            }
+            else if (locals.tmpLoanReqInfo.state == LoanReqState::ACTIVE)
+            {
+                locals.tmpLoanReqInfo.epochsLeft--;
+                locals.tmpLoanReqInfo.debtAmount = div(smul(locals.tmpLoanReqInfo.priceAmount,
+                    sadd(1000000ULL,
+                        div(smul(10000ULL, smul(locals.tmpLoanReqInfo.interestRate,
+                            locals.tmpLoanReqInfo.returnPeriodInEpochs - locals.tmpLoanReqInfo.epochsLeft)),
+                            locals.tmpLoanReqInfo.returnPeriodInEpochs))), 1000000ULL);
+
+                state._loanReqs.replace(state._loanReqs.key(locals.activeLoanReqsIdx), locals.tmpLoanReqInfo);
+            }
+
+            locals.activeLoanReqsIdx = state._loanReqs.nextElementIndex(locals.activeLoanReqsIdx);
         }
     }
 
-	struct END_EPOCH_locals
-	{
-        ICOInfo ico;
-        sint32 idx;
-	};
+    struct END_EPOCH_locals
+    {
+        uint64 amountToDistribute;
+        uint64 amountToBurn;
+        uint64 amountToQvault;
+        uint64 amountToDevs;
+    };
 
-	END_EPOCH_WITH_LOCALS()
-	{
-		for(locals.idx = 0; locals.idx < (sint32)state.numberOfICO; locals.idx++)
-		{
-            locals.ico = state.icos.get(locals.idx);
-            if (locals.ico.startEpoch == qpi.epoch() && locals.ico.remainingAmountForPhase1 > 0)
+    END_EPOCH_WITH_LOCALS()
+    {
+        locals.amountToDistribute = div(smul((state._earnedAmount - state._distributedAmount), QLOAN_DISTRIBUTE_PERCENT), 10000ULL);
+        locals.amountToBurn = div(smul((state._earnedAmount - state._distributedAmount), QLOAN_BURN_PERCENT), 10000ULL);
+        locals.amountToQvault = div(smul((state._earnedAmount - state._distributedAmount), QLOAN_QVAULT_PERCENT), 10000ULL);
+        locals.amountToDevs = state._earnedAmount - state._distributedAmount - locals.amountToDistribute - locals.amountToBurn - locals.amountToQvault;
+
+        if ((QPI::div(locals.amountToDistribute, 676ULL) > 0) && (state._earnedAmount > state._distributedAmount))
+        {
+            if (qpi.distributeDividends(QPI::div(locals.amountToDistribute, 676ULL)))
             {
-                locals.ico.remainingAmountForPhase2 += locals.ico.remainingAmountForPhase1; 
-                locals.ico.remainingAmountForPhase1 = 0;
-                state.icos.set(locals.idx, locals.ico);
+                qpi.burn(locals.amountToBurn);
+                qpi.transfer(state._devAddress, locals.amountToDevs);
+                qpi.transfer(id(QVAULT_CONTRACT_INDEX, 0, 0, 0), locals.amountToQvault);
+                state._distributedAmount += QPI::div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
+                state._distributedAmount += locals.amountToBurn;
+                state._distributedAmount += locals.amountToQvault;
+                state._distributedAmount += locals.amountToDevs;
+
+                state._burnedAmount += locals.amountToBurn;
+                state._toDevsAmount += locals.amountToDevs;
             }
-            if (locals.ico.startEpoch + 1 == qpi.epoch() && locals.ico.remainingAmountForPhase2 > 0)
-            {
-                locals.ico.remainingAmountForPhase3 += locals.ico.remainingAmountForPhase2;
-                locals.ico.remainingAmountForPhase2 = 0;
-                state.icos.set(locals.idx, locals.ico);
-            }
-            if (locals.ico.startEpoch + 2 == qpi.epoch())
-            {
-                if (locals.ico.remainingAmountForPhase3 > 0) 
-                {
-                    qpi.transferShareOwnershipAndPossession(locals.ico.assetName, locals.ico.issuer, SELF, SELF, locals.ico.remainingAmountForPhase3, locals.ico.creatorOfICO);
-                }
-                state.icos.set(locals.idx, state.icos.get(state.numberOfICO - 1));
-                state.numberOfICO--;
-                locals.idx--;
-            }
-		}
-	}
+        }
+    }
+
+    struct INITIALIZE_locals
+    {
+        sint64 loanReqIdIdx;
+    };
+
+    INITIALIZE_WITH_LOCALS()
+    {
+        state._totalReqs = 0;
+
+        state._earnedAmount = 0;
+        state._distributedAmount = 0;
+        state._burnedAmount = 0;
+        state._toDevsAmount = 0;
+
+        locals.loanReqIdIdx = 1;
+        while (locals.loanReqIdIdx < QLOAN_MAX_LOAN_REQS_NUM + 1)
+        {
+            state._loanReqsIdsPool.add(SELF, locals.loanReqIdIdx, -locals.loanReqIdIdx);
+            locals.loanReqIdIdx++;
+        }
+    }
 
     PRE_ACQUIRE_SHARES()
     {
-		output.allowTransfer = true;
+        output.allowTransfer = true;
     }
 
+    PRE_RELEASE_SHARES()
+    {
+        output.allowTransfer = true;
+    }
 };
