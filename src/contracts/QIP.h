@@ -14,11 +14,11 @@ constexpr uint64 QLOAN_MAX_OUTPUT_NUM = 128;
 
 constexpr uint64 QLOAN_MAX_LOAN_REQS_NUM = 1024;
 
-struct QIP2
+struct QLOAN2
 {
 };
 
-struct QIP : public ContractBase
+struct QLOAN : public ContractBase
 {
     enum class LoanReqState : uint8
     {
