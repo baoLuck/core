@@ -2868,8 +2868,8 @@ public:
     struct getVoteInProposal_input
     {
         id userID;
-        uint32 proposalType;
-        uint32 proposalId;
+        uint64 proposalType;
+        uint64 proposalId;
     };
 
     /**
@@ -2879,9 +2879,9 @@ public:
      */
     struct getVoteInProposal_output
     {
-        sint32 returnCode;                 // Status code indicating success or failure
-        bit isVoted;
-        bit votingDecision;
+        sint64 returnCode;                 // Status code indicating success or failure
+        sint64 isVoted;
+        sint64 votingDecision;
     };
 
     /**
