@@ -1,3 +1,5 @@
+#include "qpi.h"
+
 using namespace QPI;
 
 // QVAULT Contract Constants
@@ -2907,6 +2909,59 @@ public:
         {
             output.returnCode = QVAULT_INPUT_ERROR;
             return ;
+        }
+
+        switch (input.proposalType)
+        {
+            case 1:
+                if (input.proposalId >= state.numberOfGP)
+                {
+                    output.returnCode = QVAULT_OVERFLOW_PROPOSAL;
+                    return ;
+                }
+                break;
+            case 2:
+                if (input.proposalId >= state.numberOfQCP)
+                {
+                    output.returnCode = QVAULT_OVERFLOW_PROPOSAL;
+                    return ;
+                }
+                break;
+            case 3:
+                if (input.proposalId >= state.numberOfIPOP)
+                {
+                    output.returnCode = QVAULT_OVERFLOW_PROPOSAL;
+                    return ;
+                }
+                break;
+            case 4:
+                if (input.proposalId >= state.numberOfQEarnP)
+                {
+                    output.returnCode = QVAULT_OVERFLOW_PROPOSAL;
+                    return ;
+                }
+                break;
+            case 5:
+                if (input.proposalId >= state.numberOfFundP)
+                {
+                    output.returnCode = QVAULT_OVERFLOW_PROPOSAL;
+                    return ;
+                }
+                break;
+            case 6:
+                if (input.proposalId >= state.numberOfMKTP)
+                {
+                    output.returnCode = QVAULT_OVERFLOW_PROPOSAL;
+                    return ;
+                }
+                break;
+            case 7:
+                if (input.proposalId >= state.numberOfAlloP)
+                {
+                    output.returnCode = QVAULT_OVERFLOW_PROPOSAL;
+                    return ;
+                }
+                break;
         }
 
         if (state.countOfVote.get(input.userID, locals.countOfVote))
