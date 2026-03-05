@@ -1,5 +1,3 @@
-#include "qpi.h"
-
 using namespace QPI;
 
 // QVAULT Contract Constants
@@ -1703,6 +1701,11 @@ protected:
                     output.returnCode = QVAULT_OVERFLOW_PROPOSAL;
                     return ;
                 }
+                if (input.priceOfIPO < QVAULT_IPO_PARTICIPATION_MIN_FUND || input.priceOfIPO > state.reinvestingFund)
+                {
+                    output.returnCode = QVAULT_INSUFFICIENT_FUND;
+                    return;
+                }
                 break;
             case 4:
                 if (input.proposalId >= state.numberOfQEarnP)
@@ -1839,7 +1842,7 @@ protected:
                             }
                             else if (locals._r < locals.countOfVote)
                             {
-                                locals.updatedIPOProposal.totalWeight -= locals.numberOfNo *  locals.newVoteList.get(locals._r).priceOfIPO;
+                                locals.updatedIPOProposal.totalWeight -= locals.numberOfNo * locals.newVoteList.get(locals._r).priceOfIPO;
                             }
                             locals.updatedIPOProposal.numberOfYes += locals.numberOfYes;
                             locals.updatedIPOProposal.numberOfNo += locals.numberOfNo;
@@ -3018,13 +3021,13 @@ public:
     INITIALIZE()
     {
         state.QCAP_ISSUER = ID(_Q, _C, _A, _P, _W, _M, _Y, _R, _S, _H, _L, _B, _J, _H, _S, _T, _T, _Z, _Q, _V, _C, _I, _B, _A, _R, _V, _O, _A, _S, _K, _D, _E, _N, _A, _S, _A, _K, _N, _O, _B, _R, _G, _P, _F, _W, _W, _K, _R, _C, _U, _V, _U, _A, _X, _Y, _E);
-        state.qcapSoldAmount = 1909423;
+        state.qcapSoldAmount = 3130507;
         state.transferRightsFee = 100;
         state.quorumPercent = 670;
         state.qcapBurnPermille = 0;
         state.burnPermille = 0;
-        state.QCAPHolderPermille = 520;
-        state.reinvestingPermille = 450;
+        state.QCAPHolderPermille = 970;
+        state.reinvestingPermille = 0;
         state.shareholderDividend = 30;
     }
 
