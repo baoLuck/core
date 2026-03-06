@@ -1701,7 +1701,7 @@ protected:
                     output.returnCode = QVAULT_OVERFLOW_PROPOSAL;
                     return ;
                 }
-                if (input.priceOfIPO < QVAULT_IPO_PARTICIPATION_MIN_FUND || input.priceOfIPO > state.reinvestingFund)
+                if (input.yes && (input.priceOfIPO < QVAULT_IPO_PARTICIPATION_MIN_FUND || input.priceOfIPO > state.reinvestingFund))
                 {
                     output.returnCode = QVAULT_INSUFFICIENT_FUND;
                     return;
