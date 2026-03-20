@@ -107,7 +107,7 @@ public:
     QIP::createICO_output createICO(const id& creator, const QIP::createICO_input& input)
     {
         QIP::createICO_output output;
-        invokeUserProcedure(QIP_CONTRACT_INDEX, 1, input, output, creator, 0);
+        invokeUserProcedure(QIP_CONTRACT_INDEX, 1, input, output, creator, QIP_ICO_SETUP_FEE);
         return output;
     }
 
@@ -206,10 +206,10 @@ TEST(ContractQIP, createICO_Success)
     input.percent7 = 10;
     input.percent8 = 10;
     input.percent9 = 10;
-    input.percent10 = 5;
+    input.percent10 = 3;
     input.startEpoch = system.epoch + 2;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output output = QIP.createICO(creator, input);
     EXPECT_EQ(output.returnCode, QIPLogInfo::QIP_success);
     
@@ -243,7 +243,9 @@ TEST(ContractQIP, createICO_InvalidStartEpoch)
     asset.assetName = assetName;
     asset.issuer = issuer;
     increaseEnergy(creator, QIP_TRANSFER_ASSET_FEE);
+    EXPECT_EQ(numberOfPossessedShares(assetName, issuer, creator, creator, QIP_CONTRACT_INDEX, QIP_CONTRACT_INDEX), 0);
     EXPECT_EQ(QIP.transferShareManagementRightsQX(creator, asset, totalShares, QIP_CONTRACT_INDEX, QIP_TRANSFER_ASSET_FEE), totalShares);
+    EXPECT_EQ(numberOfPossessedShares(assetName, issuer, creator, creator, QIP_CONTRACT_INDEX, QIP_CONTRACT_INDEX), totalShares);
     
     QIP::createICO_input input;
     input.issuer = issuer;
@@ -273,14 +275,15 @@ TEST(ContractQIP, createICO_InvalidStartEpoch)
     input.percent7 = 10;
     input.percent8 = 10;
     input.percent9 = 10;
-    input.percent10 = 5;
+    input.percent10 = 3;
     
     // Test with startEpoch <= current epoch + 1
     input.startEpoch = system.epoch;
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output output1 = QIP.createICO(creator, input);
     EXPECT_EQ(output1.returnCode, QIPLogInfo::QIP_invalidStartEpoch);
     
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     input.startEpoch = system.epoch + 1;
     QIP::createICO_output output2 = QIP.createICO(creator, input);
     EXPECT_EQ(output2.returnCode, QIPLogInfo::QIP_invalidStartEpoch);
@@ -337,10 +340,10 @@ TEST(ContractQIP, createICO_InvalidSaleAmount)
     input.percent7 = 10;
     input.percent8 = 10;
     input.percent9 = 10;
-    input.percent10 = 5;
+    input.percent10 = 3;
     input.startEpoch = system.epoch + 2;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output output = QIP.createICO(creator, input);
     EXPECT_EQ(output.returnCode, QIPLogInfo::QIP_invalidSaleAmount);
 }
@@ -396,10 +399,10 @@ TEST(ContractQIP, createICO_InvalidPrice)
     input.percent7 = 10;
     input.percent8 = 10;
     input.percent9 = 10;
-    input.percent10 = 5;
+    input.percent10 = 3;
     input.startEpoch = system.epoch + 2;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output output = QIP.createICO(creator, input);
     EXPECT_EQ(output.returnCode, QIPLogInfo::QIP_invalidPrice);
 }
@@ -454,11 +457,11 @@ TEST(ContractQIP, createICO_InvalidPercent)
     input.percent6 = 10;
     input.percent7 = 10;
     input.percent8 = 10;
-    input.percent9 = 5;
-    input.percent10 = 1; // Total is 96, should be 95
+    input.percent9 = 10;
+    input.percent10 = 6; // Total is 96, should be 95
     input.startEpoch = system.epoch + 2;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output output = QIP.createICO(creator, input);
     EXPECT_EQ(output.returnCode, QIPLogInfo::QIP_invalidPercent);
 }
@@ -514,10 +517,11 @@ TEST(ContractQIP, buyToken_Phase1)
     createInput.percent7 = 10;
     createInput.percent8 = 10;
     createInput.percent9 = 10;
-    createInput.percent10 = 5;
+    createInput.percent10 = 3;
     createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = false;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
     EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
     
@@ -565,10 +569,11 @@ TEST(ContractQIP, buyToken_Phase1)
     uint64 expectedDist8 = div(totalPayment * createInput.percent8 * 1ULL, 100ULL);
     uint64 expectedDist9 = div(totalPayment * createInput.percent9 * 1ULL, 100ULL);
     uint64 expectedDist10 = div(totalPayment * createInput.percent10 * 1ULL, 100ULL);
+    uint64 expectedForDev = div(totalPayment * QIP_DEVELOPMENT_FUND_PERCENT * 1ULL, 100ULL);
     
     // Calculate total distributed to addresses (should be 95% of total payment)
     sint64 totalDistributedToAddresses = expectedDist1 + expectedDist2 + expectedDist3 + expectedDist4 + expectedDist5 +
-                                         expectedDist6 + expectedDist7 + expectedDist8 + expectedDist9 + expectedDist10;
+                                         expectedDist6 + expectedDist7 + expectedDist8 + expectedDist9 + expectedDist10 + expectedForDev;
     
     // Calculate expected dividend amount (remaining 5% divided by 676)
     sint64 remainingForDividends = totalPayment - totalDistributedToAddresses;
@@ -648,10 +653,11 @@ TEST(ContractQIP, buyToken_Phase2)
     createInput.percent7 = 10;
     createInput.percent8 = 10;
     createInput.percent9 = 10;
-    createInput.percent10 = 5;
+    createInput.percent10 = 3;
     createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = false;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
     EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
     
@@ -700,9 +706,10 @@ TEST(ContractQIP, buyToken_Phase2)
     uint64 expectedDist8 = div(totalPayment * createInput.percent8 * 1ULL, 100ULL);
     uint64 expectedDist9 = div(totalPayment * createInput.percent9 * 1ULL, 100ULL);
     uint64 expectedDist10 = div(totalPayment * createInput.percent10 * 1ULL, 100ULL);
+    uint64 expectedForDev = div(totalPayment * QIP_DEVELOPMENT_FUND_PERCENT * 1ULL, 100ULL);
     
     sint64 totalDistributedToAddresses = expectedDist1 + expectedDist2 + expectedDist3 + expectedDist4 + expectedDist5 +
-                                         expectedDist6 + expectedDist7 + expectedDist8 + expectedDist9 + expectedDist10;
+                                         expectedDist6 + expectedDist7 + expectedDist8 + expectedDist9 + expectedDist10 + expectedForDev;
     sint64 remainingForDividends = totalPayment - totalDistributedToAddresses;
     uint64 expectedDividendAmount = div(remainingForDividends * 1ULL, 676ULL) * 676;
     
@@ -771,10 +778,11 @@ TEST(ContractQIP, buyToken_Phase3)
     createInput.percent7 = 10;
     createInput.percent8 = 10;
     createInput.percent9 = 10;
-    createInput.percent10 = 5;
+    createInput.percent10 = 3;
     createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = false;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
     EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
     
@@ -824,9 +832,10 @@ TEST(ContractQIP, buyToken_Phase3)
     uint64 expectedDist8 = div(totalPayment * createInput.percent8 * 1ULL, 100ULL);
     uint64 expectedDist9 = div(totalPayment * createInput.percent9 * 1ULL, 100ULL);
     uint64 expectedDist10 = div(totalPayment * createInput.percent10 * 1ULL, 100ULL);
+    uint64 expectedForDev = div(totalPayment * QIP_DEVELOPMENT_FUND_PERCENT * 1ULL, 100ULL);
     
     sint64 totalDistributedToAddresses = expectedDist1 + expectedDist2 + expectedDist3 + expectedDist4 + expectedDist5 +
-                                         expectedDist6 + expectedDist7 + expectedDist8 + expectedDist9 + expectedDist10;
+                                         expectedDist6 + expectedDist7 + expectedDist8 + expectedDist9 + expectedDist10 + expectedForDev;
     sint64 remainingForDividends = totalPayment - totalDistributedToAddresses;
     uint64 expectedDividendAmount = div(remainingForDividends * 1ULL, 676ULL) * 676;
     
@@ -895,10 +904,11 @@ TEST(ContractQIP, buyToken_InvalidEpoch)
     createInput.percent7 = 10;
     createInput.percent8 = 10;
     createInput.percent9 = 10;
-    createInput.percent10 = 5;
+    createInput.percent10 = 3;
     createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = false;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
     EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
     
@@ -964,10 +974,11 @@ TEST(ContractQIP, buyToken_InvalidAmount)
     createInput.percent7 = 10;
     createInput.percent8 = 10;
     createInput.percent9 = 10;
-    createInput.percent10 = 5;
+    createInput.percent10 = 3;
     createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = false;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
     EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
     
@@ -1049,10 +1060,11 @@ TEST(ContractQIP, buyToken_InsufficientInvocationReward)
     createInput.percent7 = 10;
     createInput.percent8 = 10;
     createInput.percent9 = 10;
-    createInput.percent10 = 5;
+    createInput.percent10 = 3;
     createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = false;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
     EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
     
@@ -1122,10 +1134,11 @@ TEST(ContractQIP, END_EPOCH_Phase1Rollover)
     createInput.percent7 = 10;
     createInput.percent8 = 10;
     createInput.percent9 = 10;
-    createInput.percent10 = 5;
+    createInput.percent10 = 3;
     createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = false;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
     EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
     
@@ -1198,10 +1211,11 @@ TEST(ContractQIP, END_EPOCH_Phase2Rollover)
     createInput.percent7 = 10;
     createInput.percent8 = 10;
     createInput.percent9 = 10;
-    createInput.percent10 = 5;
+    createInput.percent10 = 3;
     createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = false;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
     EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
     
@@ -1275,10 +1289,11 @@ TEST(ContractQIP, END_EPOCH_Phase3ReturnToCreator)
     createInput.percent7 = 10;
     createInput.percent8 = 10;
     createInput.percent9 = 10;
-    createInput.percent10 = 5;
+    createInput.percent10 = 3;
     createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = false;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
     EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
     
@@ -1305,6 +1320,92 @@ TEST(ContractQIP, END_EPOCH_Phase3ReturnToCreator)
     QIPChecker* state = QIP.getState();
     EXPECT_EQ(state->getNumberOfICO(), 0);
     
+    // Verify contract no longer has the returned shares
+    EXPECT_EQ(numberOfPossessedShares(assetName, issuer, QIP_CONTRACT_ID, QIP_CONTRACT_ID, QIP_CONTRACT_INDEX, QIP_CONTRACT_INDEX), totalShares - remainingPhase3);
+}
+
+TEST(ContractQIP, END_EPOCH_BurnRemainingTokens)
+{
+    ContractTestingQIP QIP;
+
+    id issuer = QIP_testIssuer;
+    uint64 assetName = assetNameFromString("ICOASS");
+    sint64 totalShares = 1000000;
+
+    increaseEnergy(issuer, QIP_ISSUE_ASSET_FEE);
+    EXPECT_EQ(QIP.issueAsset(issuer, assetName, totalShares), totalShares);
+
+    id creator = QIP_testBuyer;
+    increaseEnergy(creator, QIP_TRANSFER_ASSET_FEE);
+    increaseEnergy(issuer, QIP_TRANSFER_ASSET_FEE);
+    EXPECT_EQ(QIP.transferAsset(issuer, creator, assetName, issuer, totalShares), totalShares);
+
+    // Transfer management rights to QIP contract
+    Asset asset;
+    asset.assetName = assetName;
+    asset.issuer = issuer;
+    increaseEnergy(creator, QIP_TRANSFER_ASSET_FEE);
+    EXPECT_EQ(QIP.transferShareManagementRightsQX(creator, asset, totalShares, QIP_CONTRACT_INDEX, QIP_TRANSFER_ASSET_FEE), totalShares);
+
+    QIP::createICO_input createInput;
+    createInput.issuer = issuer;
+    createInput.address1 = QIP_testAddress1;
+    createInput.address2 = QIP_testAddress2;
+    createInput.address3 = QIP_testAddress3;
+    createInput.address4 = QIP_testAddress1;
+    createInput.address5 = QIP_testAddress2;
+    createInput.address6 = QIP_testAddress3;
+    createInput.address7 = QIP_testAddress1;
+    createInput.address8 = QIP_testAddress2;
+    createInput.address9 = QIP_testAddress3;
+    createInput.address10 = QIP_testAddress1;
+    createInput.assetName = assetName;
+    createInput.price1 = 100;
+    createInput.price2 = 200;
+    createInput.price3 = 300;
+    createInput.saleAmountForPhase1 = 300000;
+    createInput.saleAmountForPhase2 = 300000;
+    createInput.saleAmountForPhase3 = 400000;
+    createInput.percent1 = 10;
+    createInput.percent2 = 10;
+    createInput.percent3 = 10;
+    createInput.percent4 = 10;
+    createInput.percent5 = 10;
+    createInput.percent6 = 10;
+    createInput.percent7 = 10;
+    createInput.percent8 = 10;
+    createInput.percent9 = 10;
+    createInput.percent10 = 3;
+    createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = true;
+
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
+    QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
+    EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
+
+    // Check initial state - verify shares are in contract
+    EXPECT_EQ(numberOfPossessedShares(assetName, issuer, QIP_CONTRACT_ID, QIP_CONTRACT_ID, QIP_CONTRACT_INDEX, QIP_CONTRACT_INDEX), totalShares);
+    QIP::getICOInfo_output icoInfo = QIP.getICOInfo(0);
+    uint64 remainingPhase3 = icoInfo.remainingAmountForPhase3;
+    sint64 creatorSharesBefore = numberOfPossessedShares(assetName, issuer, creator, creator, QIP_CONTRACT_INDEX, QIP_CONTRACT_INDEX);
+
+    // Advance to startEpoch + 2 (Phase 3 ends)
+    ++system.epoch; // epoch = startEpoch - 1
+    ++system.epoch; // epoch = startEpoch
+    ++system.epoch; // epoch = startEpoch + 1
+    ++system.epoch; // epoch = startEpoch + 2
+
+    // End epoch should burn Phase 3 remaining and remove ICO
+    QIP.endEpoch();
+
+    // Verify shares were burned
+    sint64 creatorSharesAfter = numberOfPossessedShares(assetName, issuer, creator, creator, QIP_CONTRACT_INDEX, QIP_CONTRACT_INDEX);
+    EXPECT_EQ(creatorSharesAfter, creatorSharesBefore);
+
+    // Verify ICO was removed
+    QIPChecker* state = QIP.getState();
+    EXPECT_EQ(state->getNumberOfICO(), 0);
+
     // Verify contract no longer has the returned shares
     EXPECT_EQ(numberOfPossessedShares(assetName, issuer, QIP_CONTRACT_ID, QIP_CONTRACT_ID, QIP_CONTRACT_INDEX, QIP_CONTRACT_INDEX), totalShares - remainingPhase3);
 }
@@ -1361,10 +1462,11 @@ TEST(ContractQIP, TransferShareManagementRights)
     createInput.percent7 = 10;
     createInput.percent8 = 10;
     createInput.percent9 = 10;
-    createInput.percent10 = 5;
+    createInput.percent10 = 3;
     createInput.startEpoch = system.epoch + 2;
+    createInput.burnRemainingTokens = false;
     
-    increaseEnergy(creator, 1);
+    increaseEnergy(creator, QIP_ICO_SETUP_FEE);
     QIP::createICO_output createOutput = QIP.createICO(creator, createInput);
     EXPECT_EQ(createOutput.returnCode, QIPLogInfo::QIP_success);
     
@@ -1404,9 +1506,10 @@ TEST(ContractQIP, TransferShareManagementRights)
     uint64 expectedDist8 = div(totalPayment * createInput.percent8 * 1ULL, 100ULL);
     uint64 expectedDist9 = div(totalPayment * createInput.percent9 * 1ULL, 100ULL);
     uint64 expectedDist10 = div(totalPayment * createInput.percent10 * 1ULL, 100ULL);
+    uint64 expectedForDev = div(totalPayment * QIP_DEVELOPMENT_FUND_PERCENT * 1ULL, 100ULL);
     
     sint64 totalDistributedToAddresses = expectedDist1 + expectedDist2 + expectedDist3 + expectedDist4 + expectedDist5 +
-                                         expectedDist6 + expectedDist7 + expectedDist8 + expectedDist9 + expectedDist10;
+                                         expectedDist6 + expectedDist7 + expectedDist8 + expectedDist9 + expectedDist10 + expectedForDev;
     sint64 remainingForDividends = totalPayment - totalDistributedToAddresses;
     uint64 expectedDividendAmount = div(remainingForDividends * 1ULL, 676ULL) * 676;
     
