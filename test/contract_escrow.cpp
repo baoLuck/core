@@ -13,7 +13,7 @@ enum class EscrowOperation : unsigned short
     CancelDeal = 4
 };
 
-class EscrowChecker : public ESCROW
+class EscrowChecker : public ESCROW, public ESCROW::StateData
 {
 public:
     uint64_t getDealsAmount()

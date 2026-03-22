@@ -274,7 +274,7 @@
 #undef CONTRACT_STATE_TYPE
 #undef CONTRACT_STATE2_TYPE
 
-#define ESCROW_CONTRACT_INDEX 25
+#define ESCROW_CONTRACT_INDEX 26
 #define CONTRACT_INDEX ESCROW_CONTRACT_INDEX
 #define CONTRACT_STATE_TYPE ESCROW
 #define CONTRACT_STATE2_TYPE ESCROW2
@@ -396,7 +396,7 @@ constexpr struct ContractDescription
     {"VOTTUN", 206, 10000, sizeof(VOTTUNBRIDGE::StateData)}, // proposal in epoch 204, IPO in 205, construction and first use in 206
 #endif
 #ifndef NO_ESCROW
-	{"ESCROW", 202, 10000, sizeof(ESCROW)},
+	{"ESCROW", 206, 10000, sizeof(ESCROW::StateData)},
 #endif
     // new contracts should be added above this line
 #ifdef INCLUDE_CONTRACT_TEST_EXAMPLES
