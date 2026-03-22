@@ -1,6 +1,6 @@
 #define SINGLE_COMPILE_UNIT
 
-// #define NO_PULSE
+// #define NO_VOTTUN
 
 //#define INCLUDE_CONTRACT_TEST_EXAMPLES
 
@@ -1477,10 +1477,61 @@ static void processRequestedCustomMiningSolutionVerificationRequest(Peer* peer, 
     }
 }
 
+// Hardcoded doge dispatcher public key (identity: XPILPIJYHRBTACMMIRSJLIZWCXDBHWVEOTZBQFBXWEUXDZGGDEKDQPIEQKQK)
+static const unsigned char dogeDispatcherPubkey[32] = {
+    0x25, 0x98, 0x6d, 0x38, 0xa6, 0x3d, 0xd6, 0x45,
+    0x0c, 0x07, 0x34, 0xd8, 0xaa, 0x47, 0x95, 0x27,
+    0xd7, 0x2c, 0x0f, 0x9b, 0x3a, 0x86, 0x0a, 0xa8,
+    0x9e, 0x9f, 0xb1, 0xf3, 0xfd, 0x3d, 0x1f, 0x95
+};
+
+// Process a doge custom mining task broadcast (type 68).
+// Verifies the signature against the hardcoded doge dispatcher public key and relays if valid.
+static void processBroadcastCustomMiningTask(RequestResponseHeader* header)
+{
+    if (!header->isDejavuZero())
+        return;
+    const unsigned int messageSize = header->size() - sizeof(RequestResponseHeader);
+    if (messageSize <= SIGNATURE_SIZE)
+        return;
+    const unsigned char* payload = (const unsigned char*)header->getPayload<void>();
+    m256i digest;
+    KangarooTwelve(payload, messageSize - SIGNATURE_SIZE, &digest, sizeof(digest));
+    if (verify(dogeDispatcherPubkey, digest.m256i_u8, payload + (messageSize - SIGNATURE_SIZE)))
+    {
+        enqueueResponse(NULL, header);
+    }
+}
+
+// Process a doge custom mining solution broadcast (type 69).
+// Verifies the signature against the sender's public key (first 32 bytes of payload)
+// and relays if the sender is a computor or has enough balance.
+static void processBroadcastCustomMiningSolution(RequestResponseHeader* header)
+{
+    if (!header->isDejavuZero())
+        return;
+    const unsigned int messageSize = header->size() - sizeof(RequestResponseHeader);
+    if (messageSize <= SIGNATURE_SIZE)
+        return;
+    const unsigned char* payload = (const unsigned char*)header->getPayload<void>();
+    const m256i* sourcePublicKey = (const m256i*)payload;
+
+    m256i digest;
+    KangarooTwelve(payload, messageSize - SIGNATURE_SIZE, &digest, sizeof(digest));
+    if (verify(sourcePublicKey->m256i_u8, digest.m256i_u8, payload + (messageSize - SIGNATURE_SIZE)))
+    {
+        if (computorIndex(*sourcePublicKey) >= 0
+            || (::spectrumIndex(*sourcePublicKey) >= 0 && energy(::spectrumIndex(*sourcePublicKey)) >= MESSAGE_DISSEMINATION_THRESHOLD))
+        {
+            enqueueResponse(NULL, header);
+        }
+    }
+}
+
 // Process custom mining data requests.
 // Currently supports:
 // - Requesting a range of tasks (using Unix timestamps as unique indexes; each task has only one unique index).
-// - Requesting all solutions corresponding to a specific task index. 
+// - Requesting all solutions corresponding to a specific task index.
 //   The total size of the response will not exceed CUSTOM_MINING_RESPOND_MESSAGE_MAX_SIZE.
 // For the solution respond, only respond solution that has not been verified yet
 static void processCustomMiningDataRequest(Peer* peer, const unsigned long long processorNumber, RequestResponseHeader* header)
@@ -1806,7 +1857,7 @@ static void processSpecialCommand(Peer* peer, RequestResponseHeader* header)
 
 static void processOracleMachineReply(Peer* peer, RequestResponseHeader* header)
 {
-    // Ignore message fron non oracle machine node
+    // Ignore message from non oracle machine node
     if (!peer->isOracleMachineNode())
     {
         return;
@@ -2283,6 +2334,18 @@ static void requestProcessor(void* ProcedureArgument)
                 case RequestAssets::type():
                 {
                     processRequestAssets(peer, header);
+                }
+                break;
+
+                case BROADCAST_CUSTOM_MINING_TASK:
+                {
+                    processBroadcastCustomMiningTask(header);
+                }
+                break;
+
+                case BROADCAST_CUSTOM_MINING_SOLUTION:
+                {
+                    processBroadcastCustomMiningSolution(header);
                 }
                 break;
 
@@ -3375,6 +3438,9 @@ static void processTick(unsigned long long processorNumber)
         PROFILE_SCOPE_END();
     }
 
+    // Generate subscription queries (may create queries that immediately timeout if the network was stuck)
+    oracleEngine.generateSubscriptionQueries();
+
     // Check for oracle query timeouts (may schedule notification)
     oracleEngine.processTimeouts();
 
@@ -3647,7 +3713,7 @@ static void processTick(unsigned long long processorNumber)
                     // - 0 if no tx was created (no need to send reply commits)
                     // - UINT32_MAX if we all pending reply commits fitted into this one tx
                     // - otherwise, an index value that has to be passed to the next call for building another tx
-                    retCode = oracleEngine.getReplyCommitTransaction(tx, overallCompIdx, ownCompIdx, txTick, retCode);
+                    retCode = oracleEngine.getReplyCommitTransaction(tx, overallCompIdx, txTick, retCode);
                     if (!retCode)
                         break;
 
@@ -3694,15 +3760,17 @@ static void processTick(unsigned long long processorNumber)
             PROFILE_NAMED_SCOPE("processTick(): broadcast oracle reveal transactions");
             auto* tx = (OracleReplyRevealTransactionPrefix*)txBuffer;
             const auto txTick = system.tick + ORACLE_REPLY_REVEAL_PUBLICATION_OFFSET;
+            const auto ownCompIdx = ownComputorIndicesMapping[0];
+            const auto overallCompIdx = ownComputorIndices[0];
             // create reply reveal transaction in tx (without signature), returning:
             // - 0 if no tx was created (no need to send reply commits)
             // - otherwise, an index value that has to be passed to the next call for building another tx
             unsigned int retCode = 0;
-            while ((retCode = oracleEngine.getReplyRevealTransaction(tx, 0, txTick, retCode)) != 0)
+            while ((retCode = oracleEngine.getReplyRevealTransaction(tx, overallCompIdx, txTick, retCode)) != 0)
             {
                 // sign and broadcast tx
                 KangarooTwelve(tx, sizeof(Transaction) + tx->inputSize, digest, sizeof(digest));
-                sign(computorSubseeds[0].m256i_u8, computorPublicKeys[0].m256i_u8, digest, tx->signaturePtr());
+                sign(computorSubseeds[ownCompIdx].m256i_u8, computorPublicKeys[ownCompIdx].m256i_u8, digest, tx->signaturePtr());
                 enqueueResponse(NULL, tx->totalSize(), BROADCAST_TRANSACTION, 0, tx);
             }
         }
@@ -3998,6 +4066,85 @@ static void endEpoch()
                 gRevenueComponents.revenue);
         }
 
+        // Revenue V2: filter transactions. Run here but have not applied yet
+        // Make sure run after gRevenueComponents is calculated because it use some of data
+        gEpochRevenueData.initialTick = system.initialTick;
+        gEpochRevenueData.totalTicks = system.tick - system.initialTick;
+        for (unsigned int tick = system.initialTick; tick < system.tick; tick++)
+        {
+            const m256i& tickLeaderPublicKey = broadcastedComputors.computors.publicKeys[tick % NUMBER_OF_COMPUTORS];
+
+            // Defensive lock, actually at the end of epoch, no more tick data written. 
+            ts.tickData.acquireLock();
+            unsigned int tickOffset = tick - system.initialTick;
+            TickData& td = ts.tickData.getByTickInCurrentEpoch(tick);
+            if ((td.epoch == system.epoch) && (tickOffset < MAX_NUMBER_OF_TICKS_PER_EPOCH))
+            {
+                unsigned int nTickLeader = 0;
+                unsigned int nProtocol = 0;
+                unsigned int nContract = 0;
+                unsigned int nOther = 0;
+                auto* offsets = ts.tickTransactionOffsets.getByTickInCurrentEpoch(tick);
+                for (unsigned int i = 0; i < NUMBER_OF_TRANSACTIONS_PER_TICK; i++)
+                {
+                    if (isZero(td.transactionDigests[i]))
+                    {
+                        continue;
+                    }
+
+                    // Make sure tx body existed
+                    if (!offsets[i])
+                    {
+                        continue;
+                    }
+
+                    const Transaction* tx = ts.tickTransactions(offsets[i]);
+
+                    // skip leader's own txs
+                    if (tx->sourcePublicKey == tickLeaderPublicKey)
+                    {
+                        nTickLeader++;
+                        continue;
+                    }
+
+                    if (isZero(tx->destinationPublicKey))
+                    {
+                        nProtocol++;
+                    }
+                    else
+                    {
+                        m256i masked = tx->destinationPublicKey;
+                        masked.m256i_u64[0] &= ~(unsigned long long)(MAX_NUMBER_OF_CONTRACTS - 1);
+                        unsigned int cIdx = (unsigned int)tx->destinationPublicKey.m256i_u64[0];
+                        if (isZero(masked) && cIdx < contractCount)
+                        {
+                            nContract++;
+                        }
+                        else
+                        {
+                            nOther++;
+                        }
+                    }
+
+                }
+                gEpochRevenueData.perTickTxTickLeaderCount[tickOffset] = (unsigned short)nTickLeader;
+
+                gEpochRevenueData.perTickTxCount[tickOffset] = (unsigned short)(nProtocol + nContract + nOther);
+                gEpochRevenueData.perTickProtocolTxCount[tickOffset] = (unsigned short)nProtocol;
+                gEpochRevenueData.perTickContractTxCount[tickOffset] = (unsigned short)nContract;
+                gEpochRevenueData.perTickOtherTxCount[tickOffset] = (unsigned short)nOther;
+            }
+            ts.tickData.releaseLock();
+        }
+        // Fetch oracle revenue points (accumulated during epoch, reset at beginEpoch)
+        {
+            OracleRevenuePoints oracleRevPoints;
+            oracleEngine.getRevenuePoints(oracleRevPoints);
+            copyMemory(gEpochRevenueData.oracleScore, oracleRevPoints.computorRevPoints);
+        }
+        computeRevenueV2(gEpochRevenueData);
+
+
         // Get revenue donation data by calling contract GQMPROP::GetRevenueDonation()
         QpiContextUserFunctionCall qpiContext(GQMPROP::__contract_index);
         qpiContext.call(5, "", 0);
@@ -4252,6 +4399,8 @@ static bool saveAllNodeStates()
         logToConsole(L"Failed to save universe");
         return false;
     }
+    if (!saveSnapshotUniverseIndex(L"snapshotUniverseIndex", directory))
+        return false;
 
     CONTRACT_FILE_NAME[sizeof(CONTRACT_FILE_NAME) / sizeof(CONTRACT_FILE_NAME[0]) - 4] = L'0';
     CONTRACT_FILE_NAME[sizeof(CONTRACT_FILE_NAME) / sizeof(CONTRACT_FILE_NAME[0]) - 3] = L'0';
@@ -4421,14 +4570,18 @@ static bool loadAllNodeStates()
         return false;
     }
 
+    // When loading from a snapshot, the universe index lists must not be rebuilt, because this may change the
+    // order of asset iteration and lead to misalignment. Instead, the original index must be saved/loaded.
     UNIVERSE_FILE_NAME[sizeof(UNIVERSE_FILE_NAME) / sizeof(UNIVERSE_FILE_NAME[0]) - 4] = L'0';
     UNIVERSE_FILE_NAME[sizeof(UNIVERSE_FILE_NAME) / sizeof(UNIVERSE_FILE_NAME[0]) - 3] = L'0';
     UNIVERSE_FILE_NAME[sizeof(UNIVERSE_FILE_NAME) / sizeof(UNIVERSE_FILE_NAME[0]) - 2] = L'0';
-    if (!loadUniverse(UNIVERSE_FILE_NAME, directory))
+    if (!loadUniverse(UNIVERSE_FILE_NAME, directory, /*rebuildIndexLists=*/false))
     {
         logToConsole(L"Failed to load universe");
         return false;
     }
+    if (!loadSnapshotUniverseIndex(L"snapshotUniverseIndex", directory))
+        return false;
 
     CONTRACT_FILE_NAME[sizeof(CONTRACT_FILE_NAME) / sizeof(CONTRACT_FILE_NAME[0]) - 4] = L'0';
     CONTRACT_FILE_NAME[sizeof(CONTRACT_FILE_NAME) / sizeof(CONTRACT_FILE_NAME[0]) - 3] = L'0';
@@ -5545,6 +5698,8 @@ static void tickProcessor(void*)
 
                                     // Save the file of revenue. This blocking save can be called from any thread
                                     saveRevenueComponents(NULL);
+                                    // Revenue v2 data
+                                    asyncSave(REVENUE_DATA_END_OF_EPOCH_FILE_NAME, sizeof(gEpochRevenueData), (unsigned char*)&gEpochRevenueData);
 
                                     // Reorder futureComputors so requalifying computors keep their index
                                     // This is needed for correct execution fee reporting across epoch boundaries
@@ -5912,7 +6067,7 @@ static bool initialize()
             logToConsole(L"initOracleInterfaces() failed! Not all interfaces are properly defined!");
             return false;
         }
-        if (!oracleEngine.init(computorPublicKeys))
+        if (!oracleEngine.init(broadcastedComputors.computors.publicKeys))
             return false;
 
 #if ADDON_TX_STATUS_REQUEST
@@ -6034,10 +6189,19 @@ static bool initialize()
             }
             if (!loadContractStateFiles())
                 return false;
-#ifndef START_NETWORK_FROM_SCRATCH
+#if !START_NETWORK_FROM_SCRATCH
             if (!loadContractExecFeeFiles())
                 return false;
 #endif
+
+#ifdef INCLUDE_CONTRACT_TEST_EXAMPLES
+            // fill execution fee reserves for test contracts
+            setContractFeeReserve(TESTEXA_CONTRACT_INDEX, 100000000000);
+            setContractFeeReserve(TESTEXB_CONTRACT_INDEX, 100000000000);
+            setContractFeeReserve(TESTEXC_CONTRACT_INDEX, 100000000000);
+            setContractFeeReserve(TESTEXD_CONTRACT_INDEX, 100000000000);
+#endif
+
             m256i computerDigest;
             {
                 setText(message, L"Computer digest = ");
