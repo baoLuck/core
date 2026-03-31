@@ -135,7 +135,7 @@ struct ESCROW : public ContractBase
     };
     struct GetFreeAssetAmount_output
     {
-        uint64 freeAmount;
+        sint64 freeAmount;
     };
 
     struct _NumberOfReservedShares_input
@@ -378,6 +378,7 @@ struct ESCROW : public ContractBase
         uint64 tempAmount;
         id dealOwner;
         sint64 availableTokenAmount;
+        sint64 transferResult;
         bit error;
     };
 
@@ -444,37 +445,40 @@ struct ESCROW : public ContractBase
 
         for (locals.counter = 0; locals.counter < locals.tempDeal.offeredAssetsNumber; locals.counter++)
         {
-            if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
+            if (locals.transferResult >= 0)
             {
-                locals.transferredFeeShares = 0;
-                locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount;
-                qpi.transferShareOwnershipAndPossession(
-                        locals.tempDeal.offeredAssets.get(locals.counter).name,
-                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                        locals.dealOwner,
-                        locals.dealOwner,
-                        locals.tempDeal.offeredAssets.get(locals.counter).amount,
-                        qpi.invocator());
-            }
-            else
-            {
-                locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount - div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
-                qpi.transferShareOwnershipAndPossession(
-                        locals.tempDeal.offeredAssets.get(locals.counter).name,
-                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                        locals.dealOwner,
-                        locals.dealOwner,
-                        locals.transferredShares,
-                        qpi.invocator());
+                if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
+                {
+                    locals.transferredFeeShares = 0;
+                    locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount;
+                    locals.transferResult = qpi.transferShareOwnershipAndPossession(
+                                                    locals.tempDeal.offeredAssets.get(locals.counter).name,
+                                                    locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                                                    locals.dealOwner,
+                                                    locals.dealOwner,
+                                                    locals.tempDeal.offeredAssets.get(locals.counter).amount,
+                                                    qpi.invocator());
+                }
+                else
+                {
+                    locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount - div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
+                    locals.transferResult = qpi.transferShareOwnershipAndPossession(
+                                                    locals.tempDeal.offeredAssets.get(locals.counter).name,
+                                                    locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                                                    locals.dealOwner,
+                                                    locals.dealOwner,
+                                                    locals.transferredShares,
+                                                    qpi.invocator());
 
-                locals.transferredFeeShares = div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
-                qpi.transferShareOwnershipAndPossession(
-                        locals.tempDeal.offeredAssets.get(locals.counter).name,
-                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                        locals.dealOwner,
-                        locals.dealOwner,
-                        locals.transferredFeeShares,
-                        SELF);
+                    locals.transferredFeeShares = div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
+                    qpi.transferShareOwnershipAndPossession(
+                            locals.tempDeal.offeredAssets.get(locals.counter).name,
+                            locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                            locals.dealOwner,
+                            locals.dealOwner,
+                            locals.transferredFeeShares,
+                            SELF);
+                }
             }
 
             locals.tempAsset.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
@@ -513,55 +517,77 @@ struct ESCROW : public ContractBase
             }
         }
 
-        for (locals.counter = 0; locals.counter < locals.tempDeal.requestedAssetsNumber; locals.counter++)
+        if (locals.transferResult >= 0)
         {
-            if (locals.tempDeal.requestedAssets.get(locals.counter).issuer == NULL_ID)
+            for (locals.counter = 0; locals.counter < locals.tempDeal.requestedAssetsNumber; locals.counter++)
             {
-                qpi.transferShareOwnershipAndPossession(
-                    locals.tempDeal.requestedAssets.get(locals.counter).name,
-                    locals.tempDeal.requestedAssets.get(locals.counter).issuer,
-                    qpi.invocator(),
-                    qpi.invocator(),
-                    locals.tempDeal.requestedAssets.get(locals.counter).amount,
-                    locals.dealOwner);
-            }
-            else
-            {
-                qpi.transferShareOwnershipAndPossession(
-                    locals.tempDeal.requestedAssets.get(locals.counter).name,
-                    locals.tempDeal.requestedAssets.get(locals.counter).issuer,
-                    qpi.invocator(),
-                    qpi.invocator(),
-                    locals.tempDeal.requestedAssets.get(locals.counter).amount - div(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL),
-                    locals.dealOwner);
+                if (locals.tempDeal.requestedAssets.get(locals.counter).issuer == NULL_ID)
+                {
+                    locals.transferResult = qpi.transferShareOwnershipAndPossession(
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).name,
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).issuer,
+                                                    qpi.invocator(),
+                                                    qpi.invocator(),
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).amount,
+                                                    locals.dealOwner);
+                }
+                else
+                {
+                    locals.transferResult = qpi.transferShareOwnershipAndPossession(
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).name,
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).issuer,
+                                                    qpi.invocator(),
+                                                    qpi.invocator(),
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).amount - div(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL),
+                                                    locals.dealOwner);
 
-                qpi.transferShareOwnershipAndPossession(
-                    locals.tempDeal.requestedAssets.get(locals.counter).name,
-                    locals.tempDeal.requestedAssets.get(locals.counter).issuer,
-                    qpi.invocator(),
-                    qpi.invocator(),
-                    div(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL),
-                    SELF);
-            }
+                    qpi.transferShareOwnershipAndPossession(
+                        locals.tempDeal.requestedAssets.get(locals.counter).name,
+                        locals.tempDeal.requestedAssets.get(locals.counter).issuer,
+                        qpi.invocator(),
+                        qpi.invocator(),
+                        div(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL),
+                        SELF);
+                }
 
-            locals.tempAsset.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
-            locals.tempAsset.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
-            locals.wrapper.setFrom(locals.tempAsset);
+                if (locals.transferResult < 0 || locals.transferResult == INVALID_AMOUNT)
+                {
+                    break;
+                }
+                
+                locals.tempAsset.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
+                locals.tempAsset.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
+                locals.wrapper.setFrom(locals.tempAsset);
 
-            if (locals.tempAsset.issuer != NULL_ID && !state.get()._earnedTokens.contains(locals.wrapper))
-            {
-                state.mut()._earnedTokens.add(locals.wrapper);
+                if (locals.tempAsset.issuer != NULL_ID && !state.get()._earnedTokens.contains(locals.wrapper))
+                {
+                    state.mut()._earnedTokens.add(locals.wrapper);
+                }
             }
         }
 
         if (locals.tempDeal.offeredQU > 0)
         {
-            qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - div(smul(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            if (locals.transferResult >= 0)
+            {
+                qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - div(smul(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            }
+            else
+            {
+                qpi.transfer(locals.dealOwner, locals.tempDeal.offeredQU - div(smul(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            }
         }
         
         if (locals.tempDeal.requestedQU > 0)
         {
-            qpi.transfer(locals.dealOwner, locals.tempDeal.requestedQU - div(smul(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            if (locals.transferResult >= 0)
+            {
+                qpi.transfer(locals.dealOwner, locals.tempDeal.requestedQU - div(smul(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            }
+            else
+            {
+                qpi.transfer(qpi.invocator(), locals.tempDeal.requestedQU - div(smul(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            }
         }
 
         if (state.get()._ownerDealIndexes.population(locals.dealOwner) == 1)
