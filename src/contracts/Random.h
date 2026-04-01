@@ -21,8 +21,6 @@ struct RANDOM2
 
 struct RANDOM : public ContractBase
 {
-public:
-<<<<<<< HEAD
     struct AssetWithAmount
     {
         id issuer;
@@ -52,304 +50,12 @@ public:
         {
             return issuer == other.issuer && assetName == other.assetName;
         }
-=======
-	struct RevealAndCommit_input
-	{
-		bit_4096 reveal;
-		id commit;
-	};
-
-	struct RevealAndCommit_output
-	{
-	};
-
-	struct RevealAndCommit_locals
-	{
-		bit_4096 zeroReveal; // TODO: Use a constant from either QPI or global state
-		uint32 stream;
-		uint32 collateralTier;
-		uint32 i;
-	};
-
-	struct StateData
-	{
-		uint64 earnedAmount;
-		uint64 distributedAmount;
-		uint64 burnedAmount;
-
-		uint32 bitFee; // Amount of qus
-
-		Array<uint32, 4> populations;        // 3
-		Array<id, 4096> providers;           // 3 * 1365
-		Array<uint64, 4096> collateralTiers; // 3 * 1365
-		Array<id, 4096> commits;             // 3 * 1365
-		Array<bit_4096, 4096> reveals;       // 3 * 1365
-		bit_4096 revealOrCommitFlags;        // 3 * 1365
-		Array<bit_4096, 32> entropy;         // 3 * 10
-	};
-
-private:
-	PUBLIC_PROCEDURE_WITH_LOCALS(RevealAndCommit)
-	{
-		// TODO: Reject transactions from smart contracts!
-
-		switch (qpi.invocationReward())
-		{
-			case 1: locals.collateralTier = 0; break;
-
-			case 10: locals.collateralTier = 1; break;
-
-			case 100: locals.collateralTier = 2; break;
-
-			case 1000: locals.collateralTier = 3; break;
-
-			case 10000: locals.collateralTier = 4; break;
-
-			case 100000: locals.collateralTier = 5; break;
-
-			case 1000000: locals.collateralTier = 6; break;
-
-			case 10000000: locals.collateralTier = 7; break;
-
-			case 100000000: locals.collateralTier = 8; break;
-
-			case 1000000000: locals.collateralTier = 9; break;
-
-			default: qpi.transfer(qpi.invocator(), qpi.invocationReward()); return;
-		}
-
-		locals.stream = mod<uint32>(qpi.tick(), 3);
-
-		if (input.reveal != locals.zeroReveal) // Don't need to initialize [locals.zeroReveal] because
-		                                       // locals struct has been zeroed (bad practice, but
-		                                       // it's for spreading awareness about this nuance)
-		{
-			for (; locals.i < state.get().populations.get(locals.stream); locals.i++) // Don't need to initialize [locals.i] because locals
-			                                                                          // struct has been zeroed (bad practice, but it's for
-			                                                                          // spreading awareness about this nuance)
-			{
-				if (qpi.invocator() == state.get().providers.get(locals.stream * 1365 + locals.i) &&
-				    locals.collateralTier == state.get().collateralTiers.get(locals.stream * 1365 + locals.i))
-				{
-					break;
-				}
-			}
-			if (locals.i == state.get().populations.get(locals.stream) ||
-			    state.get().reveals.get(locals.stream * 1365 + locals.i) != locals.zeroReveal ||
-			    qpi.K12(input.reveal) != state.get().commits.get(locals.stream * 1365 + locals.i))
-			{
-				qpi.transfer(qpi.invocator(), qpi.invocationReward());
-				return;
-			}
-
-			state.mut().reveals.set(locals.stream * 1365 + locals.i, input.reveal);
-			state.mut().revealOrCommitFlags.set(locals.stream * 1365 + locals.i, 1);
-		}
-
-		if (input.commit == id::zero())
-		{
-			qpi.transfer(qpi.invocator(), qpi.invocationReward());
-			return;
-		}
-
-		for (locals.i = 0; locals.i < state.get().populations.get(locals.stream); locals.i++)
-		{
-			if (qpi.invocator() == state.get().providers.get(locals.stream * 1365 + locals.i) &&
-			    locals.collateralTier == state.get().collateralTiers.get(locals.stream * 1365 + locals.i))
-			{
-				break;
-			}
-		}
-		if (locals.i == state.get().populations.get(locals.stream))
-		{
-			if (locals.i == 1365)
-			{
-				qpi.transfer(qpi.invocator(), qpi.invocationReward());
-				return;
-			}
-
-			state.mut().providers.set(locals.stream * 1365 + locals.i, qpi.invocator());
-			state.mut().collateralTiers.set(locals.stream * 1365 + locals.i, locals.collateralTier);
-			state.mut().populations.set(locals.stream, locals.i + 1);
-		}
-		else
-		{
-			if (state.get().reveals.get(locals.stream * 1365 + locals.i) == locals.zeroReveal)
-			{
-				qpi.transfer(qpi.invocator(), qpi.invocationReward());
-				return;
-			}
-		}
-		state.mut().commits.set(locals.stream * 1365 + locals.i, input.commit);
-		state.mut().revealOrCommitFlags.set(locals.stream * 1365 + locals.i, 1);
-	}
-
-	struct END_TICK_locals
-	{
-		bit_4096 zeroReveal; // TODO: Use a constant from either QPI or global state
-		bit_4096 entropy;
-		id collateralRecipient;
-		uint32 stream;
-		uint32 i, j;
-		uint16 collateralTierFlags;
-	};
-
-	END_TICK_WITH_LOCALS()
-	{
-		locals.stream = mod<uint32>(qpi.tick(), 3);
-
-		for (; locals.i < 10; locals.i++) // Don't need to initialize [locals.i] because locals
-		                                  // struct has been zeroed (bad practice, but it's for
-		                                  // spreading awareness about this nuance)
-		{
-			state.mut().entropy.set(locals.stream * 10 + locals.i,
-			                        locals.zeroReveal); // Don't need to initialize [locals.zeroReveal]
-			                                            // because locals struct has been zeroed (bad
-			                                            // practice, but it's for spreading awareness
-			                                            // about this nuance)
-		}
-
-		for (locals.i = 0; locals.i < state.get().populations.get(locals.stream); locals.i++)
-		{
-			if (state.get().revealOrCommitFlags.get(locals.stream * 1365 + locals.i))
-			{
-				break;
-			}
-		}
-		if (locals.i == state.get().populations.get(locals.stream)) // Nobody provided their reveal, that
-		                                                            // tick was probably empty
-		{
-			while (locals.i--)
-			{
-				switch (state.get().collateralTiers.get(locals.stream * 1365 + locals.i))
-				{
-					case 0: qpi.transfer(state.get().providers.get(locals.stream * 1365 + locals.i), 1); break;
-
-					case 1: qpi.transfer(state.get().providers.get(locals.stream * 1365 + locals.i), 10); break;
-
-					case 2: qpi.transfer(state.get().providers.get(locals.stream * 1365 + locals.i), 100); break;
-
-					case 3: qpi.transfer(state.get().providers.get(locals.stream * 1365 + locals.i), 1000); break;
-
-					case 4: qpi.transfer(state.get().providers.get(locals.stream * 1365 + locals.i), 10000); break;
-
-					case 5: qpi.transfer(state.get().providers.get(locals.stream * 1365 + locals.i), 100000); break;
-
-					case 6: qpi.transfer(state.get().providers.get(locals.stream * 1365 + locals.i), 1000000); break;
-
-					case 7: qpi.transfer(state.get().providers.get(locals.stream * 1365 + locals.i), 10000000); break;
-
-					case 8: qpi.transfer(state.get().providers.get(locals.stream * 1365 + locals.i), 100000000); break;
-
-					default: qpi.transfer(state.get().providers.get(locals.stream * 1365 + locals.i), 1000000000);
-				}
-				state.mut().providers.set(locals.stream * 1365 + locals.i, id::zero());
-				state.mut().collateralTiers.set(locals.stream * 1365 + locals.i, 0);
-				// Don't need to zero [state.reveals], they are all-zeros anyway
-				state.mut().commits.set(locals.stream * 1365 + locals.i, id::zero());
-			}
-			state.mut().populations.set(locals.stream, 0);
-		}
-		else
-		{
-			// Don't need to initialize [locals.collateralTierFlags] because locals
-			// struct has been zeroed (bad practice, but it's for spreading awareness
-			// about this nuance)
-
-			for (locals.i = state.get().populations.get(locals.stream); locals.i--;)
-			{
-				if (state.get().revealOrCommitFlags.get(locals.stream * 1365 + locals.i))
-				{
-					locals.collateralRecipient = state.get().providers.get(locals.stream * 1365 + locals.i);
-				}
-				else
-				{
-					locals.collateralRecipient = id::zero();
-				}
-
-				switch (state.get().collateralTiers.get(locals.stream * 1365 + locals.i))
-				{
-					case 0: qpi.transfer(locals.collateralRecipient, 1); break;
-
-					case 1: qpi.transfer(locals.collateralRecipient, 10); break;
-
-					case 2: qpi.transfer(locals.collateralRecipient, 100); break;
-
-					case 3: qpi.transfer(locals.collateralRecipient, 1000); break;
-
-					case 4: qpi.transfer(locals.collateralRecipient, 10000); break;
-
-					case 5: qpi.transfer(locals.collateralRecipient, 100000); break;
-
-					case 6: qpi.transfer(locals.collateralRecipient, 1000000); break;
-
-					case 7: qpi.transfer(locals.collateralRecipient, 10000000); break;
-
-					case 8: qpi.transfer(locals.collateralRecipient, 100000000); break;
-
-					default: qpi.transfer(locals.collateralRecipient, 1000000000);
-				}
-
-				if (locals.collateralRecipient == id::zero())
-				{
-					locals.collateralTierFlags |= (1 << state.get().collateralTiers.get(locals.stream * 1365 + locals.i));
-
-					state.mut().providers.set(locals.stream * 1365 + locals.i,
-					                          state.get().providers.get(locals.stream * 1365 + state.get().populations.get(locals.stream)));
-					state.mut().providers.set(locals.stream * 1365 + state.get().populations.get(locals.stream), id::zero());
-
-					state.mut().collateralTiers.set(
-					    locals.stream * 1365 + locals.i,
-					    state.get().collateralTiers.get(locals.stream * 1365 + state.get().populations.get(locals.stream)));
-					state.mut().collateralTiers.set(locals.stream * 1365 + state.get().populations.get(locals.stream), 0);
-
-					state.mut().reveals.set(locals.stream * 1365 + locals.i,
-					                        state.get().reveals.get(locals.stream * 1365 + state.get().populations.get(locals.stream)));
-					state.mut().reveals.set(locals.stream * 1365 + state.get().populations.get(locals.stream), locals.zeroReveal);
-
-					state.mut().commits.set(locals.stream * 1365 + locals.i,
-					                        state.get().commits.get(locals.stream * 1365 + state.get().populations.get(locals.stream)));
-					state.mut().commits.set(locals.stream * 1365 + state.get().populations.get(locals.stream), id::zero());
-
-					state.mut().populations.set(locals.stream, state.get().populations.get(locals.stream) - 1);
-				}
-				else
-				{
-					if (!(locals.collateralTierFlags & (1 << state.get().collateralTiers.get(locals.stream * 1365 + locals.i))))
-					{
-						locals.entropy =
-						    state.get().entropy.get(locals.stream * 10 + state.get().collateralTiers.get(locals.stream * 1365 + locals.i));
-						for (locals.j = 0; locals.j < 4096; locals.j++)
-						{
-							locals.entropy.set(locals.j,
-							                   locals.entropy.get(locals.j) ^ state.get().reveals.get(locals.stream * 1365 + locals.i).get(locals.j));
-						}
-						state.mut().entropy.set(locals.stream * 10 + state.get().collateralTiers.get(locals.stream * 1365 + locals.i),
-						                        locals.entropy);
-						state.mut().reveals.set(locals.stream * 1365 + locals.i, locals.zeroReveal);
-					}
-				}
-
-				state.mut().revealOrCommitFlags.set(locals.stream * 1365 + locals.i, 0);
-			}
-
-			for (locals.i = 0; locals.i < 10; locals.i++)
-			{
-				if (locals.collateralTierFlags & (1 << locals.i))
-				{
-					state.mut().entropy.set(locals.stream * 10 + locals.i, locals.zeroReveal);
-				}
-			}
-		}
-	}
->>>>>>> main
 
         bool operator!=(const EscrowAsset other) const
         {
             return issuer != other.issuer || assetName != other.assetName;
         }
 
-<<<<<<< HEAD
         inline void setFrom(const Asset& asset)
         {
             issuer = asset.issuer;
@@ -429,35 +135,41 @@ private:
     };
     struct GetFreeAssetAmount_output
     {
-        uint64 freeAmount;
+        sint64 freeAmount;
     };
-
-protected:
-    uint64 _earnedAmount;
-    uint64 _distributedAmount;
-    HashSet<EscrowAsset, ESCROW_MAX_RESERVED_ASSETS> _earnedTokens;
-
-    sint64 _currentDealIndex;
-    HashMap<sint64, Deal, ESCROW_MAX_DEALS> _deals;
-    Collection<sint64, ESCROW_MAX_DEALS> _acceptorDealIndexes;
-    Collection<sint64, ESCROW_MAX_DEALS> _ownerDealIndexes;
-    HashMap<sint64, id, ESCROW_MAX_DEALS> _dealIndexOwnerMap;
-    HashSet<id, ESCROW_MAX_DEALS> _ownersSet;
-    Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
-
-    id _devAddress;
 
     struct _NumberOfReservedShares_input
     {
         id owner;
         id issuer;
         uint64 assetName;
-    } _numberOfReservedShares_input;
+    };
 
     struct _NumberOfReservedShares_output
     {
         sint64 amount;
-    } _numberOfReservedShares_output;
+    };
+
+    struct StateData
+    {
+        uint64 _earnedAmount;
+        uint64 _distributedAmount;
+        HashSet<EscrowAsset, ESCROW_MAX_RESERVED_ASSETS> _earnedTokens;
+
+        sint64 _currentDealIndex;
+        HashMap<sint64, Deal, ESCROW_MAX_DEALS> _deals;
+        Collection<sint64, ESCROW_MAX_DEALS> _acceptorDealIndexes;
+        Collection<sint64, ESCROW_MAX_DEALS> _ownerDealIndexes;
+        HashMap<sint64, id, ESCROW_MAX_DEALS> _dealIndexOwnerMap;
+        HashSet<id, ESCROW_MAX_DEALS> _ownersSet;
+        Collection<AssetWithAmount, ESCROW_MAX_RESERVED_ASSETS> _reservedAssets;
+
+        id _devAddress;
+
+        _NumberOfReservedShares_input _numberOfReservedShares_input;
+
+        _NumberOfReservedShares_output _numberOfReservedShares_output;
+    };
 
     // ----------------------------------------------
 
@@ -471,17 +183,17 @@ protected:
     {
         output.amount = 0;
 
-        locals.elementIndex = state._reservedAssets.headIndex(input.owner);
+        locals.elementIndex = state.get()._reservedAssets.headIndex(input.owner);
         while (locals.elementIndex != NULL_INDEX)
         {
-            locals.assetWithAmount = state._reservedAssets.element(locals.elementIndex);
+            locals.assetWithAmount = state.get()._reservedAssets.element(locals.elementIndex);
             if (locals.assetWithAmount.name == input.assetName && locals.assetWithAmount.issuer == input.issuer)
             {
                 output.amount = locals.assetWithAmount.amount;
                 break;
             }
 
-            locals.elementIndex = state._reservedAssets.nextElementIndex(locals.elementIndex);
+            locals.elementIndex = state.get()._reservedAssets.nextElementIndex(locals.elementIndex);
         }
     }
 
@@ -489,10 +201,12 @@ protected:
     {
         Deal newDeal;
         uint64 counter;
+        uint64 counter2;
         sint64 elementIndex;
         uint64 offeredQuAndFee;
         AssetWithAmount tempAssetWithAmount;
         Asset tempAsset;
+        sint64 availableTokenAmount;
         bit error;
     };
 
@@ -501,8 +215,8 @@ protected:
         locals.error = false;
         locals.offeredQuAndFee = 0;
 
-        if (state._ownerDealIndexes.population() >= ESCROW_MAX_DEALS
-                || state._ownerDealIndexes.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER
+        if (state.get()._ownerDealIndexes.population() >= ESCROW_MAX_DEALS
+                || state.get()._ownerDealIndexes.population(qpi.invocator()) >= ESCROW_MAX_DEALS_PER_USER
                 || (input.offeredAssetsNumber == 0 && input.requestedAssetsNumber == 0)
                 || input.offeredQU >= MAX_AMOUNT
                 || input.requestedQU >= MAX_AMOUNT
@@ -512,22 +226,47 @@ protected:
             locals.error = true;
         }
 
+        for (locals.counter = 0; locals.counter < input.offeredAssetsNumber; locals.counter++)
+        {
+            for (locals.counter2 = locals.counter + 1; locals.counter2 < input.offeredAssetsNumber; locals.counter2++)
+            {
+                if (input.offeredAssets.get(locals.counter).issuer == input.offeredAssets.get(locals.counter2).issuer &&
+                    input.offeredAssets.get(locals.counter).name == input.offeredAssets.get(locals.counter2).name)
+                    {
+                        locals.error = true;
+                    }
+            }
+        }
+
+        for (locals.counter = 0; locals.counter < input.requestedAssetsNumber; locals.counter++)
+        {
+            for (locals.counter2 = locals.counter + 1; locals.counter2 < input.requestedAssetsNumber; locals.counter2++)
+            {
+                if (input.requestedAssets.get(locals.counter).issuer == input.requestedAssets.get(locals.counter2).issuer &&
+                    input.requestedAssets.get(locals.counter).name == input.requestedAssets.get(locals.counter2).name)
+                    {
+                        locals.error = true;
+                    }
+            }
+        }
+            
         if (!locals.error)
         {
             locals.offeredQuAndFee = sadd(input.offeredQU, ESCROW_BASE_FEE);
 
             for (locals.counter = 0; locals.counter < input.offeredAssetsNumber; locals.counter++)
             {
-                state._numberOfReservedShares_input.issuer = input.offeredAssets.get(locals.counter).issuer;
-                state._numberOfReservedShares_input.assetName = input.offeredAssets.get(locals.counter).name;
-                state._numberOfReservedShares_input.owner = qpi.invocator();
-                CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
+                state.mut()._numberOfReservedShares_input.issuer = input.offeredAssets.get(locals.counter).issuer;
+                state.mut()._numberOfReservedShares_input.assetName = input.offeredAssets.get(locals.counter).name;
+                state.mut()._numberOfReservedShares_input.owner = qpi.invocator();
+                CALL(_NumberOfReservedShares, state.mut()._numberOfReservedShares_input, state.mut()._numberOfReservedShares_output);
                 locals.tempAsset.assetName = input.offeredAssets.get(locals.counter).name;
                 locals.tempAsset.issuer = input.offeredAssets.get(locals.counter).issuer;
+                locals.availableTokenAmount = qpi.numberOfShares(locals.tempAsset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state.get()._numberOfReservedShares_output.amount;
                 if (input.offeredAssets.get(locals.counter).amount >= MAX_AMOUNT
                         || input.offeredAssets.get(locals.counter).amount < 0
-                        || uint64(qpi.numberOfShares(locals.tempAsset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount)
-                                < input.offeredAssets.get(locals.counter).amount)
+                        || locals.availableTokenAmount < 0
+                        || uint64(locals.availableTokenAmount) < input.offeredAssets.get(locals.counter).amount)
                 {
                     locals.error = true;
                     break;
@@ -571,7 +310,7 @@ protected:
             qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.offeredQuAndFee);
         }
 
-        locals.newDeal.index = state._currentDealIndex;
+        locals.newDeal.index = state.get()._currentDealIndex;
         locals.newDeal.acceptorId = (input.acceptorId == NULL_ID || input.acceptorId == qpi.invocator()) ? SELF : input.acceptorId;
         locals.newDeal.offeredQU = input.offeredQU;
         locals.newDeal.offeredAssets = input.offeredAssets;
@@ -581,43 +320,43 @@ protected:
         locals.newDeal.requestedAssetsNumber = input.requestedAssetsNumber;
         locals.newDeal.creationEpoch = qpi.epoch();
 
-        if (state._ownerDealIndexes.population(qpi.invocator()) == 0)
+        if (state.get()._ownerDealIndexes.population(qpi.invocator()) == 0)
         {
-            state._ownersSet.add(qpi.invocator());
+            state.mut()._ownersSet.add(qpi.invocator());
         }
-        state._deals.set(state._currentDealIndex, locals.newDeal);
-        state._ownerDealIndexes.add(qpi.invocator(), state._currentDealIndex, 0);
-        state._acceptorDealIndexes.add(locals.newDeal.acceptorId, state._currentDealIndex, 0);
+        state.mut()._deals.set(state.get()._currentDealIndex, locals.newDeal);
+        state.mut()._ownerDealIndexes.add(qpi.invocator(), state.get()._currentDealIndex, 0);
+        state.mut()._acceptorDealIndexes.add(locals.newDeal.acceptorId, state.get()._currentDealIndex, 0);
 
-        state._dealIndexOwnerMap.set(locals.newDeal.index, qpi.invocator());
-        state._earnedAmount += ESCROW_BASE_FEE;
-        state._currentDealIndex++;
+        state.mut()._dealIndexOwnerMap.set(locals.newDeal.index, qpi.invocator());
+        state.mut()._earnedAmount += ESCROW_BASE_FEE;
+        state.mut()._currentDealIndex++;
 
         for (locals.counter = 0; locals.counter < input.offeredAssetsNumber; locals.counter++)
         {
-            state._numberOfReservedShares_input.issuer = input.offeredAssets.get(locals.counter).issuer;
-            state._numberOfReservedShares_input.assetName = input.offeredAssets.get(locals.counter).name;
-            state._numberOfReservedShares_input.owner = qpi.invocator();
-            CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-            if (state._numberOfReservedShares_output.amount == 0)
+            state.mut()._numberOfReservedShares_input.issuer = input.offeredAssets.get(locals.counter).issuer;
+            state.mut()._numberOfReservedShares_input.assetName = input.offeredAssets.get(locals.counter).name;
+            state.mut()._numberOfReservedShares_input.owner = qpi.invocator();
+            CALL(_NumberOfReservedShares, state.mut()._numberOfReservedShares_input, state.mut()._numberOfReservedShares_output);
+            if (state.get()._numberOfReservedShares_output.amount == 0)
             {
                 locals.tempAssetWithAmount = input.offeredAssets.get(locals.counter);
-                state._reservedAssets.add(qpi.invocator(), locals.tempAssetWithAmount, 0);
+                state.mut()._reservedAssets.add(qpi.invocator(), locals.tempAssetWithAmount, 0);
             }
             else
             {
-                locals.elementIndex = state._reservedAssets.headIndex(qpi.invocator());
+                locals.elementIndex = state.get()._reservedAssets.headIndex(qpi.invocator());
                 while (locals.elementIndex != NULL_INDEX)
                 {
-                    locals.tempAssetWithAmount = state._reservedAssets.element(locals.elementIndex);
+                    locals.tempAssetWithAmount = state.get()._reservedAssets.element(locals.elementIndex);
                     if (locals.tempAssetWithAmount.name == input.offeredAssets.get(locals.counter).name && locals.tempAssetWithAmount.issuer == input.offeredAssets.get(locals.counter).issuer)
                     {
                         locals.tempAssetWithAmount.amount += input.offeredAssets.get(locals.counter).amount;
-                        state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
+                        state.mut()._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
                         break;
                     }
 
-                    locals.elementIndex = state._reservedAssets.nextElementIndex(locals.elementIndex);
+                    locals.elementIndex = state.get()._reservedAssets.nextElementIndex(locals.elementIndex);
                 }
             }
         } 
@@ -638,6 +377,8 @@ protected:
         EscrowAsset wrapper;
         uint64 tempAmount;
         id dealOwner;
+        sint64 availableTokenAmount;
+        sint64 transferResult;
         bit error;
     };
 
@@ -646,8 +387,8 @@ protected:
         locals.error = false;
         locals.requestedQuAndFee = 0;
 
-        if (!state._deals.get(input.index, locals.tempDeal)
-                || !state._dealIndexOwnerMap.get(input.index, locals.dealOwner)
+        if (!state.get()._deals.get(input.index, locals.tempDeal)
+                || !state.get()._dealIndexOwnerMap.get(input.index, locals.dealOwner)
                 || locals.tempDeal.index != input.index
                 || (locals.tempDeal.acceptorId != SELF && locals.tempDeal.acceptorId != qpi.invocator()))
         {
@@ -660,14 +401,14 @@ protected:
 
             for (locals.counter = 0; locals.counter < locals.tempDeal.requestedAssetsNumber; locals.counter++)
             {
-                state._numberOfReservedShares_input.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
-                state._numberOfReservedShares_input.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
-                state._numberOfReservedShares_input.owner = qpi.invocator();
-                CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
+                state.mut()._numberOfReservedShares_input.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
+                state.mut()._numberOfReservedShares_input.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
+                state.mut()._numberOfReservedShares_input.owner = qpi.invocator();
+                CALL(_NumberOfReservedShares, state.mut()._numberOfReservedShares_input, state.mut()._numberOfReservedShares_output);
                 locals.tempAsset.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
                 locals.tempAsset.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
-                if (uint64(qpi.numberOfShares(locals.tempAsset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount)
-                        < locals.tempDeal.requestedAssets.get(locals.counter).amount)
+                locals.availableTokenAmount = qpi.numberOfShares(locals.tempAsset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state.get()._numberOfReservedShares_output.amount;
+                if (locals.availableTokenAmount < 0 || uint64(locals.availableTokenAmount) < locals.tempDeal.requestedAssets.get(locals.counter).amount)
                 {
                     locals.error = true;
                     break;
@@ -704,159 +445,184 @@ protected:
 
         for (locals.counter = 0; locals.counter < locals.tempDeal.offeredAssetsNumber; locals.counter++)
         {
-            if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
+            if (locals.transferResult >= 0)
             {
-                locals.transferredFeeShares = 0;
-                locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount;
-                qpi.transferShareOwnershipAndPossession(
-                        locals.tempDeal.offeredAssets.get(locals.counter).name,
-                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                        locals.dealOwner,
-                        locals.dealOwner,
-                        locals.tempDeal.offeredAssets.get(locals.counter).amount,
-                        qpi.invocator());
-            }
-            else
-            {
-                locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount - div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
-                qpi.transferShareOwnershipAndPossession(
-                        locals.tempDeal.offeredAssets.get(locals.counter).name,
-                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                        locals.dealOwner,
-                        locals.dealOwner,
-                        locals.transferredShares,
-                        qpi.invocator());
+                if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
+                {
+                    locals.transferredFeeShares = 0;
+                    locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount;
+                    locals.transferResult = qpi.transferShareOwnershipAndPossession(
+                                                    locals.tempDeal.offeredAssets.get(locals.counter).name,
+                                                    locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                                                    locals.dealOwner,
+                                                    locals.dealOwner,
+                                                    locals.tempDeal.offeredAssets.get(locals.counter).amount,
+                                                    qpi.invocator());
+                }
+                else
+                {
+                    locals.transferredShares = locals.tempDeal.offeredAssets.get(locals.counter).amount - div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
+                    locals.transferResult = qpi.transferShareOwnershipAndPossession(
+                                                    locals.tempDeal.offeredAssets.get(locals.counter).name,
+                                                    locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                                                    locals.dealOwner,
+                                                    locals.dealOwner,
+                                                    locals.transferredShares,
+                                                    qpi.invocator());
 
-                locals.transferredFeeShares = div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
-                qpi.transferShareOwnershipAndPossession(
-                        locals.tempDeal.offeredAssets.get(locals.counter).name,
-                        locals.tempDeal.offeredAssets.get(locals.counter).issuer,
-                        locals.dealOwner,
-                        locals.dealOwner,
-                        locals.transferredFeeShares,
-                        SELF);
+                    locals.transferredFeeShares = div(smul(locals.tempDeal.offeredAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL);
+                    qpi.transferShareOwnershipAndPossession(
+                            locals.tempDeal.offeredAssets.get(locals.counter).name,
+                            locals.tempDeal.offeredAssets.get(locals.counter).issuer,
+                            locals.dealOwner,
+                            locals.dealOwner,
+                            locals.transferredFeeShares,
+                            SELF);
+                }
             }
 
             locals.tempAsset.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
             locals.tempAsset.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
             locals.wrapper.setFrom(locals.tempAsset);
 
-            if (locals.tempAsset.issuer != NULL_ID && !state._earnedTokens.contains(locals.wrapper))
+            if (locals.tempAsset.issuer != NULL_ID && !state.get()._earnedTokens.contains(locals.wrapper))
             {
-                state._earnedTokens.add(locals.wrapper);
+                state.mut()._earnedTokens.add(locals.wrapper);
             }
 
-            state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
-            state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
-            state._numberOfReservedShares_input.owner = locals.dealOwner;
-            CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-            locals.elementIndex = state._reservedAssets.headIndex(locals.dealOwner);
+            state.mut()._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
+            state.mut()._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
+            state.mut()._numberOfReservedShares_input.owner = locals.dealOwner;
+            CALL(_NumberOfReservedShares, state.mut()._numberOfReservedShares_input, state.mut()._numberOfReservedShares_output);
+            locals.elementIndex = state.get()._reservedAssets.headIndex(locals.dealOwner);
             while (locals.elementIndex != NULL_INDEX)
             {
-                locals.tempAssetWithAmount = state._reservedAssets.element(locals.elementIndex);
+                locals.tempAssetWithAmount = state.get()._reservedAssets.element(locals.elementIndex);
                 if (locals.tempAssetWithAmount.name == locals.tempDeal.offeredAssets.get(locals.counter).name
                     && locals.tempAssetWithAmount.issuer == locals.tempDeal.offeredAssets.get(locals.counter).issuer)
                 {
-                    if (state._numberOfReservedShares_output.amount - locals.transferredShares - locals.transferredFeeShares <= 0)
+                    if (state.get()._numberOfReservedShares_output.amount - locals.transferredShares - locals.transferredFeeShares <= 0)
                     {
-                        state._reservedAssets.remove(locals.elementIndex);
+                        state.mut()._reservedAssets.remove(locals.elementIndex);
                     }
                     else
                     {
                         locals.tempAssetWithAmount.amount -= locals.transferredShares;
                         locals.tempAssetWithAmount.amount -= locals.transferredFeeShares;
-                        state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
+                        state.mut()._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
                     }
                     break;
                 }
-                locals.elementIndex = state._reservedAssets.nextElementIndex(locals.elementIndex);
+                locals.elementIndex = state.get()._reservedAssets.nextElementIndex(locals.elementIndex);
             }
         }
 
-        for (locals.counter = 0; locals.counter < locals.tempDeal.requestedAssetsNumber; locals.counter++)
+        if (locals.transferResult >= 0)
         {
-            if (locals.tempDeal.requestedAssets.get(locals.counter).issuer == NULL_ID)
+            for (locals.counter = 0; locals.counter < locals.tempDeal.requestedAssetsNumber; locals.counter++)
             {
-                qpi.transferShareOwnershipAndPossession(
-                    locals.tempDeal.requestedAssets.get(locals.counter).name,
-                    locals.tempDeal.requestedAssets.get(locals.counter).issuer,
-                    qpi.invocator(),
-                    qpi.invocator(),
-                    locals.tempDeal.requestedAssets.get(locals.counter).amount,
-                    locals.dealOwner);
-            }
-            else
-            {
-                qpi.transferShareOwnershipAndPossession(
-                    locals.tempDeal.requestedAssets.get(locals.counter).name,
-                    locals.tempDeal.requestedAssets.get(locals.counter).issuer,
-                    qpi.invocator(),
-                    qpi.invocator(),
-                    locals.tempDeal.requestedAssets.get(locals.counter).amount - div(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL),
-                    locals.dealOwner);
+                if (locals.tempDeal.requestedAssets.get(locals.counter).issuer == NULL_ID)
+                {
+                    locals.transferResult = qpi.transferShareOwnershipAndPossession(
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).name,
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).issuer,
+                                                    qpi.invocator(),
+                                                    qpi.invocator(),
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).amount,
+                                                    locals.dealOwner);
+                }
+                else
+                {
+                    locals.transferResult = qpi.transferShareOwnershipAndPossession(
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).name,
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).issuer,
+                                                    qpi.invocator(),
+                                                    qpi.invocator(),
+                                                    locals.tempDeal.requestedAssets.get(locals.counter).amount - div(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL),
+                                                    locals.dealOwner);
 
-                qpi.transferShareOwnershipAndPossession(
-                    locals.tempDeal.requestedAssets.get(locals.counter).name,
-                    locals.tempDeal.requestedAssets.get(locals.counter).issuer,
-                    qpi.invocator(),
-                    qpi.invocator(),
-                    div(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL),
-                    SELF);
-            }
+                    qpi.transferShareOwnershipAndPossession(
+                        locals.tempDeal.requestedAssets.get(locals.counter).name,
+                        locals.tempDeal.requestedAssets.get(locals.counter).issuer,
+                        qpi.invocator(),
+                        qpi.invocator(),
+                        div(smul(locals.tempDeal.requestedAssets.get(locals.counter).amount, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL),
+                        SELF);
+                }
 
-            locals.tempAsset.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
-            locals.tempAsset.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
-            locals.wrapper.setFrom(locals.tempAsset);
+                if (locals.transferResult < 0 || locals.transferResult == INVALID_AMOUNT)
+                {
+                    break;
+                }
+                
+                locals.tempAsset.issuer = locals.tempDeal.requestedAssets.get(locals.counter).issuer;
+                locals.tempAsset.assetName = locals.tempDeal.requestedAssets.get(locals.counter).name;
+                locals.wrapper.setFrom(locals.tempAsset);
 
-            if (locals.tempAsset.issuer != NULL_ID && !state._earnedTokens.contains(locals.wrapper))
-            {
-                state._earnedTokens.add(locals.wrapper);
+                if (locals.tempAsset.issuer != NULL_ID && !state.get()._earnedTokens.contains(locals.wrapper))
+                {
+                    state.mut()._earnedTokens.add(locals.wrapper);
+                }
             }
         }
 
         if (locals.tempDeal.offeredQU > 0)
         {
-            qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - div(smul(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            if (locals.transferResult >= 0)
+            {
+                qpi.transfer(qpi.invocator(), locals.tempDeal.offeredQU - div(smul(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            }
+            else
+            {
+                qpi.transfer(locals.dealOwner, locals.tempDeal.offeredQU - div(smul(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            }
         }
         
         if (locals.tempDeal.requestedQU > 0)
         {
-            qpi.transfer(locals.dealOwner, locals.tempDeal.requestedQU - div(smul(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            if (locals.transferResult >= 0)
+            {
+                qpi.transfer(locals.dealOwner, locals.tempDeal.requestedQU - div(smul(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            }
+            else
+            {
+                qpi.transfer(qpi.invocator(), locals.tempDeal.requestedQU - div(smul(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL));
+            }
         }
 
-        if (state._ownerDealIndexes.population(locals.dealOwner) == 1)
+        if (state.get()._ownerDealIndexes.population(locals.dealOwner) == 1)
         {
-            state._ownersSet.remove(locals.dealOwner);
+            state.mut()._ownersSet.remove(locals.dealOwner);
         }
-        state._deals.removeByKey(input.index);
+        state.mut()._deals.removeByKey(input.index);
 
-        state._dealIndexOwnerMap.removeByKey(input.index);
+        state.mut()._dealIndexOwnerMap.removeByKey(input.index);
 
-        locals.dealIndexInCollection = state._acceptorDealIndexes.headIndex(qpi.invocator());
+        locals.dealIndexInCollection = state.get()._acceptorDealIndexes.headIndex(qpi.invocator());
         while (locals.dealIndexInCollection != NULL_INDEX)
         {
-            if (state._acceptorDealIndexes.element(locals.dealIndexInCollection) == input.index)
+            if (state.get()._acceptorDealIndexes.element(locals.dealIndexInCollection) == input.index)
             {
-                state._acceptorDealIndexes.remove(locals.dealIndexInCollection);
+                state.mut()._acceptorDealIndexes.remove(locals.dealIndexInCollection);
                 break;
             }
-            locals.dealIndexInCollection = state._acceptorDealIndexes.nextElementIndex(locals.dealIndexInCollection);
+            locals.dealIndexInCollection = state.get()._acceptorDealIndexes.nextElementIndex(locals.dealIndexInCollection);
         }
 
-        locals.dealIndexInCollection = state._ownerDealIndexes.headIndex(locals.dealOwner);
+        locals.dealIndexInCollection = state.get()._ownerDealIndexes.headIndex(locals.dealOwner);
         while (locals.dealIndexInCollection != NULL_INDEX)
         {
-            if (state._ownerDealIndexes.element(locals.dealIndexInCollection) == input.index)
+            if (state.get()._ownerDealIndexes.element(locals.dealIndexInCollection) == input.index)
             {
-                state._ownerDealIndexes.remove(locals.dealIndexInCollection);
+                state.mut()._ownerDealIndexes.remove(locals.dealIndexInCollection);
                 break;
             }
-            locals.dealIndexInCollection = state._ownerDealIndexes.nextElementIndex(locals.dealIndexInCollection);
+            locals.dealIndexInCollection = state.get()._ownerDealIndexes.nextElementIndex(locals.dealIndexInCollection);
         }
 
-        state._earnedAmount = sadd(div(smul(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL), state._earnedAmount);
-        state._earnedAmount = sadd(div(smul(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL), state._earnedAmount);
-        state._earnedAmount = sadd((locals.requestedQuAndFee - locals.tempDeal.requestedQU) * 2, state._earnedAmount);
+        state.mut()._earnedAmount = sadd(div(smul(locals.tempDeal.offeredQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL), state.get()._earnedAmount);
+        state.mut()._earnedAmount = sadd(div(smul(locals.tempDeal.requestedQU, ESCROW_ADDITIONAL_FEE_PERCENT), 10000ULL), state.get()._earnedAmount);
+        state.mut()._earnedAmount = sadd((locals.requestedQuAndFee - locals.tempDeal.requestedQU) * 2, state.get()._earnedAmount);
     }
 
     struct MakeDealPublic_locals
@@ -874,8 +640,8 @@ protected:
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
 
-        if (!state._deals.get(input.index, locals.tempDeal)
-                || !state._dealIndexOwnerMap.get(input.index, locals.dealOwner)
+        if (!state.get()._deals.get(input.index, locals.tempDeal)
+                || !state.get()._dealIndexOwnerMap.get(input.index, locals.dealOwner)
                 || locals.dealOwner != qpi.invocator()
                 || locals.tempDeal.acceptorId == SELF)
         {
@@ -884,18 +650,18 @@ protected:
 
         locals.oldAcceptor = locals.tempDeal.acceptorId;
         locals.tempDeal.acceptorId = SELF;
-        state._deals.replace(input.index, locals.tempDeal);
+        state.mut()._deals.replace(input.index, locals.tempDeal);
 
-        locals.dealIndexInCollection = state._acceptorDealIndexes.headIndex(locals.oldAcceptor);
+        locals.dealIndexInCollection = state.get()._acceptorDealIndexes.headIndex(locals.oldAcceptor);
         while (locals.dealIndexInCollection != NULL_INDEX)
         {
-            if (state._acceptorDealIndexes.element(locals.dealIndexInCollection) == input.index)
+            if (state.get()._acceptorDealIndexes.element(locals.dealIndexInCollection) == input.index)
             {
-                state._acceptorDealIndexes.remove(locals.dealIndexInCollection);
-                state._acceptorDealIndexes.add(SELF, input.index, 0);
+                state.mut()._acceptorDealIndexes.remove(locals.dealIndexInCollection);
+                state.mut()._acceptorDealIndexes.add(SELF, input.index, 0);
                 break;
             }
-            locals.dealIndexInCollection = state._acceptorDealIndexes.nextElementIndex(locals.dealIndexInCollection);
+            locals.dealIndexInCollection = state.get()._acceptorDealIndexes.nextElementIndex(locals.dealIndexInCollection);
         }
     }
 
@@ -917,8 +683,8 @@ protected:
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
 
-        if (!state._deals.get(input.index, locals.tempDeal)
-                || !state._dealIndexOwnerMap.get(input.index, locals.dealOwner)
+        if (!state.get()._deals.get(input.index, locals.tempDeal)
+                || !state.get()._dealIndexOwnerMap.get(input.index, locals.dealOwner)
                 || locals.dealOwner != qpi.invocator())
         {
             return;
@@ -928,29 +694,29 @@ protected:
 
         for (locals.counter = 0; locals.counter < locals.tempDeal.offeredAssetsNumber; locals.counter++)
         {
-            state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
-            state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
-            state._numberOfReservedShares_input.owner = qpi.invocator();
-            CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-            locals.elementIndex = state._reservedAssets.headIndex(qpi.invocator());
+            state.mut()._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
+            state.mut()._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
+            state.mut()._numberOfReservedShares_input.owner = qpi.invocator();
+            CALL(_NumberOfReservedShares, state.mut()._numberOfReservedShares_input, state.mut()._numberOfReservedShares_output);
+            locals.elementIndex = state.get()._reservedAssets.headIndex(qpi.invocator());
             while (locals.elementIndex != NULL_INDEX)
             {
-                locals.tempAssetWithAmount = state._reservedAssets.element(locals.elementIndex);
+                locals.tempAssetWithAmount = state.get()._reservedAssets.element(locals.elementIndex);
                 if (locals.tempAssetWithAmount.name == locals.tempDeal.offeredAssets.get(locals.counter).name
                     && locals.tempAssetWithAmount.issuer == locals.tempDeal.offeredAssets.get(locals.counter).issuer)
                 {
-                    if (state._numberOfReservedShares_output.amount - locals.tempDeal.offeredAssets.get(locals.counter).amount <= 0)
+                    if (state.get()._numberOfReservedShares_output.amount - locals.tempDeal.offeredAssets.get(locals.counter).amount <= 0)
                     {
-                        state._reservedAssets.remove(locals.elementIndex);
+                        state.mut()._reservedAssets.remove(locals.elementIndex);
                         break;
                     }
                     else
                     {
                         locals.tempAssetWithAmount.amount -= locals.tempDeal.offeredAssets.get(locals.counter).amount;
-                        state._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
+                        state.mut()._reservedAssets.replace(locals.elementIndex, locals.tempAssetWithAmount);
                     }
                 }
-                locals.elementIndex = state._reservedAssets.nextElementIndex(locals.elementIndex);
+                locals.elementIndex = state.get()._reservedAssets.nextElementIndex(locals.elementIndex);
             }
 
             if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
@@ -969,33 +735,33 @@ protected:
 
         qpi.transfer(qpi.invocator(), locals.quForReturn);
 
-        state._deals.removeByKey(input.index);
-        state._dealIndexOwnerMap.removeByKey(input.index);
-        if (state._ownerDealIndexes.population(locals.dealOwner) == 1)
+        state.mut()._deals.removeByKey(input.index);
+        state.mut()._dealIndexOwnerMap.removeByKey(input.index);
+        if (state.get()._ownerDealIndexes.population(locals.dealOwner) == 1)
         {
-            state._ownersSet.remove(locals.dealOwner);
+            state.mut()._ownersSet.remove(locals.dealOwner);
         }
 
-        locals.dealIndexInCollection = state._ownerDealIndexes.headIndex(locals.dealOwner);
+        locals.dealIndexInCollection = state.get()._ownerDealIndexes.headIndex(locals.dealOwner);
         while (locals.dealIndexInCollection != NULL_INDEX)
         {
-            if (state._ownerDealIndexes.element(locals.dealIndexInCollection) == input.index)
+            if (state.get()._ownerDealIndexes.element(locals.dealIndexInCollection) == input.index)
             {
-                state._ownerDealIndexes.remove(locals.dealIndexInCollection);
+                state.mut()._ownerDealIndexes.remove(locals.dealIndexInCollection);
                 break;
             }
-            locals.dealIndexInCollection = state._ownerDealIndexes.nextElementIndex(locals.dealIndexInCollection);
+            locals.dealIndexInCollection = state.get()._ownerDealIndexes.nextElementIndex(locals.dealIndexInCollection);
         }
 
-        locals.dealIndexInCollection = state._acceptorDealIndexes.headIndex(locals.tempDeal.acceptorId);
+        locals.dealIndexInCollection = state.get()._acceptorDealIndexes.headIndex(locals.tempDeal.acceptorId);
         while (locals.dealIndexInCollection != NULL_INDEX)
         {
-            if (state._acceptorDealIndexes.element(locals.dealIndexInCollection) == input.index)
+            if (state.get()._acceptorDealIndexes.element(locals.dealIndexInCollection) == input.index)
             {
-                state._acceptorDealIndexes.remove(locals.dealIndexInCollection);
+                state.mut()._acceptorDealIndexes.remove(locals.dealIndexInCollection);
                 break;
             }
-            locals.dealIndexInCollection = state._acceptorDealIndexes.nextElementIndex(locals.dealIndexInCollection);
+            locals.dealIndexInCollection = state.get()._acceptorDealIndexes.nextElementIndex(locals.dealIndexInCollection);
         }
     }
 
@@ -1012,11 +778,11 @@ protected:
             return;
         }
 
-        state._numberOfReservedShares_input.issuer = input.asset.issuer;
-        state._numberOfReservedShares_input.assetName = input.asset.assetName;
-        state._numberOfReservedShares_input.owner = qpi.invocator();
-        CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-        if (qpi.numberOfShares(input.asset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state._numberOfReservedShares_output.amount < input.amount)
+        state.mut()._numberOfReservedShares_input.issuer = input.asset.issuer;
+        state.mut()._numberOfReservedShares_input.assetName = input.asset.assetName;
+        state.mut()._numberOfReservedShares_input.owner = qpi.invocator();
+        CALL(_NumberOfReservedShares, state.mut()._numberOfReservedShares_input, state.mut()._numberOfReservedShares_output);
+        if (qpi.numberOfShares(input.asset, {qpi.invocator(), SELF_INDEX, false, false}, {qpi.invocator(), SELF_INDEX, false, false}) - state.get()._numberOfReservedShares_output.amount < input.amount)
         {
             output.transferredShares = 0;
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
@@ -1052,17 +818,17 @@ protected:
 
     PUBLIC_FUNCTION_WITH_LOCALS(GetDeals)
     {
-        output.ownedDealsAmount = state._ownerDealIndexes.population(input.owner);
+        output.ownedDealsAmount = state.get()._ownerDealIndexes.population(input.owner);
 
-        locals.elementIndex = state._ownerDealIndexes.headIndex(input.owner);
+        locals.elementIndex = state.get()._ownerDealIndexes.headIndex(input.owner);
         locals.elementIndex2 = 0;
         while (locals.elementIndex != NULL_INDEX
             && locals.elementIndex2 < ESCROW_MAX_DEALS_PER_USER)
         {
-            if (state._deals.get(state._ownerDealIndexes.element(locals.elementIndex), locals.tempDeal))
+            if (state.get()._deals.get(state.get()._ownerDealIndexes.element(locals.elementIndex), locals.tempDeal))
             {
                 output.ownedDeals.set(locals.elementIndex2, locals.tempDeal);
-                locals.elementIndex = state._ownerDealIndexes.nextElementIndex(locals.elementIndex);
+                locals.elementIndex = state.get()._ownerDealIndexes.nextElementIndex(locals.elementIndex);
                 locals.elementIndex2++;
             }
         }
@@ -1070,15 +836,15 @@ protected:
         locals.elementIndex3 = 0;
         locals.elementIndex4 = 0;
 
-        locals.elementIndex = state._acceptorDealIndexes.headIndex(input.owner);
+        locals.elementIndex = state.get()._acceptorDealIndexes.headIndex(input.owner);
         while (locals.elementIndex != NULL_INDEX)
         {
             if (input.proposedDealsOffset > 0)
             {
                 input.proposedDealsOffset--;
             }
-            else if (state._deals.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.tempDeal)
-                        && state._dealIndexOwnerMap.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.dealOwner)
+            else if (state.get()._deals.get(state.get()._acceptorDealIndexes.element(locals.elementIndex), locals.tempDeal)
+                        && state.get()._dealIndexOwnerMap.get(state.get()._acceptorDealIndexes.element(locals.elementIndex), locals.dealOwner)
                         && locals.elementIndex3 < 32)
             {
                 locals.tempDeal.acceptorId = locals.dealOwner;
@@ -1086,18 +852,18 @@ protected:
                 locals.elementIndex3++;
             }
 
-            locals.elementIndex = state._acceptorDealIndexes.nextElementIndex(locals.elementIndex);
+            locals.elementIndex = state.get()._acceptorDealIndexes.nextElementIndex(locals.elementIndex);
         }
 
-        locals.elementIndex = state._acceptorDealIndexes.headIndex(SELF);
+        locals.elementIndex = state.get()._acceptorDealIndexes.headIndex(SELF);
         while (locals.elementIndex != NULL_INDEX)
         {
             if (input.publicDealsOffset > 0)
             {
                 input.publicDealsOffset--;
             }
-            else if (state._deals.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.tempDeal)
-                        && state._dealIndexOwnerMap.get(state._acceptorDealIndexes.element(locals.elementIndex), locals.dealOwner)
+            else if (state.get()._deals.get(state.get()._acceptorDealIndexes.element(locals.elementIndex), locals.tempDeal)
+                        && state.get()._dealIndexOwnerMap.get(state.get()._acceptorDealIndexes.element(locals.elementIndex), locals.dealOwner)
                         && locals.elementIndex4 < 64
                         && locals.dealOwner != input.owner)
             {
@@ -1106,7 +872,7 @@ protected:
                 locals.elementIndex4++;
             }
             
-            locals.elementIndex = state._acceptorDealIndexes.nextElementIndex(locals.elementIndex);
+            locals.elementIndex = state.get()._acceptorDealIndexes.nextElementIndex(locals.elementIndex);
         }
 
         output.proposedDealsAmount = locals.elementIndex3;
@@ -1142,8 +908,8 @@ protected:
 
     INITIALIZE()
     {
-        state._devAddress = ID(_E, _S, _C, _R, _O, _W, _F, _P, _Z, _M, _F, _P, _D, _F, _T, _M, _G, _K, _N, _N, _Z, _L, _N, _B, _U, _J, _L, _C, _W, _G, _B, _U, _L, _K, _S, _N, _W, _L, _S, _D, _R, _G, _T, _Y, _T, _B, _E, _M, _F, _O, _X, _B, _C, _A, _E, _H);
-        state._currentDealIndex = 1;
+        state.mut()._devAddress = ID(_E, _S, _C, _R, _O, _W, _F, _P, _Z, _M, _F, _P, _D, _F, _T, _M, _G, _K, _N, _N, _Z, _L, _N, _B, _U, _J, _L, _C, _W, _G, _B, _U, _L, _K, _S, _N, _W, _L, _S, _D, _R, _G, _T, _Y, _T, _B, _E, _M, _F, _O, _X, _B, _C, _A, _E, _H);
+        state.mut()._currentDealIndex = 1;
     }
 
     PRE_ACQUIRE_SHARES()
@@ -1166,46 +932,46 @@ protected:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        locals.ownerIndex = state._ownersSet.nextElementIndex(NULL_INDEX);
+        locals.ownerIndex = state.get()._ownersSet.nextElementIndex(NULL_INDEX);
         while (locals.ownerIndex != NULL_INDEX)
         {
-            locals.dealOwner = state._ownersSet.key(locals.ownerIndex);
-            locals.dealIndex = state._ownerDealIndexes.headIndex(locals.dealOwner);
+            locals.dealOwner = state.get()._ownersSet.key(locals.ownerIndex);
+            locals.dealIndex = state.get()._ownerDealIndexes.headIndex(locals.dealOwner);
             while (locals.dealIndex != NULL_INDEX)
             {
-                if (state._deals.get(state._ownerDealIndexes.element(locals.dealIndex), locals.tempDeal)
+                if (state.get()._deals.get(state.get()._ownerDealIndexes.element(locals.dealIndex), locals.tempDeal)
                         && locals.tempDeal.creationEpoch + ESCROW_DEAL_EXISTENCE_EPOCH_COUNT > qpi.epoch())
                 {
-                    locals.dealIndex = state._ownerDealIndexes.nextElementIndex(locals.dealIndex);
+                    locals.dealIndex = state.get()._ownerDealIndexes.nextElementIndex(locals.dealIndex);
                     continue;
                 }
 
                 locals.quForReturn = locals.tempDeal.offeredQU;
                 for (locals.counter = 0; locals.counter < locals.tempDeal.offeredAssetsNumber; locals.counter++)
                 {
-                    state._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
-                    state._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
-                    state._numberOfReservedShares_input.owner = locals.dealOwner;
-                    CALL(_NumberOfReservedShares, state._numberOfReservedShares_input, state._numberOfReservedShares_output);
-                    locals.reservedAssetIndex = state._reservedAssets.headIndex(locals.dealOwner);
+                    state.mut()._numberOfReservedShares_input.issuer = locals.tempDeal.offeredAssets.get(locals.counter).issuer;
+                    state.mut()._numberOfReservedShares_input.assetName = locals.tempDeal.offeredAssets.get(locals.counter).name;
+                    state.mut()._numberOfReservedShares_input.owner = locals.dealOwner;
+                    CALL(_NumberOfReservedShares, state.mut()._numberOfReservedShares_input, state.mut()._numberOfReservedShares_output);
+                    locals.reservedAssetIndex = state.get()._reservedAssets.headIndex(locals.dealOwner);
                     while (locals.reservedAssetIndex != NULL_INDEX)
                     {
-                        locals.tempAssetWithAmount = state._reservedAssets.element(locals.reservedAssetIndex);
+                        locals.tempAssetWithAmount = state.get()._reservedAssets.element(locals.reservedAssetIndex);
                         if (locals.tempAssetWithAmount.name == locals.tempDeal.offeredAssets.get(locals.counter).name
                             && locals.tempAssetWithAmount.issuer == locals.tempDeal.offeredAssets.get(locals.counter).issuer)
                         {
-                            if (state._numberOfReservedShares_output.amount - locals.tempDeal.offeredAssets.get(locals.counter).amount <= 0)
+                            if (state.get()._numberOfReservedShares_output.amount - locals.tempDeal.offeredAssets.get(locals.counter).amount <= 0)
                             {
-                                state._reservedAssets.remove(locals.reservedAssetIndex);
+                                state.mut()._reservedAssets.remove(locals.reservedAssetIndex);
                                 break;
                             }
                             else
                             {
                                 locals.tempAssetWithAmount.amount -= locals.tempDeal.offeredAssets.get(locals.counter).amount;
-                                state._reservedAssets.replace(locals.reservedAssetIndex, locals.tempAssetWithAmount);
+                                state.mut()._reservedAssets.replace(locals.reservedAssetIndex, locals.tempAssetWithAmount);
                             }
                         }
-                        locals.reservedAssetIndex = state._reservedAssets.nextElementIndex(locals.reservedAssetIndex);
+                        locals.reservedAssetIndex = state.get()._reservedAssets.nextElementIndex(locals.reservedAssetIndex);
                     }
 
                     if (locals.tempDeal.offeredAssets.get(locals.counter).issuer == NULL_ID)
@@ -1227,29 +993,29 @@ protected:
                     qpi.transfer(locals.dealOwner, locals.quForReturn);
                 }
 
-                state._dealIndexOwnerMap.removeByKey(locals.tempDeal.index);
+                state.mut()._dealIndexOwnerMap.removeByKey(locals.tempDeal.index);
 
-                if (state._ownerDealIndexes.population(locals.dealOwner) == 1)
+                if (state.get()._ownerDealIndexes.population(locals.dealOwner) == 1)
                 {
-                    state._ownersSet.remove(locals.dealOwner);
+                    state.mut()._ownersSet.remove(locals.dealOwner);
                 }
 
-                locals.elementIndex = state._acceptorDealIndexes.headIndex(locals.tempDeal.acceptorId);
+                locals.elementIndex = state.get()._acceptorDealIndexes.headIndex(locals.tempDeal.acceptorId);
                 while (locals.elementIndex != NULL_INDEX)
                 {
-                    if (state._acceptorDealIndexes.element(locals.elementIndex) == locals.tempDeal.index)
+                    if (state.get()._acceptorDealIndexes.element(locals.elementIndex) == locals.tempDeal.index)
                     {
-                        state._acceptorDealIndexes.remove(locals.elementIndex);
+                        state.mut()._acceptorDealIndexes.remove(locals.elementIndex);
                         break;
                     }
-                    locals.elementIndex = state._acceptorDealIndexes.nextElementIndex(locals.elementIndex);
+                    locals.elementIndex = state.get()._acceptorDealIndexes.nextElementIndex(locals.elementIndex);
                 }
 
-                state._deals.removeByKey(locals.tempDeal.index);
+                state.mut()._deals.removeByKey(locals.tempDeal.index);
 
-                locals.dealIndex = state._ownerDealIndexes.remove(locals.dealIndex);
+                locals.dealIndex = state.mut()._ownerDealIndexes.remove(locals.dealIndex);
             }
-            locals.ownerIndex = state._ownersSet.nextElementIndex(locals.ownerIndex);
+            locals.ownerIndex = state.get()._ownersSet.nextElementIndex(locals.ownerIndex);
         }
     }
 
@@ -1268,36 +1034,36 @@ protected:
 
     END_EPOCH_WITH_LOCALS()
     {
-        locals.amountToDistribute = div((state._earnedAmount - state._distributedAmount) * ESCROW_SHAREHOLDERS_QU_DISTRIBUTION_PERCENT, 10000ULL);
-        locals.amountToBurn = div((state._earnedAmount - state._distributedAmount) * ESCROW_BURN_QU_PERCENT, 10000ULL);
-        locals.amountToDevs = state._earnedAmount - state._distributedAmount - locals.amountToDistribute - locals.amountToBurn;
+        locals.amountToDistribute = div((state.get()._earnedAmount - state.get()._distributedAmount) * ESCROW_SHAREHOLDERS_QU_DISTRIBUTION_PERCENT, 10000ULL);
+        locals.amountToBurn = div((state.get()._earnedAmount - state.get()._distributedAmount) * ESCROW_BURN_QU_PERCENT, 10000ULL);
+        locals.amountToDevs = state.get()._earnedAmount - state.get()._distributedAmount - locals.amountToDistribute - locals.amountToBurn;
 
-        if ((div(locals.amountToDistribute, 676ULL) > 0) && (state._earnedAmount > state._distributedAmount))
+        if ((div(locals.amountToDistribute, 676ULL) > 0) && (state.get()._earnedAmount > state.get()._distributedAmount))
         {
             if (qpi.distributeDividends(div(locals.amountToDistribute, 676ULL)))
             {
                 qpi.burn(locals.amountToBurn);
-                qpi.transfer(state._devAddress, locals.amountToDevs);
-                state._distributedAmount += div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
-                state._distributedAmount += locals.amountToBurn;
-                state._distributedAmount += locals.amountToDevs;
+                qpi.transfer(state.get()._devAddress, locals.amountToDevs);
+                state.mut()._distributedAmount += div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
+                state.mut()._distributedAmount += locals.amountToBurn;
+                state.mut()._distributedAmount += locals.amountToDevs;
             }
         }
 
         locals.selfShare.issuer = NULL_ID;
         locals.selfShare.assetName = 95998194176837ULL;
 
-        locals.elementIndex = state._earnedTokens.nextElementIndex(NULL_INDEX);
+        locals.elementIndex = state.get()._earnedTokens.nextElementIndex(NULL_INDEX);
         while (locals.elementIndex != NULL_INDEX)
         {
-            locals.tempAsset = state._earnedTokens.key(locals.elementIndex);
+            locals.tempAsset = state.get()._earnedTokens.key(locals.elementIndex);
 
             locals.tempEarnedAmount = qpi.numberOfShares({ locals.tempAsset.issuer, locals.tempAsset.assetName }, {SELF, SELF_INDEX, false, false}, {SELF, SELF_INDEX, false, false});
             locals.tokenAmountToDistribute = div(smul(locals.tempEarnedAmount, ESCROW_SHAREHOLDERS_TOKEN_DISTRIBUTION_PERCENT), 10000ULL);
 
             if (locals.tokenAmountToDistribute < 676ULL)
             {
-                locals.elementIndex = state._earnedTokens.nextElementIndex(locals.elementIndex);
+                locals.elementIndex = state.get()._earnedTokens.nextElementIndex(locals.elementIndex);
                 continue;
             }
 
@@ -1320,24 +1086,18 @@ protected:
                         SELF,
                         SELF,
                         qpi.numberOfShares({ locals.tempAsset.issuer, locals.tempAsset.assetName }, {SELF, SELF_INDEX, false, false}, {SELF, SELF_INDEX, false, false}),
-                        state._devAddress);
+                        state.get()._devAddress);
 
-            locals.elementIndex = state._earnedTokens.nextElementIndex(locals.elementIndex);
-            state._earnedTokens.remove(locals.tempAsset);
+            locals.elementIndex = state.get()._earnedTokens.nextElementIndex(locals.elementIndex);
+            state.mut()._earnedTokens.remove(locals.tempAsset);
         }
 
-        state._deals.cleanupIfNeeded();
-        state._ownerDealIndexes.cleanupIfNeeded();
-        state._acceptorDealIndexes.cleanupIfNeeded();
-        state._dealIndexOwnerMap.cleanupIfNeeded();
-        state._ownersSet.cleanupIfNeeded();
-        state._earnedTokens.cleanupIfNeeded();
-        state._reservedAssets.cleanupIfNeeded();
+        state.mut()._deals.cleanupIfNeeded();
+        state.mut()._ownerDealIndexes.cleanupIfNeeded();
+        state.mut()._acceptorDealIndexes.cleanupIfNeeded();
+        state.mut()._dealIndexOwnerMap.cleanupIfNeeded();
+        state.mut()._ownersSet.cleanupIfNeeded();
+        state.mut()._earnedTokens.cleanupIfNeeded();
+        state.mut()._reservedAssets.cleanupIfNeeded();
     }
-=======
-	INITIALIZE()
-	{
-		state.mut().bitFee = 1000;
-	}
->>>>>>> main
 };
