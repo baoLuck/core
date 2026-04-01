@@ -55,11 +55,33 @@ static void setContractFeeReserve(unsigned int contractIndex, long long newValue
 
 // Add the given amount to the amount in the fee reserve of the specified contract (data stored in state of contract 0).
 // This also sets the contractStateChangeFlag of contract 0.
-static void addToContractFeeReserve(unsigned int contractIndex, long long addAmount)
+static void addToContractFeeReserve(unsigned int contractIndex, unsigned long long addAmount)
 {
     contractStateLock[0].acquireWrite();
     contractStateChangeFlags[0] |= 1ULL;
-    ((Contract0State*)contractStates[0])->contractFeeReserves[contractIndex] += addAmount;
+    if (addAmount > static_cast<unsigned long long>(INT64_MAX))
+        addAmount = INT64_MAX;
+    ((Contract0State*)contractStates[0])->contractFeeReserves[contractIndex] =
+        math_lib::sadd(((Contract0State*)contractStates[0])->contractFeeReserves[contractIndex], static_cast<long long>(addAmount));
+    contractStateLock[0].releaseWrite();
+}
+
+// Subtract the given amount from the amount in the fee reserve of the specified contract (data stored in state of contract 0).
+// This also sets the contractStateChangeFlag of contract 0.
+static void subtractFromContractFeeReserve(unsigned int contractIndex, unsigned long long subtractAmount)
+{
+    contractStateLock[0].acquireWrite();
+    contractStateChangeFlags[0] |= 1ULL;
+
+    long long negativeAddAmount;
+    // The smallest representable INT64 number is INT64_MIN = - INT64_MAX - 1
+    if (subtractAmount > static_cast<unsigned long long>(INT64_MAX))
+        negativeAddAmount = INT64_MIN;
+    else
+        negativeAddAmount = -1LL * static_cast<long long>(subtractAmount);
+
+    ((Contract0State*)contractStates[0])->contractFeeReserves[contractIndex] =
+        math_lib::sadd(((Contract0State*)contractStates[0])->contractFeeReserves[contractIndex], negativeAddAmount);
     contractStateLock[0].releaseWrite();
 }
 
@@ -111,11 +133,11 @@ long long QPI::QpiContextProcedureCall::burn(long long amount, unsigned int cont
     return remainingAmount;
 }
 
-long long QPI::QpiContextProcedureCall::transfer(const m256i& destination, long long amount) const
+long long QPI::QpiContextProcedureCall::__transfer(const m256i& destination, long long amount, unsigned char transferType) const
 {
     // Transfer to contract is forbidden inside POST_INCOMING_TRANSFER to prevent nested callbacks
     if (contractCallbacksRunning & ContractCallbackPostIncomingTransfer
-        && destination.u64._0 < contractCount && !destination.u64._1 && !destination.u64._2 && !destination.u64._3)
+        && isPublicKeyOfContract(destination))
     {
         return INVALID_AMOUNT;
     }
@@ -146,13 +168,18 @@ long long QPI::QpiContextProcedureCall::transfer(const m256i& destination, long 
         if (!contractActionTracker.addQuTransfer(_currentContractId, destination, amount))
             __qpiAbort(ContractErrorTooManyActions);
 
-        __qpiNotifyPostIncomingTransfer(_currentContractId, destination, amount, TransferType::qpiTransfer);
+        __qpiNotifyPostIncomingTransfer(_currentContractId, destination, amount, transferType);
 
         const QuTransfer quTransfer = { _currentContractId , destination , amount };
         logger.logQuTransfer(quTransfer);
     }
 
     return remainingAmount;
+}
+
+long long QPI::QpiContextProcedureCall::transfer(const m256i& destination, long long amount) const
+{
+    return __transfer(destination, amount, TransferType::qpiTransfer);
 }
 
 m256i QPI::QpiContextFunctionCall::nextId(const m256i& currentId) const
@@ -183,4 +210,10 @@ m256i QPI::QpiContextFunctionCall::prevId(const m256i& currentId) const
     }
 
     return m256i::zero();
+}
+
+// Returns true if the id passed belongs to a contract (no user entity).
+QPI::bit QPI::QpiContextFunctionCall::isContractId(const QPI::id& id) const
+{
+    return isPublicKeyOfContract(id);
 }

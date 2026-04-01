@@ -14,6 +14,7 @@
 #include "contract_core/contract_def.h"
 
 #include "public_settings.h"
+#include "private_settings.h"
 #include "logging/logging.h"
 #include "kangaroo_twelve.h"
 #include "four_q.h"
@@ -771,7 +772,7 @@ static bool saveUniverse(const CHAR16* fileName = UNIVERSE_FILE_NAME, const CHAR
     return false;
 }
 
-static bool loadUniverse(const CHAR16* fileName = UNIVERSE_FILE_NAME, CHAR16* directory = NULL)
+static bool loadUniverse(const CHAR16* fileName = UNIVERSE_FILE_NAME, CHAR16* directory = NULL, bool rebuildIndexLists = true)
 {
     PROFILE_SCOPE();
 
@@ -782,9 +783,38 @@ static bool loadUniverse(const CHAR16* fileName = UNIVERSE_FILE_NAME, CHAR16* di
 
         return false;
     }
-    as.indexLists.rebuild();
+
+    if (rebuildIndexLists)
+        as.indexLists.rebuild();
+
     return true;
 }
+
+#if TICK_STORAGE_AUTOSAVE_MODE
+static bool saveSnapshotUniverseIndex(const CHAR16* fileName, const CHAR16* directory = NULL)
+{
+    long long savedSize = save(fileName, sizeof(as.indexLists), (unsigned char*)&as.indexLists, directory);
+    logToConsole(L"Saving universe index");
+    if (savedSize != sizeof(as.indexLists))
+    {
+        logToConsole(L"Failed to save universe index");
+        return false;
+    }
+    return true;
+}
+
+static bool loadSnapshotUniverseIndex(const CHAR16* fileName, CHAR16* directory = NULL)
+{
+    long long loadedSize = load(fileName, sizeof(as.indexLists), (unsigned char*)&as.indexLists, directory);
+    logToConsole(L"Loading universe index");
+    if (loadedSize != sizeof(as.indexLists))
+    {
+        logToConsole(L"Failed to load universe index");
+        return false;
+    }
+    return true;
+}
+#endif
 
 static void assetsEndEpoch()
 {
@@ -793,8 +823,8 @@ static void assetsEndEpoch()
     ACQUIRE(universeLock);
 
     // rebuild asset hash map, getting rid of all elements with zero shares
-    AssetRecord* reorgAssets = (AssetRecord*)reorgBuffer;
-    setMem(reorgAssets, ASSETS_CAPACITY * sizeof(AssetRecord), 0);
+    AssetRecord* reorgAssets = (AssetRecord*)commonBuffers.acquireBuffer(universeSizeInBytes);
+    setMem(reorgAssets, universeSizeInBytes, 0);
     for (unsigned int i = 0; i < ASSETS_CAPACITY; i++)
     {
         if (assets[i].varStruct.possession.type == POSSESSION
@@ -874,6 +904,7 @@ static void assetsEndEpoch()
         }
     }
     copyMem(assets, reorgAssets, ASSETS_CAPACITY * sizeof(AssetRecord));
+    commonBuffers.releaseBuffer(reorgAssets);
 
     setMem(assetChangeFlags, ASSETS_CAPACITY / 8, 0xFF);
 

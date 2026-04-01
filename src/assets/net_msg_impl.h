@@ -18,7 +18,7 @@ iteration:
     if (universeIndex >= ASSETS_CAPACITY
         || assets[universeIndex].varStruct.issuance.type == EMPTY)
     {
-        enqueueResponse(peer, 0, EndResponse::type, header->dejavu(), NULL);
+        enqueueResponse(peer, 0, EndResponse::type(), header->dejavu(), NULL);
     }
     else
     {
@@ -30,7 +30,7 @@ iteration:
             response.universeIndex = universeIndex;
             getSiblings<ASSETS_DEPTH>(response.universeIndex, assetDigests, response.siblings);
 
-            enqueueResponse(peer, sizeof(response), RespondIssuedAssets::type, header->dejavu(), &response);
+            enqueueResponse(peer, sizeof(response), RespondIssuedAssets::type(), header->dejavu(), &response);
         }
 
         universeIndex = (universeIndex + 1) & (ASSETS_CAPACITY - 1);
@@ -55,7 +55,7 @@ iteration:
     if (universeIndex >= ASSETS_CAPACITY
         || assets[universeIndex].varStruct.issuance.type == EMPTY)
     {
-        enqueueResponse(peer, 0, EndResponse::type, header->dejavu(), NULL);
+        enqueueResponse(peer, 0, EndResponse::type(), header->dejavu(), NULL);
     }
     else
     {
@@ -68,7 +68,7 @@ iteration:
             response.universeIndex = universeIndex;
             getSiblings<ASSETS_DEPTH>(response.universeIndex, assetDigests, response.siblings);
 
-            enqueueResponse(peer, sizeof(response), RespondOwnedAssets::type, header->dejavu(), &response);
+            enqueueResponse(peer, sizeof(response), RespondOwnedAssets::type(), header->dejavu(), &response);
         }
 
         universeIndex = (universeIndex + 1) & (ASSETS_CAPACITY - 1);
@@ -93,7 +93,7 @@ iteration:
     if (universeIndex >= ASSETS_CAPACITY
         || assets[universeIndex].varStruct.issuance.type == EMPTY)
     {
-        enqueueResponse(peer, 0, EndResponse::type, header->dejavu(), NULL);
+        enqueueResponse(peer, 0, EndResponse::type(), header->dejavu(), NULL);
     }
     else
     {
@@ -107,7 +107,7 @@ iteration:
             response.universeIndex = universeIndex;
             getSiblings<ASSETS_DEPTH>(response.universeIndex, assetDigests, response.siblings);
 
-            enqueueResponse(peer, sizeof(response), RespondPossessedAssets::type, header->dejavu(), &response);
+            enqueueResponse(peer, sizeof(response), RespondPossessedAssets::type(), header->dejavu(), &response);
         }
 
         universeIndex = (universeIndex + 1) & (ASSETS_CAPACITY - 1);
@@ -135,24 +135,24 @@ static void processRequestAssetsSendRecord(Peer* peer, RequestResponseHeader* re
 
 static void processRequestAssets(Peer* peer, RequestResponseHeader* header)
 {
-    // check size of recieved message (request by universe index may be smaller than sizeof(RequestAssets))
+    // check size of received message (request by universe index may be smaller than sizeof(RequestAssets))
     if (!header->checkPayloadSizeMinMax(sizeof(RequestAssets::byUniverseIdx), sizeof(RequestAssets)))
         return;
     RequestAssets* request = header->getPayload<RequestAssets>();
     if (request->assetReqType != RequestAssets::requestByUniverseIdx && !header->checkPayloadSize(sizeof(RequestAssets)))
         return;
 
-    // initalize output message (with siblings because the variant without siblings is just a subset)
+    // initialize output message (with siblings because the variant without siblings is just a subset)
     struct
     {
         RequestResponseHeader header;
         RespondAssetsWithSiblings payload;
     } response;
     setMemory(response, 0);
-    response.header.setType(RespondAssets::type);
+    response.header.setType(RespondAssets::type());
     response.header.setDejavu(header->dejavu());
 
-    // size of output message depends on whether sibilings are requested
+    // size of output message depends on whether siblings are requested
     if (request->byFilter.flags & RequestAssets::getSiblings)
         response.header.setSize<sizeof(RequestResponseHeader) + sizeof(RespondAssetsWithSiblings)>();
     else
@@ -267,5 +267,5 @@ static void processRequestAssets(Peer* peer, RequestResponseHeader* header)
     break;
     }
 
-    enqueueResponse(peer, 0, EndResponse::type, header->dejavu(), nullptr);
+    enqueueResponse(peer, 0, EndResponse::type(), header->dejavu(), nullptr);
 }

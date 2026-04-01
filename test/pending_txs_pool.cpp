@@ -7,6 +7,7 @@
 
 #include "../src/contract_core/contract_def.h"
 #include "../src/contract_core/contract_exec.h"
+#include "../src/contract_core/qpi_spectrum_impl.h"
 
 #include "../src/public_settings.h"
 #undef PENDING_TXS_POOL_NUM_TICKS
@@ -42,11 +43,13 @@ public:
             spectrum[NUM_INITIALIZED_ENTITIES + i].publicKey = m256i{ 0, 0, 0, NUM_INITIALIZED_ENTITIES + i + 1 };
         }
         updateSpectrumInfo();
+        commonBuffers.init(1, sizeof(*txsPriorities));
     }
 
     ~TestPendingTxsPool()
     {
         deinitSpectrum();
+        commonBuffers.deinit();
     }
 
     static constexpr unsigned int getMaxNumTxsPerTick()

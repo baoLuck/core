@@ -14,7 +14,7 @@ const id QIP_testAddress2 = ID(_A, _D, _D, _R, _B, _A, _B, _C, _D, _E, _F, _G, _
 const id QIP_testAddress3 = ID(_A, _D, _D, _R, _C, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y);
 const id QIP_testBuyer = ID(_B, _U, _Y, _E, _R, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y, _Z, _A, _B, _C, _D, _E, _F, _G, _H, _I, _J, _K, _L, _M, _N, _O, _P, _Q, _R, _S, _T, _U, _V, _W, _X, _Y);
 
-class QIPChecker : public QIP
+class QIPChecker : public QIP, public QIP::StateData
 {
 public:
     uint32 getNumberOfICO() const { return numberOfICO; }
@@ -1144,9 +1144,7 @@ TEST(ContractQIP, END_EPOCH_Phase1Rollover)
     // Check that Phase 1 remaining was set to 0
     icoInfo = QIP.getICOInfo(0);
     EXPECT_EQ(icoInfo.remainingAmountForPhase1, 0);
-    // Note: Due to bug in contract (sets Phase1 to 0 before adding), Phase2 doesn't increase
-    // Phase2 should remain unchanged (since Phase1 was already 0 when added)
-    EXPECT_EQ(icoInfo.remainingAmountForPhase2, initialPhase2);
+    EXPECT_EQ(icoInfo.remainingAmountForPhase2, initialPhase2 + initialPhase1);
 }
 
 TEST(ContractQIP, END_EPOCH_Phase2Rollover)
@@ -1223,9 +1221,7 @@ TEST(ContractQIP, END_EPOCH_Phase2Rollover)
     // Check that Phase 2 remaining was set to 0
     icoInfo = QIP.getICOInfo(0);
     EXPECT_EQ(icoInfo.remainingAmountForPhase2, 0);
-    // Note: Due to bug in contract (sets Phase2 to 0 before adding), Phase3 doesn't increase
-    // Phase3 should remain unchanged (since Phase2 was already 0 when added)
-    EXPECT_EQ(icoInfo.remainingAmountForPhase3, initialPhase3);
+    EXPECT_EQ(icoInfo.remainingAmountForPhase3, initialPhase3 + initialPhase2);
 }
 
 TEST(ContractQIP, END_EPOCH_Phase3ReturnToCreator)
@@ -1430,11 +1426,19 @@ TEST(ContractQIP, TransferShareManagementRights)
     // Transfer management rights
     sint64 transferAmount = 100000;
     
-    increaseEnergy(creator, QIP_TRANSFER_RIGHTS_FEE);
+    increaseEnergy(creator, QIP_TRANSFER_RIGHTS_FEE * 2);
+    QIP.endEpoch();
+    system.epoch += 1;
+    QIP.endEpoch();
+    system.epoch += 1;
     sint64 transferred = QIP.transferShareManagementRights(creator, asset, transferAmount, QX_CONTRACT_INDEX, QIP_TRANSFER_RIGHTS_FEE);
+    EXPECT_EQ(transferred, 0);
+    QIP.endEpoch();
+    transferred = QIP.transferShareManagementRights(creator, asset, transferAmount, QX_CONTRACT_INDEX, QIP_TRANSFER_RIGHTS_FEE);
     EXPECT_EQ(transferred, transferAmount);
     
     // Verify shares were transferred
-    EXPECT_EQ(numberOfPossessedShares(assetName, issuer, QIP_CONTRACT_ID, QIP_CONTRACT_ID, QIP_CONTRACT_INDEX, QIP_CONTRACT_INDEX), totalShares - transferAmount);
+    EXPECT_EQ(numberOfPossessedShares(assetName, issuer, QIP_CONTRACT_ID, QIP_CONTRACT_ID, QIP_CONTRACT_INDEX, QIP_CONTRACT_INDEX), 0);
+    EXPECT_EQ(numberOfPossessedShares(assetName, issuer, creator, creator, QIP_CONTRACT_INDEX, QIP_CONTRACT_INDEX), totalShares - transferAmount);
 }
 

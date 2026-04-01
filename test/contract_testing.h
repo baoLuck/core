@@ -20,8 +20,11 @@
 #include "contract_core/qpi_ticking_impl.h"
 #include "contract_core/qpi_ipo_impl.h"
 #include "contract_core/qpi_mining_impl.h"
+#include "contract_core/qpi_oracle_impl.h"
 
 #include "test_util.h"
+
+#include "oracle_testing.h"
 
 
 class ContractTesting : public LoggingTest
@@ -33,7 +36,7 @@ public:
 #ifdef __AVX512F__
         initAVX512FourQConstants();
 #endif
-        initCommonBuffers();
+        commonBuffers.init(1);
         initContractExec();
         initSpecialEntities();
 
@@ -46,7 +49,7 @@ public:
         deinitSpecialEntities();
         deinitAssets();
         deinitSpectrum();
-        deinitCommonBuffers();
+        commonBuffers.deinit();
         deinitContractExec();
         for (unsigned int i = 0; i < contractCount; ++i)
         {
@@ -160,6 +163,7 @@ public:
     contractStates[contractIndex] = (unsigned char*)malloc(stateSize); \
     setMem(contractStates[contractIndex], stateSize, 0); \
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(contractName); \
+    setContractFeeReserve(contractIndex, 10000000); \
 }
 
 static inline long long getBalance(const id& pubKey)
