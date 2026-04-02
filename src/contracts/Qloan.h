@@ -1,13 +1,11 @@
-#include "qpi.h"
-
 using namespace QPI;
 
 constexpr uint64 QLOAN_PLACE_LOAN_REQ_FEE = 100000;
 
 constexpr uint64 QLOAN_ACCEPTANCE_FEE_PERCENT = 15;
-constexpr uint64 QLOAN_DISTRIBUTE_PERCENT = 1500; // 15%
-constexpr uint64 QLOAN_BURN_PERCENT = 1500; // 15%
-constexpr uint64 QLOAN_QVAULT_PERCENT = 1500; // 15%
+constexpr uint64 QLOAN_DISTRIBUTE_PERCENT = 5000; // 50%
+constexpr uint64 QLOAN_BURN_PERCENT = 500; // 5%
+constexpr uint64 QLOAN_QVAULT_PERCENT = 4500; // 45%
 
 constexpr uint64 QLOAN_MAX_LOAN_PERIOD_IN_EPOCHS = 52;
 constexpr uint64 QLOAN_MAX_INTEREST_RATE = 100;
@@ -50,9 +48,9 @@ struct QLOAN : public ContractBase
         uint64 returnPeriodInEpochs;
         uint64 epochsLeft;
 
-        bool assetsToCreditor;
-
         enum LoanReqState state;
+
+        bool assetsToCreditor;
     };
 
     struct LoanReqInfo
@@ -90,9 +88,7 @@ struct QLOAN : public ContractBase
 
         // These two mostly for debug purposes
         uint64 _burnedAmount;
-        uint64 _toDevsAmount;
-
-        id _devAddress;
+        uint64 _toQvaultAmount;
     };
 
     struct _TransferAssetsFromTo_input
@@ -199,6 +195,38 @@ struct QLOAN : public ContractBase
         }
     }
 
+    struct _FillLoanReqForOutput_input
+    {
+        uint64 loanReqId;
+        struct LoanReqInfo loanReqInfo;
+        //sint64 loanReqsIdx;
+    };
+
+    struct _FillLoanReqForOutput_output
+    {
+        LoanOutputInfo loanOutputInfo;
+    };
+
+    PRIVATE_FUNCTION(_FillLoanReqForOutput)
+    {
+        output.loanOutputInfo.borrower = input.loanReqInfo.borrower;
+        output.loanOutputInfo.creditor = input.loanReqInfo.creditor;
+        output.loanOutputInfo.acceptedBy = input.loanReqInfo.acceptedBy;
+        output.loanOutputInfo.privateId = input.loanReqInfo.privateId;
+        output.loanOutputInfo.reqId = input.loanReqId;
+        output.loanOutputInfo.assets = input.loanReqInfo.assets;
+        output.loanOutputInfo.assetAmount = input.loanReqInfo.assetAmount;
+        output.loanOutputInfo.assetsNum = input.loanReqInfo.assetsNum;
+        output.loanOutputInfo.priceAmount = input.loanReqInfo.priceAmount;
+        output.loanOutputInfo.interestRate = input.loanReqInfo.interestRate;
+        output.loanOutputInfo.debtAmount = input.loanReqInfo.debtAmount;
+        output.loanOutputInfo.returnPeriodInEpochs = input.loanReqInfo.returnPeriodInEpochs;
+        output.loanOutputInfo.epochsLeft = input.loanReqInfo.epochsLeft;
+        output.loanOutputInfo.assetsToCreditor = input.loanReqInfo.assetsToCreditor;
+        output.loanOutputInfo.state = input.loanReqInfo.state;
+    }
+
+public:
     struct PlaceLoanReq_input
     {
         // It's for whom these deal
@@ -653,37 +681,6 @@ struct QLOAN : public ContractBase
         state.mut()._loanReqs.replace(input.reqId, locals.tmpLoanReq);
     }
 
-    struct _FillLoanReqForOutput_input
-    {
-        uint64 loanReqId;
-        struct LoanReqInfo loanReqInfo;
-        //sint64 loanReqsIdx;
-    };
-
-    struct _FillLoanReqForOutput_output
-    {
-        LoanOutputInfo loanOutputInfo;
-    };
-
-    PRIVATE_FUNCTION(_FillLoanReqForOutput)
-    {
-        output.loanOutputInfo.borrower = input.loanReqInfo.borrower;
-        output.loanOutputInfo.creditor = input.loanReqInfo.creditor;
-        output.loanOutputInfo.acceptedBy = input.loanReqInfo.acceptedBy;
-        output.loanOutputInfo.privateId = input.loanReqInfo.privateId;
-        output.loanOutputInfo.reqId = input.loanReqId;
-        output.loanOutputInfo.assets = input.loanReqInfo.assets;
-        output.loanOutputInfo.assetAmount = input.loanReqInfo.assetAmount;
-        output.loanOutputInfo.assetsNum = input.loanReqInfo.assetsNum;
-        output.loanOutputInfo.priceAmount = input.loanReqInfo.priceAmount;
-        output.loanOutputInfo.interestRate = input.loanReqInfo.interestRate;
-        output.loanOutputInfo.debtAmount = input.loanReqInfo.debtAmount;
-        output.loanOutputInfo.returnPeriodInEpochs = input.loanReqInfo.returnPeriodInEpochs;
-        output.loanOutputInfo.epochsLeft = input.loanReqInfo.epochsLeft;
-        output.loanOutputInfo.assetsToCreditor = input.loanReqInfo.assetsToCreditor;
-        output.loanOutputInfo.state = input.loanReqInfo.state;
-    }
-
     struct GetAllLoanReqs_input
     {
     };
@@ -714,10 +711,8 @@ struct QLOAN : public ContractBase
 
         while (locals.activeLoanReqsIdx != NULL_INDEX && locals.outputLoanReqsIdx < 256)
         {
-            locals.activeLoanReqsIdx = state.get()._loanReqs.nextElementIndex(NULL_INDEX);
             locals.tmpLoanReqInfo = state.get()._loanReqs.value(locals.activeLoanReqsIdx);
-            //if (locals.tmpLoanReqInfo.privateId == NULL_ID)
-            //{
+
             locals.fillLoanReqForOutputInput.loanReqId = state.get()._loanReqs.key(locals.activeLoanReqsIdx);
             locals.fillLoanReqForOutputInput.loanReqInfo = locals.tmpLoanReqInfo;
             CALL(_FillLoanReqForOutput, locals.fillLoanReqForOutputInput, locals.fillLoanReqForOutputOutput);
@@ -725,7 +720,6 @@ struct QLOAN : public ContractBase
             output.reqs.set(locals.outputLoanReqsIdx, locals.fillLoanReqForOutputOutput.loanOutputInfo);
             locals.outputLoanReqsIdx++;
             output.reqsAmount++;
-            //}
 
             locals.activeLoanReqsIdx = state.get()._loanReqs.nextElementIndex(locals.activeLoanReqsIdx);
         }
@@ -839,7 +833,7 @@ struct QLOAN : public ContractBase
         uint64 earnedAmount;
         uint64 distributedAmount;
         uint64 burnedAmount;
-        uint64 toDevsAmount;
+        uint64 toQvaultAmount;
     };
 
 
@@ -852,7 +846,7 @@ struct QLOAN : public ContractBase
         output.earnedAmount = state.get()._earnedAmount;
         output.distributedAmount = state.get()._distributedAmount;
         output.burnedAmount = state.get()._burnedAmount;
-        output.toDevsAmount = state.get()._toDevsAmount;
+        output.toQvaultAmount = state.get()._toQvaultAmount;
     }
 
     struct GetUserDebt_input
@@ -961,7 +955,6 @@ struct QLOAN : public ContractBase
         uint64 amountToDistribute;
         uint64 amountToBurn;
         uint64 amountToQvault;
-        uint64 amountToDevs;
     };
 
     END_EPOCH_WITH_LOCALS()
@@ -969,22 +962,19 @@ struct QLOAN : public ContractBase
         locals.amountToDistribute = div(smul((state.get()._earnedAmount - state.get()._distributedAmount), QLOAN_DISTRIBUTE_PERCENT), 10000ULL);
         locals.amountToBurn = div(smul((state.get()._earnedAmount - state.get()._distributedAmount), QLOAN_BURN_PERCENT), 10000ULL);
         locals.amountToQvault = div(smul((state.get()._earnedAmount - state.get()._distributedAmount), QLOAN_QVAULT_PERCENT), 10000ULL);
-        locals.amountToDevs = state.get()._earnedAmount - state.get()._distributedAmount - locals.amountToDistribute - locals.amountToBurn - locals.amountToQvault;
 
         if ((QPI::div(locals.amountToDistribute, 676ULL) > 0) && (state.get()._earnedAmount > state.get()._distributedAmount))
         {
             if (qpi.distributeDividends(QPI::div(locals.amountToDistribute, 676ULL)))
             {
                 qpi.burn(locals.amountToBurn);
-                qpi.transfer(state.get()._devAddress, locals.amountToDevs);
                 qpi.transfer(id(QVAULT_CONTRACT_INDEX, 0, 0, 0), locals.amountToQvault);
                 state.mut()._distributedAmount += QPI::div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
                 state.mut()._distributedAmount += locals.amountToBurn;
                 state.mut()._distributedAmount += locals.amountToQvault;
-                state.mut()._distributedAmount += locals.amountToDevs;
 
                 state.mut()._burnedAmount += locals.amountToBurn;
-                state.mut()._toDevsAmount += locals.amountToDevs;
+                state.mut()._toQvaultAmount += locals.amountToQvault;
             }
         }
     }
@@ -1001,7 +991,7 @@ struct QLOAN : public ContractBase
         state.mut()._earnedAmount = 0;
         state.mut()._distributedAmount = 0;
         state.mut()._burnedAmount = 0;
-        state.mut()._toDevsAmount = 0;
+        state.mut()._toQvaultAmount = 0;
 
         locals.loanReqIdIdx = 1;
         while (locals.loanReqIdIdx < QLOAN_MAX_LOAN_REQS_NUM + 1)
