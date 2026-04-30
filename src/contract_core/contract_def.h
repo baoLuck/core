@@ -284,6 +284,20 @@
 #define CONTRACT_STATE2_TYPE ESCROW2
 #include "contracts/Escrow.h"
 
+#ifndef NO_QLOAN
+
+#undef CONTRACT_INDEX
+#undef CONTRACT_STATE_TYPE
+#undef CONTRACT_STATE2_TYPE
+
+#define QLOAN_CONTRACT_INDEX 28
+#define CONTRACT_INDEX QLOAN_CONTRACT_INDEX
+#define CONTRACT_STATE_TYPE QLOAN
+#define CONTRACT_STATE2_TYPE QLOAN2
+#include "contracts/Qloan.h"
+
+#endif
+
 // new contracts should be added above this line
 
 #ifdef INCLUDE_CONTRACT_TEST_EXAMPLES
@@ -398,6 +412,9 @@ constexpr struct ContractDescription
     {"VOTTUN", 206, 10000, sizeof(VOTTUNBRIDGE::StateData)}, // proposal in epoch 204, IPO in 205, construction and first use in 206
     {"QUSINO", 208, 10000, sizeof(QUSINO::StateData)}, // proposal in epoch 206, IPO in 207, construction and first use in 208
     {"ESCROW", 210, 10000, sizeof(ESCROW::StateData)}, // proposal in epoch 208, IPO in 209, construction and first use in 210
+#ifndef NO_QLOAN
+    {"QLOAN", 211, 10000, sizeof(QLOAN::StateData)},
+#endif
     // new contracts should be added above this line
 #ifdef INCLUDE_CONTRACT_TEST_EXAMPLES
     {"TESTEXA", 138, 10000, sizeof(TESTEXA::StateData)},
@@ -521,6 +538,9 @@ static void initializeContracts()
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(VOTTUNBRIDGE);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QUSINO);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(ESCROW);
+#ifndef NO_QLOAN
+	REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QLOAN);
+#endif
     // new contracts should be added above this line
 #ifdef INCLUDE_CONTRACT_TEST_EXAMPLES
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(TESTEXA);
