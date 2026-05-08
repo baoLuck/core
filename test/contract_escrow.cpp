@@ -77,7 +77,7 @@ public:
 
 TEST(ContractEscrow, CreateDeal)
 {
-    system.epoch = 190;
+    system.epoch = 210;
     ContractTestingEscrow escrow;
     escrow.beginEpoch();
 
@@ -170,7 +170,7 @@ TEST(ContractEscrow, CreateDeal)
 
 TEST(ContractEscrow, OperateDeal)
 {
-    system.epoch = 190;
+    system.epoch = 210;
     ContractTestingEscrow escrow;
     escrow.beginEpoch();
 

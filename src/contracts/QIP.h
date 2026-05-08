@@ -359,10 +359,10 @@ public:
         state.mut().icos.set(state.get().numberOfICO, locals.newICO);
         state.mut().numberOfICO++;
 
-        locals.amountPerShare = div(smul(div(QIP_ICO_SETUP_FEE, 10LL).quot, 6LL), 676LL).quot;
+        locals.amountPerShare = QPI::div(smul(QPI::div(QIP_ICO_SETUP_FEE, 10LL), 6LL), 676LL);
         qpi.distributeDividends(locals.amountPerShare);
-        qpi.transfer(state.get().developmentFundAddress, smul(div(QIP_ICO_SETUP_FEE, 10LL).quot, 3LL));
-        qpi.burn(QIP_ICO_SETUP_FEE - smul(locals.amountPerShare, 676LL) - smul(div(QIP_ICO_SETUP_FEE, 10LL).quot, 3LL));
+        qpi.transfer(state.get().developmentFundAddress, smul(QPI::div(QIP_ICO_SETUP_FEE, 10LL), 3LL));
+        qpi.burn(QIP_ICO_SETUP_FEE - smul(locals.amountPerShare, 676LL) - smul(QPI::div(QIP_ICO_SETUP_FEE, 10LL), 3LL));
 
         output.returnCode = QIPLogInfo::QIP_success;
         locals.log._contractIndex = SELF_INDEX;
@@ -535,9 +535,9 @@ public:
                 locals.buyerInfo.totalQuPayed = sint64(input.amount * locals.price);
                 state.mut().buyersInfo.set(locals.icoBuyerKey, locals.buyerInfo);
             }
-            qpi.transfer(locals.ico.address1, div(input.amount * locals.price * locals.ico.percent1, 100ULL));
-            qpi.transfer(state.get().developmentFundAddress, div(input.amount * locals.price * QIP_DEVELOPMENT_FUND_PERCENT, 100ULL));
-            qpi.distributeDividends(div(div(input.amount * locals.price * QIP_SHAREHOLDERS_PERCENT, 100ULL), 676ULL));
+            qpi.transfer(locals.ico.address1, QPI::div(input.amount * locals.price * locals.ico.percent1, 100ULL));
+            qpi.transfer(state.get().developmentFundAddress, QPI::div(input.amount * locals.price * QIP_DEVELOPMENT_FUND_PERCENT, 100ULL));
+            qpi.distributeDividends(QPI::div(QPI::div(input.amount * locals.price * QIP_SHAREHOLDERS_PERCENT, 100ULL), 676ULL));
         }
         else
         {
@@ -655,8 +655,8 @@ public:
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
         }
 
-        locals.fullReturnAmount = div(locals.buyerInfo.totalQuPayed * (QIP_INVESTORS_DISTRIBUTION_PERCENT - locals.ico.percent1), 100ll).quot;
-        locals.returnAmount = locals.fullReturnAmount - div(locals.fullReturnAmount, locals.ico.vestingPeriod).quot * (qpi.epoch() - locals.ico.startEpoch - 3);
+        locals.fullReturnAmount = QPI::div(locals.buyerInfo.totalQuPayed * (QIP_INVESTORS_DISTRIBUTION_PERCENT - locals.ico.percent1), 100ll);
+        locals.returnAmount = locals.fullReturnAmount - QPI::div(locals.fullReturnAmount, sint64(locals.ico.vestingPeriod)) * (qpi.epoch() - locals.ico.startEpoch - 3);
         qpi.transfer(qpi.invocator(), locals.returnAmount);
         locals.buyerInfo.isReturned = true;
         locals.ico.quToDistribute -= locals.buyerInfo.totalQuPayed;
@@ -822,7 +822,7 @@ public:
                         }
                         else 
                         {
-                            locals.tempAmount = div(locals.buyerInfo.toReceive, locals.ico.vestingPeriod).quot;
+                            locals.tempAmount = QPI::div(locals.buyerInfo.toReceive, sint64(locals.ico.vestingPeriod));
                             locals.buyerInfo.received += locals.tempAmount;
                             state.mut().buyersInfo.replace(locals.icoBuyerKey, locals.buyerInfo);
                         }
