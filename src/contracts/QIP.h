@@ -8,6 +8,7 @@ constexpr sint64 QIP_MAX_PENALTY_PERCENT_FOR_VESTING = 40;
 constexpr uint64 QIP_DEVELOPMENT_FUND_PERCENT = 1;
 constexpr uint64 QIP_SHAREHOLDERS_PERCENT = 2;
 constexpr uint32 QIP_MAX_VESTING_PERIOD = 100;
+constexpr uint64 QIP_MIN_PARTICIPATION_AMOUNT = 5000000;
 
 enum QIPLogInfo {
     QIP_success = 0,
@@ -24,6 +25,7 @@ enum QIPLogInfo {
     QIP_invalidVestingPeriod = 11,
     QIP_maxBuyers = 12,
     QIP_fundsAlreadyReturned = 13,
+    QIP_amountBelowMinimum = 14,
 };
 
 struct QIPLogger
@@ -375,7 +377,7 @@ public:
     struct buyToken_locals
     {
         ICOInfo ico;
-        uint64 distributedAmount, price;
+        uint64 distributedAmount, price, requiredPayment;
         uint32 idx, percent;
         QIPLogger log;
         uint16 salePhase;
@@ -383,116 +385,90 @@ public:
         sint64 elementIndex;
         IcoBuyerKey icoBuyerKey;
         BuyerInfo buyerInfo;
+        uint32 errorCode;
     };
 
     PUBLIC_PROCEDURE_WITH_LOCALS(buyToken)
     {
         if (input.indexOfICO >= state.get().numberOfICO)
         {
-            if (qpi.invocationReward() > 0)
-            {
-                qpi.transfer(qpi.invocator(), qpi.invocationReward());
-            }
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_ICONotFound;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_ICONotFound;
-            return;
-        }
-        locals.ico = state.get().icos.get(input.indexOfICO);
-        locals.salePhase = qpi.epoch() - locals.ico.startEpoch;
-
-        if (locals.salePhase == 0)
-        {
-            if (input.amount <= locals.ico.remainingAmountForPhase1)
-            {
-                locals.price = locals.ico.price1;
-            }
-            else
-            {
-                if (qpi.invocationReward() > 0)
-                {
-                    qpi.transfer(qpi.invocator(), qpi.invocationReward());
-                }
-                locals.log._contractIndex = SELF_INDEX;
-                locals.log._type = QIPLogInfo::QIP_invalidAmount;
-                locals.log.dst = qpi.invocator();
-                locals.log.amt = 0;
-                LOG_INFO(locals.log);
-                output.returnCode = QIPLogInfo::QIP_invalidAmount;
-                return;
-            }
-        }
-        else if (locals.salePhase == 1)
-        {
-            if (input.amount <= locals.ico.remainingAmountForPhase2)
-            {
-                locals.price = locals.ico.price2;
-            }
-            else
-            {
-                if (qpi.invocationReward() > 0)
-                {
-                    qpi.transfer(qpi.invocator(), qpi.invocationReward());
-                }
-                locals.log._contractIndex = SELF_INDEX;
-                locals.log._type = QIPLogInfo::QIP_invalidAmount;
-                locals.log.dst = qpi.invocator();
-                locals.log.amt = 0;
-                LOG_INFO(locals.log);
-                output.returnCode = QIPLogInfo::QIP_invalidAmount;
-                return ;
-            }
-        }
-        else if (locals.salePhase == 2)
-        {
-            if (input.amount <= locals.ico.remainingAmountForPhase3)
-            {
-                locals.price = locals.ico.price3;
-            }
-            else
-            {
-                if (qpi.invocationReward() > 0)
-                {
-                    qpi.transfer(qpi.invocator(), qpi.invocationReward());
-                }
-                locals.log._contractIndex = SELF_INDEX;
-                locals.log._type = QIPLogInfo::QIP_invalidAmount;
-                locals.log.dst = qpi.invocator();
-                locals.log.amt = 0;
-                LOG_INFO(locals.log);
-                output.returnCode = QIPLogInfo::QIP_invalidAmount;
-                return ;
-            }
+            locals.errorCode = QIPLogInfo::QIP_ICONotFound;
         }
         else
         {
-            if (qpi.invocationReward() > 0)
+            locals.ico = state.get().icos.get(input.indexOfICO);
+            locals.salePhase = qpi.epoch() - locals.ico.startEpoch;
+
+            if (locals.salePhase == 0)
             {
-                qpi.transfer(qpi.invocator(), qpi.invocationReward());
+                locals.price = locals.ico.price1;
+
+                if (input.amount > locals.ico.remainingAmountForPhase1)
+                {
+                    locals.errorCode = QIPLogInfo::QIP_invalidAmount;
+                } 
             }
-            locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_invalidEpoch;
-            locals.log.dst = qpi.invocator();
-            locals.log.amt = 0;
-            LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_invalidEpoch;
-            return;
+            else if (locals.salePhase == 1)
+            {
+                locals.price = locals.ico.price2;
+
+                if (input.amount > locals.ico.remainingAmountForPhase2)
+                {
+                    locals.errorCode = QIPLogInfo::QIP_invalidAmount;
+                }
+            }
+            else if (locals.salePhase == 2)
+            {
+                locals.price = locals.ico.price3;
+
+                if (input.amount > locals.ico.remainingAmountForPhase3)
+                {
+                    locals.errorCode = QIPLogInfo::QIP_invalidAmount;
+                }
+            }
+            else
+            {
+                locals.errorCode = QIPLogInfo::QIP_invalidEpoch;
+            }
+
+            if (locals.errorCode == 0)
+            {
+                if (input.amount == 0 || input.amount > MAX_AMOUNT)
+                {
+                    locals.errorCode = QIPLogInfo::QIP_invalidAmount;
+                }
+                else if (locals.price == 0 || input.amount * locals.price > MAX_AMOUNT)
+                {
+                    locals.errorCode = QIPLogInfo::QIP_insufficientInvocationReward;
+                }
+                else
+                {
+                    locals.requiredPayment = input.amount * locals.price;
+
+                    if (locals.requiredPayment < QIP_MIN_PARTICIPATION_AMOUNT)
+                    {
+                        locals.errorCode = QIPLogInfo::QIP_amountBelowMinimum;
+                    }
+                    else if (locals.requiredPayment > (uint64)qpi.invocationReward())
+                    {
+                        locals.errorCode = QIPLogInfo::QIP_insufficientInvocationReward;
+                    }
+                }
+            }
         }
-        if (input.amount * locals.price > (uint64)qpi.invocationReward())
+
+        if (locals.errorCode != QIPLogInfo::QIP_success)
         {
             if (qpi.invocationReward() > 0)
             {
                 qpi.transfer(qpi.invocator(), qpi.invocationReward());
             }
             locals.log._contractIndex = SELF_INDEX;
-            locals.log._type = QIPLogInfo::QIP_insufficientInvocationReward;
+            locals.log._type = locals.errorCode;
             locals.log.dst = qpi.invocator();
             locals.log.amt = 0;
             LOG_INFO(locals.log);
-            output.returnCode = QIPLogInfo::QIP_insufficientInvocationReward;
+            output.returnCode = locals.errorCode;
             return;
         }
 
@@ -511,11 +487,6 @@ public:
             return;
         }
 
-        if (input.amount * locals.price <= (uint64)qpi.invocationReward())
-        {
-            qpi.transfer(qpi.invocator(), qpi.invocationReward() - input.amount * locals.price);
-        }
-
         if (locals.ico.isVested)
         {
             locals.icoBuyerKey.assetName = locals.ico.assetName;
@@ -526,45 +497,63 @@ public:
             if (state.get().buyersInfo.get(locals.icoBuyerKey, locals.buyerInfo))
             {
                 locals.buyerInfo.toReceive += sint64(input.amount);
-                locals.buyerInfo.totalQuPayed += sint64(input.amount * locals.price);
+                locals.buyerInfo.totalQuPayed += sint64(locals.requiredPayment);
                 state.mut().buyersInfo.replace(locals.icoBuyerKey, locals.buyerInfo);
             }
             else
             {
                 locals.buyerInfo.toReceive = sint64(input.amount);
-                locals.buyerInfo.totalQuPayed = sint64(input.amount * locals.price);
+                locals.buyerInfo.totalQuPayed = sint64(locals.requiredPayment);
                 state.mut().buyersInfo.set(locals.icoBuyerKey, locals.buyerInfo);
             }
-            qpi.transfer(locals.ico.address1, QPI::div(input.amount * locals.price * locals.ico.percent1, 100ULL));
-            qpi.transfer(state.get().developmentFundAddress, QPI::div(input.amount * locals.price * QIP_DEVELOPMENT_FUND_PERCENT, 100ULL));
-            qpi.distributeDividends(QPI::div(QPI::div(input.amount * locals.price * QIP_SHAREHOLDERS_PERCENT, 100ULL), 676ULL));
+            qpi.transfer(locals.ico.address1, QPI::div(locals.requiredPayment * locals.ico.percent1, 100ULL));
+            qpi.transfer(state.get().developmentFundAddress, QPI::div(locals.requiredPayment * QIP_DEVELOPMENT_FUND_PERCENT, 100ULL));
+            qpi.distributeDividends(QPI::div(QPI::div(locals.requiredPayment * QIP_SHAREHOLDERS_PERCENT, 100ULL), 676ULL));
         }
         else
         {
-            qpi.transferShareOwnershipAndPossession(locals.ico.assetName, locals.ico.issuer, SELF, SELF, input.amount, qpi.invocator());
-            locals.distributedAmount = div(input.amount * locals.price * locals.ico.percent1 * 1ULL, 100ULL)
-                                        + div(input.amount * locals.price * locals.ico.percent2 * 1ULL, 100ULL)
-                                        + div(input.amount * locals.price * locals.ico.percent3 * 1ULL, 100ULL)
-                                        + div(input.amount * locals.price * locals.ico.percent4 * 1ULL, 100ULL)
-                                        + div(input.amount * locals.price * locals.ico.percent5 * 1ULL, 100ULL)
-                                        + div(input.amount * locals.price * locals.ico.percent6 * 1ULL, 100ULL)
-                                        + div(input.amount * locals.price * locals.ico.percent7 * 1ULL, 100ULL)
-                                        + div(input.amount * locals.price * locals.ico.percent8 * 1ULL, 100ULL)
-                                        + div(input.amount * locals.price * locals.ico.percent9 * 1ULL, 100ULL)
-                                        + div(input.amount * locals.price * locals.ico.percent10 * 1ULL, 100ULL)
-                                        + div(input.amount * locals.price * QIP_DEVELOPMENT_FUND_PERCENT * 1ULL, 100ULL);
-            qpi.transfer(locals.ico.address1, div(input.amount * locals.price * locals.ico.percent1 * 1ULL, 100ULL));
-            qpi.transfer(locals.ico.address2, div(input.amount * locals.price * locals.ico.percent2 * 1ULL, 100ULL));
-            qpi.transfer(locals.ico.address3, div(input.amount * locals.price * locals.ico.percent3 * 1ULL, 100ULL));
-            qpi.transfer(locals.ico.address4, div(input.amount * locals.price * locals.ico.percent4 * 1ULL, 100ULL));
-            qpi.transfer(locals.ico.address5, div(input.amount * locals.price * locals.ico.percent5 * 1ULL, 100ULL));
-            qpi.transfer(locals.ico.address6, div(input.amount * locals.price * locals.ico.percent6 * 1ULL, 100ULL));
-            qpi.transfer(locals.ico.address7, div(input.amount * locals.price * locals.ico.percent7 * 1ULL, 100ULL));
-            qpi.transfer(locals.ico.address8, div(input.amount * locals.price * locals.ico.percent8 * 1ULL, 100ULL));
-            qpi.transfer(locals.ico.address9, div(input.amount * locals.price * locals.ico.percent9 * 1ULL, 100ULL));
-            qpi.transfer(locals.ico.address10, div(input.amount * locals.price * locals.ico.percent10 * 1ULL, 100ULL));
-            qpi.transfer(state.get().developmentFundAddress, div(input.amount * locals.price * QIP_DEVELOPMENT_FUND_PERCENT * 1ULL, 100ULL));
-            qpi.distributeDividends(div((input.amount * locals.price - locals.distributedAmount), 676ULL));
+            if (qpi.transferShareOwnershipAndPossession(locals.ico.assetName, locals.ico.issuer, SELF, SELF, input.amount, qpi.invocator()) < 0)
+            {
+                if (qpi.invocationReward() > 0)
+                {
+                    qpi.transfer(qpi.invocator(), qpi.invocationReward());
+                }
+                locals.log._contractIndex = SELF_INDEX;
+                locals.log._type = QIPLogInfo::QIP_invalidTransfer;
+                locals.log.dst = qpi.invocator();
+                locals.log.amt = 0;
+                LOG_INFO(locals.log);
+                output.returnCode = QIPLogInfo::QIP_invalidTransfer;
+                return;
+            }
+            locals.distributedAmount = div(locals.requiredPayment * locals.ico.percent1 * 1ULL, 100ULL)
+                                        + div(locals.requiredPayment * locals.ico.percent2 * 1ULL, 100ULL)
+                                        + div(locals.requiredPayment * locals.ico.percent3 * 1ULL, 100ULL)
+                                        + div(locals.requiredPayment * locals.ico.percent4 * 1ULL, 100ULL)
+                                        + div(locals.requiredPayment * locals.ico.percent5 * 1ULL, 100ULL)
+                                        + div(locals.requiredPayment * locals.ico.percent6 * 1ULL, 100ULL)
+                                        + div(locals.requiredPayment * locals.ico.percent7 * 1ULL, 100ULL)
+                                        + div(locals.requiredPayment * locals.ico.percent8 * 1ULL, 100ULL)
+                                        + div(locals.requiredPayment * locals.ico.percent9 * 1ULL, 100ULL)
+                                        + div(locals.requiredPayment * locals.ico.percent10 * 1ULL, 100ULL)
+                                        + div(locals.requiredPayment * QIP_DEVELOPMENT_FUND_PERCENT * 1ULL, 100ULL);
+            qpi.transfer(locals.ico.address1, div(locals.requiredPayment * locals.ico.percent1 * 1ULL, 100ULL));
+            qpi.transfer(locals.ico.address2, div(locals.requiredPayment * locals.ico.percent2 * 1ULL, 100ULL));
+            qpi.transfer(locals.ico.address3, div(locals.requiredPayment * locals.ico.percent3 * 1ULL, 100ULL));
+            qpi.transfer(locals.ico.address4, div(locals.requiredPayment * locals.ico.percent4 * 1ULL, 100ULL));
+            qpi.transfer(locals.ico.address5, div(locals.requiredPayment * locals.ico.percent5 * 1ULL, 100ULL));
+            qpi.transfer(locals.ico.address6, div(locals.requiredPayment * locals.ico.percent6 * 1ULL, 100ULL));
+            qpi.transfer(locals.ico.address7, div(locals.requiredPayment * locals.ico.percent7 * 1ULL, 100ULL));
+            qpi.transfer(locals.ico.address8, div(locals.requiredPayment * locals.ico.percent8 * 1ULL, 100ULL));
+            qpi.transfer(locals.ico.address9, div(locals.requiredPayment * locals.ico.percent9 * 1ULL, 100ULL));
+            qpi.transfer(locals.ico.address10, div(locals.requiredPayment * locals.ico.percent10 * 1ULL, 100ULL));
+            qpi.transfer(state.get().developmentFundAddress, div(locals.requiredPayment * QIP_DEVELOPMENT_FUND_PERCENT * 1ULL, 100ULL));
+            qpi.distributeDividends(div(locals.requiredPayment - locals.distributedAmount, 676ULL));
+        }
+
+        if ((uint64) qpi.invocationReward() > locals.requiredPayment)
+        {
+           qpi.transfer(qpi.invocator(), qpi.invocationReward() - locals.requiredPayment);
         }
 
         if (locals.salePhase == 0)
