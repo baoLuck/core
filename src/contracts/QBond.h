@@ -950,7 +950,7 @@ protected:
     PUBLIC_FUNCTION_WITH_LOCALS(GetInfoPerEpoch)
     {
         output.totalStaked = 0;
-        output.stakersAmount = 0;
+        output.stakersAmount = state.get()._cyclicMbondCounter;
         output.apy = 0;
 
         locals.index = state.get()._epochMbondInfoMap.getElementIndex((uint16)input.epoch);
@@ -964,7 +964,7 @@ protected:
         CALL_OTHER_CONTRACT_FUNCTION(QEARN, getLockInfoPerEpoch, locals.tempInput, locals.tempOutput);
 
         output.totalStaked = state.get()._epochMbondInfoMap.value(locals.index).totalStaked;
-        output.stakersAmount = state.get()._epochMbondInfoMap.value(locals.index).stakersAmount;
+        // output.stakersAmount = state.get()._epochMbondInfoMap.value(locals.index).stakersAmount;
         output.apy = locals.tempOutput.yield;
     }
 
