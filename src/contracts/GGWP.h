@@ -962,6 +962,9 @@ struct WOLFPACK : public ContractBase
     {
         if (qpi.epoch() < 221)
         {
+            // Before epoch 221, this procedure should be unknown. processTickTransactionContractProcedure will call POST_INCOMING_TRANSFER
+            // if a tx with amount > 0 is invoking an unknown procedure. So before epoch 221, POST_INCOMING_TRANSFER should be invoked here as well,
+            // however, this can be skipped because the contract does not define POST_INCOMING_TRANSFER.
             return;
         }
 
