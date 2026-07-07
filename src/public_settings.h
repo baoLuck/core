@@ -100,7 +100,7 @@ static constexpr unsigned long long HYPERIDENTITY_NUMBER_OF_TICKS = 1000;       
 static constexpr unsigned long long HYPERIDENTITY_NUMBER_OF_NEIGHBORS = 728;    // 2M. Must be divided by 2
 static constexpr unsigned long long HYPERIDENTITY_NUMBER_OF_MUTATIONS = 150;
 static constexpr unsigned long long HYPERIDENTITY_POPULATION_THRESHOLD = HYPERIDENTITY_NUMBER_OF_INPUT_NEURONS + HYPERIDENTITY_NUMBER_OF_OUTPUT_NEURONS + HYPERIDENTITY_NUMBER_OF_MUTATIONS; // P
-static constexpr unsigned int HYPERIDENTITY_SOLUTION_THRESHOLD_DEFAULT = 316;
+static constexpr unsigned int HYPERIDENTITY_SOLUTION_THRESHOLD_DEFAULT = HYPERIDENTITY_NUMBER_OF_OUTPUT_NEURONS + 1;// old value: 316, we set to impossible threshold for DISABLE mining
 
 static constexpr unsigned long long ADDITION_NUMBER_OF_INPUT_NEURONS = 14;
 static constexpr unsigned long long ADDITION_NUMBER_OF_OUTPUT_NEURONS = 8;
@@ -109,7 +109,7 @@ static constexpr unsigned long long ADDITION_POPULATION_THRESHOLD = 256;
 // Each neuron is connected to every other neuron(exclude self). The effective is clamp to (ADDITION_POPULATION_THRESHOLD - 1) at runtime
 static constexpr unsigned long long ADDITION_NUMBER_OF_NEIGHBORS = ADDITION_POPULATION_THRESHOLD;
 static constexpr unsigned long long ADDITION_NUMBER_OF_MUTATIONS = 256;
-static constexpr unsigned int ADDITION_SOLUTION_THRESHOLD_DEFAULT = 74100;
+static constexpr unsigned int ADDITION_SOLUTION_THRESHOLD_DEFAULT = ADDITION_NUMBER_OF_OUTPUT_NEURONS * (1u << ADDITION_NUMBER_OF_INPUT_NEURONS) + 1;// old value:  74100, we set to impossible threshold for DISABLE mining
 
 // Multipler of score
 static constexpr unsigned int HYPERIDENTITY_SOLUTION_MULTIPLER = 1;
