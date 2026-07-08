@@ -36,18 +36,9 @@ void qLogger::processRequestLog(unsigned long long processorNumber, Peer* peer, 
                     length = endIdBufferRange.length + endIdBufferRange.startIndex - startFrom;
                 }
             }
-            bool cond;
-            if (system.epoch < 221)
-            {
-                cond = length < maxPayloadSize;
-            }
-            else
-            {
-                // reject negative length from a pruned intermediate toID
-                cond = length >= 0 && length < maxPayloadSize
-                    && endIdBufferRange.startIndex != -1 && endIdBufferRange.length != -1;
-            }
-            if (cond)
+            // reject negative length from a pruned intermediate toID
+            if (length >= 0 && length < maxPayloadSize
+                && endIdBufferRange.startIndex != -1 && endIdBufferRange.length != -1)
             {
                 char* rBuffer = responseBuffers[processorNumber];
                 logBuffer.getMany(rBuffer, startFrom, length);
