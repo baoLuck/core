@@ -7587,7 +7587,7 @@ EFI_STATUS efi_main(EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE* systemTable)
                             && peers[i].isConnectingAccepting
                             && ((__rdtsc() - peers[i].connectionStartTime) / frequency > ORACLE_MACHINE_CONNECTION_TIMEOUT_SECS))
                         {
-                            closePeer(&peers[i], ORACLE_MACHINE_GRACEFULL_CLOSE_RETIRES);
+                            closePeer(&peers[i], ORACLE_MACHINE_GRACEFUL_CLOSE_RETRIES);
                         }
 
                         // inactivity timeout between 1 and 2 minutes (depending on peer index to reduce risk of
@@ -7598,7 +7598,7 @@ EFI_STATUS efi_main(EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE* systemTable)
                             peers[i].lastOMActivityTime > 0 &&
                             ((__rdtsc() - peers[i].lastOMActivityTime) / frequency > OM_INACTIVITY_TIMEOUT_SECS))
                         {
-                            closePeer(&peers[i], ORACLE_MACHINE_GRACEFULL_CLOSE_RETIRES);
+                            closePeer(&peers[i], ORACLE_MACHINE_GRACEFUL_CLOSE_RETRIES);
                         }
                     }
                     else if (peers[i].isOcMachineNode())
@@ -7609,7 +7609,7 @@ EFI_STATUS efi_main(EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE* systemTable)
                             && peers[i].isConnectingAccepting
                             && ((__rdtsc() - peers[i].connectionStartTime) / frequency > OC_MACHINE_CONNECTION_TIMEOUT_SECS))
                         {
-                            closePeer(&peers[i], OC_MACHINE_GRACEFULL_CLOSE_RETIRES);
+                            closePeer(&peers[i], OC_MACHINE_GRACEFUL_CLOSE_RETRIES);
                         }
 
                         const unsigned long long OC_INACTIVITY_TIMEOUT_SECS = 120 - (i % 5) * 15;
@@ -7618,7 +7618,7 @@ EFI_STATUS efi_main(EFI_HANDLE imageHandle, EFI_SYSTEM_TABLE* systemTable)
                             peers[i].lastOcActivityTime > 0 &&
                             ((__rdtsc() - peers[i].lastOcActivityTime) / frequency > OC_INACTIVITY_TIMEOUT_SECS))
                         {
-                            closePeer(&peers[i], OC_MACHINE_GRACEFULL_CLOSE_RETIRES);
+                            closePeer(&peers[i], OC_MACHINE_GRACEFUL_CLOSE_RETRIES);
                         }
                     }
 

@@ -1,6 +1,6 @@
 # Outsourced Computations from contracts
 
-Outsourced Computations (OC) let Smart Contracts push intent out of Qubic to be executed by an external Processor.
+Outsourced Computations (OC) let Smart Contracts push intent out of Qubic to be executed by an external Processor. Only contracts can invoke OC; users can only trigger it indirectly, by calling a contract that does.
 Where an Oracle Machine retrieves information from outside Qubic and makes it available on-chain, an OC carries an authorized request out of Qubic so that an external system can act on it.
 The protocol defines how requests are expressed and authorized.
 What happens at the external system is the responsibility of the Processor and the interface.

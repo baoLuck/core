@@ -44,13 +44,13 @@
 // OM related setting
 static constexpr unsigned int ORACLE_MACHINE_CONNECTION_TIMEOUT_SECS = 15; // Config timout for connecting attemp to OM
 static constexpr unsigned int ORACLE_MACHINE_TRANSMITING_TIMEOUT_SECS = 30; // Transmitting timeout to OM
-static constexpr unsigned int ORACLE_MACHINE_GRACEFULL_CLOSE_RETIRES = 3; // Gracefull close retries for connecting attemp to OM
+static constexpr unsigned int ORACLE_MACHINE_GRACEFUL_CLOSE_RETRIES = 3; // Graceful close retries for connecting attempt to OM
 static constexpr unsigned long long OM_RECONNECT_COOLDOWN_SECS = 0;
 
 // OC machine setting (mirrors the OM settings above)
 static constexpr unsigned int OC_MACHINE_CONNECTION_TIMEOUT_SECS = 15; // Config timeout for connecting attempt to OC machine
 static constexpr unsigned int OC_MACHINE_TRANSMITING_TIMEOUT_SECS = 30; // Transmitting timeout to OC machine
-static constexpr unsigned int OC_MACHINE_GRACEFULL_CLOSE_RETIRES = 3; // Graceful close retries for connecting attempt to OC machine
+static constexpr unsigned int OC_MACHINE_GRACEFUL_CLOSE_RETRIES = 3; // Graceful close retries for connecting attempt to OC machine
 static constexpr unsigned long long OC_RECONNECT_COOLDOWN_SECS = 0;
 
 static_assert((NUMBER_OF_INCOMING_CONNECTIONS / NUMBER_OF_REGULAR_OUTGOING_CONNECTIONS) >= 11, "Number of incoming connections must be x11+ number of outgoing connections to keep healthy network");
@@ -60,6 +60,10 @@ static volatile bool listOfPeersIsStatic = false;
 #define OM_RETRY_COUNT(dejavu) ((dejavu) >> 24)
 #define OM_SET_RETRY_COUNT(dejavu, count) (((dejavu) & 0x00FFFFFF) | ((count) << 24))
 #define OM_MAX_RETRIES 3
+
+#define OC_RETRY_COUNT(dejavu) ((dejavu) >> 24)
+#define OC_SET_RETRY_COUNT(dejavu, count) (((dejavu) & 0x00FFFFFF) | ((count) << 24))
+#define OC_MAX_RETRIES 3
 
 struct Peer
 {
@@ -579,7 +583,7 @@ static void pushToOcMachineNodes(RequestResponseHeader* requestResponseHeader)
         unsigned short numberOfSuitablePeers = 0;
 
         unsigned int currentDejavu = requestResponseHeader->dejavu();
-        if (OM_RETRY_COUNT(currentDejavu) > OM_MAX_RETRIES)
+        if (OC_RETRY_COUNT(currentDejavu) > OC_MAX_RETRIES)
         {
             requestResponseHeader->setDejavu(currentDejavu & 0x00FFFFFF);
         }
@@ -602,11 +606,11 @@ static void pushToOcMachineNodes(RequestResponseHeader* requestResponseHeader)
         // Re-enqueue if no OC peer was ready.
         if (!pushedToAny)
         {
-            unsigned int retryCount = OM_RETRY_COUNT(requestResponseHeader->dejavu());
-            if (retryCount < OM_MAX_RETRIES)
+            unsigned int retryCount = OC_RETRY_COUNT(requestResponseHeader->dejavu());
+            if (retryCount < OC_MAX_RETRIES)
             {
                 requestResponseHeader->setDejavu(
-                    OM_SET_RETRY_COUNT(requestResponseHeader->dejavu(), retryCount + 1));
+                    OC_SET_RETRY_COUNT(requestResponseHeader->dejavu(), retryCount + 1));
                 enqueueResponse((Peer*)2, requestResponseHeader);
             }
         }
