@@ -832,14 +832,10 @@ public:
 
     BEGIN_EPOCH_WITH_LOCALS()
     {
-        state.mut().developmentFundAddress = ID(_Q, _O, _W, _F, _W, _Q, _C, _P, _C, _M, _V, _S, _W, _G, _Z, _K, _H, _V, _D, _D, _A, _B, _L, _L, _T, _E, _N, _D, _T, _H, _H, _V, _T, _P, _L, _X, _B, _N, _V, _W, _E, _D, _P, _G, _Q, _A, _E, _L, _Y, _L, _I, _S, _P, _G, _T, _A);
-        locals.address1 = ID(_K, _D, _F, _D, _H, _J, _F, _E, _B, _J, _W, _E, _Z, _D, _F, _I, _C, _T, _P, _Z, _N, _N, _D, _T, _A, _Z, _S, _A, _H, _F, _G, _Q, _H, _D, _O, _C, _X, _R, _P, _G, _D, _D, _I, _B, _F, _P, _D, _D, _Q, _Z, _H, _O, _V, _H, _V, _D);
-        locals.address2 = ID(_Z, _V, _V, _C, _R, _T, _G, _Y, _W, _B, _K, _H, _X, _D, _F, _M, _Q, _D, _X, _F, _V, _B, _D, _N, _N, _L, _I, _D, _K, _Q, _F, _N, _B, _Q, _K, _V, _U, _L, _R, _N, _H, _F, _E, _Z, _K, _C, _K, _B, _H, _X, _I, _B, _E, _N, _S, _E);
-
-        if (qpi.epoch() == 199)
+        if (qpi.epoch() == 223)
         {
-            qpi.transfer(locals.address1, 30000000);
-            qpi.transfer(locals.address2, 100000000);
+            state.mut().transferRightsFee = 100;
+            state.mut().developmentFundAddress = ID(_Q, _O, _W, _F, _W, _Q, _C, _P, _C, _M, _V, _S, _W, _G, _Z, _K, _H, _V, _D, _D, _A, _B, _L, _L, _T, _E, _N, _D, _T, _H, _H, _V, _T, _P, _L, _X, _B, _N, _V, _W, _E, _D, _P, _G, _Q, _A, _E, _L, _Y, _L, _I, _S, _P, _G, _T, _A);
         }
     }
 
