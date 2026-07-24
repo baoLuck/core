@@ -824,15 +824,9 @@ public:
         state.mut().transferRightsFee = 100;
     }
 
-    struct BEGIN_EPOCH_locals
+    BEGIN_EPOCH()
     {
-        id address1;
-        id address2;
-    };
-
-    BEGIN_EPOCH_WITH_LOCALS()
-    {
-        if (qpi.epoch() == 223)
+        if (qpi.epoch() == 224)
         {
             state.mut().transferRightsFee = 100;
             state.mut().developmentFundAddress = ID(_Q, _O, _W, _F, _W, _Q, _C, _P, _C, _M, _V, _S, _W, _G, _Z, _K, _H, _V, _D, _D, _A, _B, _L, _L, _T, _E, _N, _D, _T, _H, _H, _V, _T, _P, _L, _X, _B, _N, _V, _W, _E, _D, _P, _G, _Q, _A, _E, _L, _Y, _L, _I, _S, _P, _G, _T, _A);
