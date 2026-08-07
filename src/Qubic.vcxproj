@@ -45,6 +45,7 @@
     <ClInclude Include="contracts\Nostromo.h" />
     <ClInclude Include="contracts\QRaffle.h" />
     <ClInclude Include="contracts\QBond.h" />
+    <ClInclude Include="contracts\QLoan.h" />
     <ClInclude Include="contracts\QIP.h" />
     <ClInclude Include="contracts\Qusino.h" />
     <ClInclude Include="contracts\QReservePool.h" />

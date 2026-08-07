@@ -71,6 +71,17 @@ public:
         invokeUserProcedure(QX_CONTRACT_INDEX, 9, input, output, user, 2000);
     }
 
+    void transferRightsToQx(const id& user, const std::string& assetName, const id& issuer, const uint64 numberOfShares)
+    {
+        QLOAN::TransferShareManagementRights_input input;
+        input.asset.assetName = assetNameFromString(assetName.c_str());
+        input.asset.issuer = issuer;
+        input.numberOfShares = numberOfShares;
+        input.newManagingContractIndex = QX_CONTRACT_INDEX;
+        QLOAN::TransferShareManagementRights_output output;
+        invokeUserProcedure(QLOAN_CONTRACT_INDEX, 4, input, output, user, 2000);
+    }
+
     void placeLoanReq(const id& user, const std::string& assetName, const id& assetIssuer, const uint64& numberOfShares,
         const uint64& price, const uint64& interestRate, const uint64& returnPeriod, bool isLoanReq, bool assetsToCreditor,
         const int64_t& quAmount, const id& privateId = NULL_ID)
@@ -344,7 +355,7 @@ TEST(ContractQLoan, PayLoanDebt)
     increaseEnergy(testAddress2, 2000000000);
 
     std::string assetName = "ABCH";
-    qloan.placeLoanReq(testAddress1, assetName, testAddress2, 300, 2000, 10, 10, false, false, QLOAN_PLACE_LOAN_REQ_FEE + 2000);
+    qloan.placeLoanReq(testAddress1, assetName, testAddress2, 300, 2000, 10, 10, false, true, QLOAN_PLACE_LOAN_REQ_FEE + 2000);
 
     qloan.issueAsset(testAddress2, assetName, 4000);
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress2, testAddress2, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 4000);
@@ -361,8 +372,23 @@ TEST(ContractQLoan, PayLoanDebt)
     EXPECT_EQ(reqs.reqs.get(0).epochsLeft, 7);
     EXPECT_EQ(reqs.reqs.get(0).state, QLOAN::LoanReqState::ACTIVE);
 
-    qloan.payLoanDebt(testAddress2, reqs.reqs.get(0).reqId, reqs.reqs.get(0).debtAmount);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress1, testAddress1, QLOAN_CONTRACT_INDEX, QLOAN_CONTRACT_INDEX), 300);
+    qloan.transferRightsToQx(testAddress1, assetName, testAddress2, 200);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress1, testAddress1, QLOAN_CONTRACT_INDEX, QLOAN_CONTRACT_INDEX), 100);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress1, testAddress1, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 200);
 
+    qloan.payLoanDebt(testAddress2, reqs.reqs.get(0).reqId, reqs.reqs.get(0).debtAmount);
+    reqs = qloan.getAllLoanReqs();
+    EXPECT_EQ(reqs.reqs.get(0).debtAmount, 2066);
+
+    EXPECT_EQ(qloan.getState()->_loanReqs.population(), 1);
+    EXPECT_EQ(qloan.getState()->_totalReqs, 1);
+
+    qloan.transferRightsToQloan(testAddress1, assetName, testAddress2, 200);
+    qloan.payLoanDebt(testAddress2, reqs.reqs.get(0).reqId, reqs.reqs.get(0).debtAmount);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress1, testAddress1, QLOAN_CONTRACT_INDEX, QLOAN_CONTRACT_INDEX), 0);
+    reqs = qloan.getAllLoanReqs();
+    EXPECT_EQ(reqs.reqs.get(0).debtAmount, 0);
     EXPECT_EQ(qloan.getState()->_loanReqs.population(), 0);
     EXPECT_EQ(qloan.getState()->_totalReqs, 0);
 }
