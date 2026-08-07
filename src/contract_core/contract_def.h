@@ -12,11 +12,14 @@
 // With no other includes before, the following are the only headers available to contracts.
 // When adding something, be cautious to keep access of contracts limited to safe features only.
 #include "pre_qpi_def.h"
-#include "contracts/qpi.h"
-#include "qpi_proposal_voting.h"
+#include "qpi/qpi.h"
+#include "qpi/impl/qpi_proposals_impl.h"
 
 // make interfaces to oracles available for all contracts
 #include "oracle_core/oracle_interfaces_def.h"
+
+// make OC (Outsourced Computation) interfaces available for all contracts (OCI::)
+#include "oc_core/oc_interfaces_def.h"
 
 #define QX_CONTRACT_INDEX 1
 #define CONTRACT_INDEX QX_CONTRACT_INDEX
@@ -142,7 +145,11 @@
 #define CONTRACT_INDEX QSWAP_CONTRACT_INDEX
 #define CONTRACT_STATE_TYPE QSWAP
 #define CONTRACT_STATE2_TYPE QSWAP2
+#ifdef OLD_QSWAP
+#include "contracts/Qswap_old.h"
+#else
 #include "contracts/Qswap.h"
+#endif
 
 #undef CONTRACT_INDEX
 #undef CONTRACT_STATE_TYPE
@@ -284,13 +291,19 @@
 #define CONTRACT_STATE2_TYPE ESCROW2
 #include "contracts/Escrow.h"
 
+#define WOLFPACK_CONTRACT_INDEX 28
+#define CONTRACT_INDEX WOLFPACK_CONTRACT_INDEX
+#define CONTRACT_STATE_TYPE WOLFPACK
+#define CONTRACT_STATE2_TYPE WOLFPACK2
+#include "contracts/GGWP.h"
+
 #ifndef NO_QLOAN
 
 #undef CONTRACT_INDEX
 #undef CONTRACT_STATE_TYPE
 #undef CONTRACT_STATE2_TYPE
 
-#define QLOAN_CONTRACT_INDEX 28
+#define QLOAN_CONTRACT_INDEX 29
 #define CONTRACT_INDEX QLOAN_CONTRACT_INDEX
 #define CONTRACT_STATE_TYPE QLOAN
 #define CONTRACT_STATE2_TYPE QLOAN2
@@ -354,10 +367,10 @@ constexpr unsigned short TESTEXD_CONTRACT_INDEX = (CONTRACT_INDEX + 1);
 
 // The following are included after the contracts to keep their definitions and dependencies
 // inaccessible for contracts
-#include "qpi_collection_impl.h"
-#include "qpi_trivial_impl.h"
-#include "qpi_hash_map_impl.h"
-#include "qpi_linked_list_impl.h"
+#include "qpi/impl/qpi_collection_impl.h"
+#include "qpi/impl/qpi_trivial_impl.h"
+#include "qpi/impl/qpi_hash_map_impl.h"
+#include "qpi/impl/qpi_linked_list_impl.h"
 
 #include "platform/global_var.h"
 
@@ -412,8 +425,9 @@ constexpr struct ContractDescription
     {"VOTTUN", 206, 10000, sizeof(VOTTUNBRIDGE::StateData)}, // proposal in epoch 204, IPO in 205, construction and first use in 206
     {"QUSINO", 208, 10000, sizeof(QUSINO::StateData)}, // proposal in epoch 206, IPO in 207, construction and first use in 208
     {"ESCROW", 210, 10000, sizeof(ESCROW::StateData)}, // proposal in epoch 208, IPO in 209, construction and first use in 210
+    {"GGWP", 218, 10000, sizeof(WOLFPACK::StateData)}, // proposal in epoch 216, IPO in 217, construction and first use in 218
 #ifndef NO_QLOAN
-    {"QLOAN", 211, 10000, sizeof(QLOAN::StateData)},
+    {"QLOAN", 220, 10000, sizeof(QLOAN::StateData)},
 #endif
     // new contracts should be added above this line
 #ifdef INCLUDE_CONTRACT_TEST_EXAMPLES
@@ -427,6 +441,10 @@ constexpr struct ContractDescription
 constexpr unsigned int contractCount = sizeof(contractDescriptions) / sizeof(contractDescriptions[0]);
 
 GLOBAL_VAR_DECL EXPAND_PROCEDURE contractExpandProcedures[contractCount];
+
+GLOBAL_VAR_DECL MIGRATE_PROCEDURE contractMigrateProcedures[contractCount];
+GLOBAL_VAR_DECL unsigned long long contractMigrateOldStateSizes[contractCount];
+GLOBAL_VAR_DECL unsigned short contractMigrateLocalsSizes[contractCount];
 
 // TODO: all below are filled very sparsely, so a better data structure could save almost all the memory
 GLOBAL_VAR_DECL USER_FUNCTION contractUserFunctions[contractCount][65536];
@@ -470,6 +488,7 @@ enum OtherEntryPointIDs
     USER_FUNCTION_CALL = contractSystemProcedureCount + 2,
     REGISTER_USER_FUNCTIONS_AND_PROCEDURES_CALL = contractSystemProcedureCount + 3,
     USER_PROCEDURE_NOTIFICATION_CALL = contractSystemProcedureCount + 4,
+	MIGRATE_PROCEDURE_CALL = contractSystemProcedureCount + 5,
 };
 
 GLOBAL_VAR_DECL SYSTEM_PROCEDURE contractSystemProcedures[contractCount][contractSystemProcedureCount];
@@ -503,6 +522,9 @@ contractSystemProcedureLocalsSizes[contractIndex][SET_SHAREHOLDER_PROPOSAL] = co
 if (!contractName::__setShareholderVotesEmpty) contractSystemProcedures[contractIndex][SET_SHAREHOLDER_VOTES] = (SYSTEM_PROCEDURE)contractName::__setShareholderVotes;\
 contractSystemProcedureLocalsSizes[contractIndex][SET_SHAREHOLDER_VOTES] = contractName::__setShareholderVotesLocalsSize; \
 if (!contractName::__expandEmpty) contractExpandProcedures[contractIndex] = (EXPAND_PROCEDURE)contractName::__expand;\
+if (!contractName::__migrateEmpty) contractMigrateProcedures[contractIndex] = (MIGRATE_PROCEDURE)contractName::__migrate;\
+contractMigrateOldStateSizes[contractIndex] = contractName::__migrateOldStateSize;\
+contractMigrateLocalsSizes[contractIndex] = contractName::__migrateLocalsSize;\
 QpiContextForInit qpi(contractIndex); \
 contractName::__registerUserFunctionsAndProcedures(qpi); \
 static_assert(sizeof(contractName::StateData) <= MAX_CONTRACT_STATE_SIZE, "Size of contract state " #contractName " is too large!"); \
@@ -538,6 +560,7 @@ static void initializeContracts()
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(VOTTUNBRIDGE);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QUSINO);
     REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(ESCROW);
+    REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(WOLFPACK);
 #ifndef NO_QLOAN
 	REGISTER_CONTRACT_FUNCTIONS_AND_PROCEDURES(QLOAN);
 #endif
@@ -550,13 +573,31 @@ static void initializeContracts()
 #endif
 }
 
-// Automatic Contract Padding
-// Contracts whose state struct grew this epoch. Update this list each epoch as needed.
+// ----- Automatic Contract State Changes -----
+// NOTE: All state changes are currently only triggered during loading if the loaded size does not match the expected size.
+// If we ever need a reset or migrate where the state size remains the same, we have to change the implementation in loadContractStateFiles.
+enum ContractStateChangeType
+{
+    // Keeps the saved state's old bytes, only zero-fills the new bytes at the end (used when struct grew; old fields preserved)
+    PADDING,
+    // Discards the saved state entirely, zeros the whole buffer
+    RESET,
+    // Migrate data from an old to a new state struct
+	MIGRATE,
+};
+struct ContractStateChangeInfo
+{
+    unsigned int contractIndex;
+    ContractStateChangeType changeType;
+    unsigned short changeEpoch; // extra safeguard to prevent accidental state change
+};
+// Contracts whose state struct changed this epoch. Update this list each epoch as needed.
+// Each entry is { CONTRACT_INDEX, PADDING or RESET or MIGRATE, EPOCH }
 // When enabling, replace both lines below, e.g.:
-//   constexpr unsigned int paddableContracts[] = { RANDOM_CONTRACT_INDEX };
-//   constexpr unsigned int paddableCount = sizeof(paddableContracts) / sizeof(paddableContracts[0]);
-constexpr const unsigned int* paddableContracts = nullptr;
-constexpr unsigned int paddableCount = 0;
+//constexpr ContractStateChangeInfo contractStateChangeInfos[] = { { DUMMY_CONTRACT_INDEX, MIGRATE, 219 } };
+//constexpr unsigned int contractStateChangeCount = sizeof(contractStateChangeInfos) / sizeof(contractStateChangeInfos[0]);
+constexpr ContractStateChangeInfo contractStateChangeInfos[] = { { QIP_CONTRACT_INDEX, RESET, 224 }, { RANDOM_CONTRACT_INDEX, PADDING, 224 } };
+constexpr unsigned int contractStateChangeCount = sizeof(contractStateChangeInfos) / sizeof(contractStateChangeInfos[0]);
 
 
 // Class for registering and looking up user procedures independently of input type, for example for notifications

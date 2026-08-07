@@ -119,13 +119,13 @@
     <ClInclude Include="score_common_reference.h" />
     <ClInclude Include="score_hyperidentity_reference.h" />
     <ClInclude Include="score_params.h" />
-    <ClInclude Include="score_reference.h" />
     <ClInclude Include="test_util.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="common_def.cpp" />
     <ClCompile Include="contract_qloan.cpp" />
     <ClCompile Include="contract_escrow.cpp" />
+    <ClCompile Include="contract_ggwp.cpp" />
     <ClCompile Include="contract_pulse.cpp" />
     <ClCompile Include="contract_qbond.cpp" />
     <ClCompile Include="contract_qrwa.cpp" />
@@ -137,6 +137,7 @@
     <ClCompile Include="quorum_value.cpp" />
     <ClCompile Include="sorting.cpp" />
     <ClCompile Include="oracle_engine.cpp" />
+    <ClCompile Include="oc_engine.cpp" />
     <ClCompile Include="uint128.cpp" />
     <ClCompile Include="assets.cpp" />
     <ClCompile Include="contract_core.cpp" />

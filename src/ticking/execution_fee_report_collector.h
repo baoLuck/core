@@ -3,7 +3,7 @@
 #include "platform/quorum_value.h"
 #include "network_messages/execution_fees.h"
 #include "contract_core/contract_def.h"
-#include "contract_core/qpi_spectrum_impl.h"
+#include "qpi/impl/qpi_spectrum_impl.h"
 #include "logging/logging.h"
 
 class ExecutionFeeReportCollector
@@ -42,6 +42,8 @@ return nullptr;
 
 bool validateReportEntries(const unsigned int* contractIndices, const unsigned long long* executionFees, unsigned int numEntries)
 {
+if (numEntries > contractCount)
+    return false;
 for (unsigned int i = 0; i < numEntries; i++)
 {
     if (contractIndices[i] == 0 || contractIndices[i] >= contractCount || executionFees[i] == 0)
