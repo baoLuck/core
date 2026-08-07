@@ -3,9 +3,8 @@ using namespace QPI;
 constexpr uint64 QLOAN_PLACE_LOAN_REQ_FEE = 100000;
 
 constexpr uint64 QLOAN_ACCEPTANCE_FEE_PERCENT = 15;
-constexpr uint64 QLOAN_DISTRIBUTE_PERCENT = 5000; // 50%
-constexpr uint64 QLOAN_BURN_PERCENT = 500; // 5%
-constexpr uint64 QLOAN_QVAULT_PERCENT = 4500; // 45%
+constexpr uint64 QLOAN_BURN_PERCENT = 300; // 3%
+constexpr uint64 QLOAN_QVAULT_PERCENT = 9700; // 97%
 
 constexpr uint64 QLOAN_MAX_LOAN_PERIOD_IN_EPOCHS = 52;
 constexpr uint64 QLOAN_MAX_INTEREST_RATE = 100;
@@ -596,9 +595,9 @@ public:
         while (locals.loanReqsIdx != NULL_INDEX)
         {
             locals.tmpLoanReq = state.get()._loanReqs.value(locals.loanReqsIdx);
-            if (locals.tmpLoanReq.borrower == qpi.invocator()
-                && ((locals.tmpLoanReq.state == LoanReqState::ACTIVE && locals.tmpLoanReq.assetsToCreditor == false)
-                    || locals.tmpLoanReq.state == LoanReqState::IDLE))
+
+            if ((locals.tmpLoanReq.borrower == qpi.invocator() || locals.tmpLoanReq.creditor == qpi.invocator())
+                && (locals.tmpLoanReq.state == LoanReqState::ACTIVE || locals.tmpLoanReq.state == LoanReqState::IDLE))
             {
                 // Need to scan all assets in loan request to make sure it's have an assets user want to release
                 locals.userReqAssetIdx = 0;
@@ -673,7 +672,7 @@ public:
         if (locals.tmpLoanReq.borrower != qpi.invocator()
             || locals.tmpLoanReq.state != LoanReqState::ACTIVE
             || sint64(locals.tmpLoanReq.debtAmount) > qpi.invocationReward()
-            || (locals.tmpLoanReq.returnPeriodInEpochs - locals.tmpLoanReq.epochsLeft) < locals.tmpLoanReq.returnPeriodInEpochs / 3)
+            || (locals.tmpLoanReq.returnPeriodInEpochs - locals.tmpLoanReq.epochsLeft) < QPI::div(locals.tmpLoanReq.returnPeriodInEpochs, uint64(3)))
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
@@ -818,7 +817,6 @@ public:
     PUBLIC_FUNCTION(GetFeesInfo)
     {
         output.acceptanceFeePercent = QLOAN_ACCEPTANCE_FEE_PERCENT;
-        output.distributeFeePercent = QLOAN_DISTRIBUTE_PERCENT;
         output.burnFeePercent = QLOAN_BURN_PERCENT;
 
         output.earnedAmount = state.get()._earnedAmount;
@@ -932,30 +930,24 @@ public:
 
     struct END_EPOCH_locals
     {
-        uint64 amountToDistribute;
         uint64 amountToBurn;
         uint64 amountToQvault;
     };
 
     END_EPOCH_WITH_LOCALS()
     {
-        locals.amountToDistribute = div(smul((state.get()._earnedAmount - state.get()._distributedAmount), QLOAN_DISTRIBUTE_PERCENT), 10000ULL);
         locals.amountToBurn = div(smul((state.get()._earnedAmount - state.get()._distributedAmount), QLOAN_BURN_PERCENT), 10000ULL);
         locals.amountToQvault = div(smul((state.get()._earnedAmount - state.get()._distributedAmount), QLOAN_QVAULT_PERCENT), 10000ULL);
 
-        if ((QPI::div(locals.amountToDistribute, 676ULL) > 0) && (state.get()._earnedAmount > state.get()._distributedAmount))
+        if (state.get()._earnedAmount > state.get()._distributedAmount)
         {
-            if (qpi.distributeDividends(QPI::div(locals.amountToDistribute, 676ULL)))
-            {
-                qpi.burn(locals.amountToBurn);
-                qpi.transfer(id(QVAULT_CONTRACT_INDEX, 0, 0, 0), locals.amountToQvault);
-                state.mut()._distributedAmount += QPI::div(locals.amountToDistribute, 676ULL) * NUMBER_OF_COMPUTORS;
-                state.mut()._distributedAmount += locals.amountToBurn;
-                state.mut()._distributedAmount += locals.amountToQvault;
+            qpi.burn(locals.amountToBurn);
+            qpi.transfer(id(QVAULT_CONTRACT_INDEX, 0, 0, 0), locals.amountToQvault);
+            state.mut()._distributedAmount += locals.amountToBurn;
+            state.mut()._distributedAmount += locals.amountToQvault;
 
-                state.mut()._burnedAmount += locals.amountToBurn;
-                state.mut()._toQvaultAmount += locals.amountToQvault;
-            }
+            state.mut()._burnedAmount += locals.amountToBurn;
+            state.mut()._toQvaultAmount += locals.amountToQvault;
         }
     }
 

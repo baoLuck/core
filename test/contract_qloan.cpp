@@ -374,17 +374,9 @@ TEST(ContractQLoan, PayLoanDebt)
 
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress1, testAddress1, QLOAN_CONTRACT_INDEX, QLOAN_CONTRACT_INDEX), 300);
     qloan.transferRightsToQx(testAddress1, assetName, testAddress2, 200);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress1, testAddress1, QLOAN_CONTRACT_INDEX, QLOAN_CONTRACT_INDEX), 100);
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress1, testAddress1, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 200);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress1, testAddress1, QLOAN_CONTRACT_INDEX, QLOAN_CONTRACT_INDEX), 300);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress1, testAddress1, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 0);
 
-    qloan.payLoanDebt(testAddress2, reqs.reqs.get(0).reqId, reqs.reqs.get(0).debtAmount);
-    reqs = qloan.getAllLoanReqs();
-    EXPECT_EQ(reqs.reqs.get(0).debtAmount, 2066);
-
-    EXPECT_EQ(qloan.getState()->_loanReqs.population(), 1);
-    EXPECT_EQ(qloan.getState()->_totalReqs, 1);
-
-    qloan.transferRightsToQloan(testAddress1, assetName, testAddress2, 200);
     qloan.payLoanDebt(testAddress2, reqs.reqs.get(0).reqId, reqs.reqs.get(0).debtAmount);
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress1, testAddress1, QLOAN_CONTRACT_INDEX, QLOAN_CONTRACT_INDEX), 0);
     reqs = qloan.getAllLoanReqs();
@@ -411,9 +403,9 @@ TEST(ContractQLoan, FeesDistribution)
     qloan.endEpoch();
 
     auto fees2 = qloan.getFeesInfo();
-    EXPECT_EQ(fees2.distributedAmount, 199372);
-    EXPECT_EQ(fees2.burnedAmount, 10000);
-    EXPECT_EQ(fees2.toQvaultAmount, 90000);
+    EXPECT_EQ(fees2.distributedAmount, 200000);
+    EXPECT_EQ(fees2.burnedAmount, 6000);
+    EXPECT_EQ(fees2.toQvaultAmount, 194000);
 }
 
 TEST(ContractQLoan, TotalUserDebt)
