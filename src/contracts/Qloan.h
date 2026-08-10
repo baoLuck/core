@@ -671,8 +671,7 @@ public:
         // Make sure we check all conditions before moving forward
         if (locals.tmpLoanReq.borrower != qpi.invocator()
             || locals.tmpLoanReq.state != LoanReqState::ACTIVE
-            || sint64(locals.tmpLoanReq.debtAmount) > qpi.invocationReward()
-            || (locals.tmpLoanReq.returnPeriodInEpochs - locals.tmpLoanReq.epochsLeft) < QPI::div(locals.tmpLoanReq.returnPeriodInEpochs, uint64(3)))
+            || sint64(locals.tmpLoanReq.debtAmount) > qpi.invocationReward())
         {
             qpi.transfer(qpi.invocator(), qpi.invocationReward());
             return;
