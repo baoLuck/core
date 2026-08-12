@@ -153,6 +153,7 @@ struct QLOAN : public ContractBase
         Array<Asset, QLOAN_MAX_ASSETS_NUM> assets;
         Array<sint64, QLOAN_MAX_ASSETS_NUM> assetAmount;
         uint8 assetsNum;
+        uint64 excludeReqId;
     };
 
     struct _CheckAssetsPresence_output
@@ -182,8 +183,9 @@ struct QLOAN : public ContractBase
             // If user is a borrower - we need to check if assets transfered to the creditor in case of Active request,
             // otherwise request might be in the IDLE state and we still should count these tokens
             // If user is a creditor and assets should be transfered to creditor in active loan request then we should count these tokens too
-            if ((locals.tmpLoanReq.borrower == input.owner && ((locals.tmpLoanReq.state == LoanReqState::ACTIVE && locals.tmpLoanReq.assetsToCreditor == false) || locals.tmpLoanReq.state == LoanReqState::IDLE))
-                || (locals.tmpLoanReq.creditor == input.owner && (locals.tmpLoanReq.state == LoanReqState::ACTIVE && locals.tmpLoanReq.assetsToCreditor == true)))
+            if (state.get()._loanReqs.key(locals.loanReqsIdx) != input.excludeReqId
+                && ((locals.tmpLoanReq.borrower == input.owner && ((locals.tmpLoanReq.state == LoanReqState::ACTIVE && locals.tmpLoanReq.assetsToCreditor == false) || locals.tmpLoanReq.state == LoanReqState::IDLE))
+                || (locals.tmpLoanReq.creditor == input.owner && (locals.tmpLoanReq.state == LoanReqState::ACTIVE && locals.tmpLoanReq.assetsToCreditor == true))))
             {
                 // Iterate over assets in the user loan request
                 locals.inputReqAssetIdx = 0;
@@ -324,6 +326,7 @@ public:
             locals.checkAssetsPresenceInput.assets = input.assets;
             locals.checkAssetsPresenceInput.assetAmount = input.assetAmount;
             locals.checkAssetsPresenceInput.assetsNum = input.assetsNum;
+            locals.checkAssetsPresenceInput.excludeReqId = state.get()._currentLoanIndex;
             CALL(_CheckAssetsPresence, locals.checkAssetsPresenceInput, locals.checkAssetsPresenceOutput);
 
             if (locals.checkAssetsPresenceOutput.allGood == false)
@@ -435,6 +438,7 @@ public:
             locals.checkAssetsPresenceInput.assets = locals.tmpLoanReq.assets;
             locals.checkAssetsPresenceInput.assetAmount = locals.tmpLoanReq.assetAmount;
             locals.checkAssetsPresenceInput.assetsNum = locals.tmpLoanReq.assetsNum;
+            locals.checkAssetsPresenceInput.excludeReqId = input.reqId;
             CALL(_CheckAssetsPresence, locals.checkAssetsPresenceInput, locals.checkAssetsPresenceOutput);
 
             // Check that borrower has enough assets and creditor send us right amount of money for contract
@@ -482,6 +486,7 @@ public:
             locals.checkAssetsPresenceInput.assets = locals.tmpLoanReq.assets;
             locals.checkAssetsPresenceInput.assetAmount = locals.tmpLoanReq.assetAmount;
             locals.checkAssetsPresenceInput.assetsNum = locals.tmpLoanReq.assetsNum;
+            locals.checkAssetsPresenceInput.excludeReqId = input.reqId;
             CALL(_CheckAssetsPresence, locals.checkAssetsPresenceInput, locals.checkAssetsPresenceOutput);
             if (locals.checkAssetsPresenceOutput.allGood == false)
             {

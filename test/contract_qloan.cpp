@@ -165,9 +165,9 @@ TEST(ContractQLoan, PlaceLoanReqValidation)
 
     qloan.issueAsset(testAddress1, assetName, 4000);
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress1, testAddress1, testAddress1, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 4000);
-    qloan.transferRightsToQloan(testAddress1, assetName, testAddress1, 1000);
+    qloan.transferRightsToQloan(testAddress1, assetName, testAddress1, 600);
 
-    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress1, testAddress1, testAddress1, QLOAN_CONTRACT_INDEX, QLOAN_CONTRACT_INDEX), 1000);
+    EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress1, testAddress1, testAddress1, QLOAN_CONTRACT_INDEX, QLOAN_CONTRACT_INDEX), 600);
     qloan.placeLoanReq(testAddress1, assetName, testAddress1, 300, 10, 10, 10, true, false, QLOAN_PLACE_LOAN_REQ_FEE);
     EXPECT_EQ(qloan.getState()->getLoanReqsPopulation(), 1);
 
@@ -185,9 +185,9 @@ TEST(ContractQLoan, PlaceLoanPrivateRequest)
     std::string assetName = "ABCE";
     qloan.issueAsset(testAddress1, assetName, 4000);
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress1, testAddress1, testAddress1, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 4000);
-    qloan.transferRightsToQloan(testAddress1, assetName, testAddress1, 1000);
+    qloan.transferRightsToQloan(testAddress1, assetName, testAddress1, 300);
 
-    qloan.placeLoanReq(testAddress1, assetName, testAddress1, 300, 2000, 10, 10, true, false, QLOAN_PLACE_LOAN_REQ_FEE, testAddress3);
+    qloan.placeLoanReq(testAddress1, assetName, testAddress1, 300, 2000, 10, 10, true, true, QLOAN_PLACE_LOAN_REQ_FEE, testAddress3);
 
     auto allReqsBefore = qloan.getAllLoanReqs();
     EXPECT_EQ(allReqsBefore.reqsAmount, 1);
@@ -215,7 +215,7 @@ TEST(ContractQLoan, AcceptLoanReq)
     std::string assetName = "ABCE";
     qloan.issueAsset(testAddress1, assetName, 4000);
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress1, testAddress1, testAddress1, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 4000);
-    qloan.transferRightsToQloan(testAddress1, assetName, testAddress1, 1000);
+    qloan.transferRightsToQloan(testAddress1, assetName, testAddress1, 600);
 
     qloan.placeLoanReq(testAddress1, assetName, testAddress1, 300, 2000, 10, 10, true, false, QLOAN_PLACE_LOAN_REQ_FEE);
 
@@ -250,7 +250,7 @@ TEST(ContractQLoan, AcceptLoanReqCreditRequest)
 
     qloan.issueAsset(testAddress2, assetName, 4000);
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress2, testAddress2, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 4000);
-    qloan.transferRightsToQloan(testAddress2, assetName, testAddress2, 1000);
+    qloan.transferRightsToQloan(testAddress2, assetName, testAddress2, 300);
 
     auto allReqsBefore = qloan.getAllLoanReqs();
     uint64 reqId = allReqsBefore.reqs.get(0).reqId;
@@ -272,7 +272,7 @@ TEST(ContractQLoan, RemoveLoanReq)
     std::string assetName = "ABCG";
     qloan.issueAsset(testAddress1, assetName, 4000);
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress1, testAddress1, testAddress1, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 4000);
-    qloan.transferRightsToQloan(testAddress1, assetName, testAddress1, 1000);
+    qloan.transferRightsToQloan(testAddress1, assetName, testAddress1, 300);
 
     qloan.placeLoanReq(testAddress1, assetName, testAddress1, 300, 2000, 10, 10, true, false, QLOAN_PLACE_LOAN_REQ_FEE);
 
@@ -299,7 +299,7 @@ TEST(ContractQLoan, EpochDebtCalculation)
 
     qloan.issueAsset(testAddress2, assetName, 4000);
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress2, testAddress2, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 4000);
-    qloan.transferRightsToQloan(testAddress2, assetName, testAddress2, 1000);
+    qloan.transferRightsToQloan(testAddress2, assetName, testAddress2, 300);
 
     auto reqs = qloan.getAllLoanReqs();
     uint64 reqId = reqs.reqs.get(0).reqId;
@@ -332,7 +332,7 @@ TEST(ContractQLoan, LoanExpiration)
 
     qloan.issueAsset(testAddress2, assetName, 4000);
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress2, testAddress2, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 4000);
-    qloan.transferRightsToQloan(testAddress2, assetName, testAddress2, 1000);
+    qloan.transferRightsToQloan(testAddress2, assetName, testAddress2, 300);
 
     auto reqs = qloan.getAllLoanReqs();
     uint64 reqId = reqs.reqs.get(0).reqId;
@@ -359,7 +359,7 @@ TEST(ContractQLoan, PayLoanDebt)
 
     qloan.issueAsset(testAddress2, assetName, 4000);
     EXPECT_EQ(numberOfPossessedShares(assetNameFromString(assetName.c_str()), testAddress2, testAddress2, testAddress2, QX_CONTRACT_INDEX, QX_CONTRACT_INDEX), 4000);
-    qloan.transferRightsToQloan(testAddress2, assetName, testAddress2, 1000);
+    qloan.transferRightsToQloan(testAddress2, assetName, testAddress2, 300);
 
     auto reqs = qloan.getAllLoanReqs();
     uint64 reqId = reqs.reqs.get(0).reqId;
@@ -420,7 +420,7 @@ TEST(ContractQLoan, TotalUserDebt)
     qloan.placeLoanReq(testAddress1, assetName, testAddress2, 300, 2000, 100, 10, false, false, QLOAN_PLACE_LOAN_REQ_FEE + 2000);
 
     qloan.issueAsset(testAddress2, assetName, 4000);
-    qloan.transferRightsToQloan(testAddress2, assetName, testAddress2, 1000);
+    qloan.transferRightsToQloan(testAddress2, assetName, testAddress2, 300);
 
     auto reqs = qloan.getAllLoanReqs();
 
